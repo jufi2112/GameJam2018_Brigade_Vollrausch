@@ -19,8 +19,8 @@ void EmptyLinkFunctionForGeneratedCodeHoverBlocks_init() {}
 			static const UE4CodeGen_Private::FPackageParams PackageParams = {
 				"/Script/HoverBlocks",
 				PKG_CompiledIn | 0x00000000,
-				0x190C967A,
-				0x7A834798,
+				0xFA6C81AA,
+				0xE257722E,
 				nullptr, 0,
 				METADATA_PARAMS(nullptr, 0)
 			};

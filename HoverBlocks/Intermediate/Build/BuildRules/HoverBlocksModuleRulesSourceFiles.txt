@@ -1,3 +1,3 @@
-D:\Users\Julien\Documents\GameJam\HoverBlocks\Source\HoverBlocks\HoverBlocks.Build.cs
-D:\Users\Julien\Documents\GameJam\HoverBlocks\Source\HoverBlocks.Target.cs
-D:\Users\Julien\Documents\GameJam\HoverBlocks\Source\HoverBlocksEditor.Target.cs
+D:\Users\Julien\Documents\GameJam\GameJam2018_Brigade_Vollrausch\HoverBlocks\Source\HoverBlocks\HoverBlocks.Build.cs
+D:\Users\Julien\Documents\GameJam\GameJam2018_Brigade_Vollrausch\HoverBlocks\Source\HoverBlocks.Target.cs
+D:\Users\Julien\Documents\GameJam\GameJam2018_Brigade_Vollrausch\HoverBlocks\Source\HoverBlocksEditor.Target.cs
