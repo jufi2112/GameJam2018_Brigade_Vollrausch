@@ -1,0 +1,46 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+	<ItemGroup>
+		<None Include="..\..\HoverBlocks.uproject" />
+		<Filter Include="Source">
+			<UniqueIdentifier>{386F2E36-6FED-4CB2-A1B7-DA73C860D345}</UniqueIdentifier>
+		</Filter>
+		<None Include="..\..\Source\HoverBlocks.Target.cs">
+			<Filter>Source</Filter>
+		</None >
+		<None Include="..\..\Source\HoverBlocksEditor.Target.cs">
+			<Filter>Source</Filter>
+		</None >
+		<Filter Include="Config">
+			<UniqueIdentifier>{A582FD63-5F47-4805-9CD7-691345FF0052}</UniqueIdentifier>
+		</Filter>
+		<None Include="..\..\Config\DefaultEditor.ini">
+			<Filter>Config</Filter>
+		</None >
+		<None Include="..\..\Config\DefaultEngine.ini">
+			<Filter>Config</Filter>
+		</None >
+		<None Include="..\..\Config\DefaultGame.ini">
+			<Filter>Config</Filter>
+		</None >
+		<Filter Include="Source\HoverBlocks">
+			<UniqueIdentifier>{6E37B557-135D-4B35-B68E-5100445869EE}</UniqueIdentifier>
+		</Filter>
+		<None Include="..\..\Source\HoverBlocks\HoverBlocks.Build.cs">
+			<Filter>Source\HoverBlocks</Filter>
+		</None >
+		<ClCompile Include="..\..\Source\HoverBlocks\HoverBlocks.cpp">
+			<Filter>Source\HoverBlocks</Filter>
+		</ClCompile >
+		<ClInclude Include="..\..\Source\HoverBlocks\HoverBlocks.h">
+			<Filter>Source\HoverBlocks</Filter>
+		</ClInclude >
+		<ClCompile Include="..\..\Source\HoverBlocks\HoverBlocksGameModeBase.cpp">
+			<Filter>Source\HoverBlocks</Filter>
+		</ClCompile >
+		<ClInclude Include="..\..\Source\HoverBlocks\HoverBlocksGameModeBase.h">
+			<Filter>Source\HoverBlocks</Filter>
+		</ClInclude >
+	</ItemGroup>
+</Project>
