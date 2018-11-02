@@ -13,7 +13,17 @@ The aim is to create a very fast paced (3D) hover block racing game.
 **Nice to have:**
  * AI enemies
  * multiple maps
+ * breaking blocks
 
 # Art Style
 
 The art style is low poly and flat shaded.
+
+# Maps
+
+ * mostly rural
+ * mountain
+ * some trees
+ * a small lake
+ * bushes
+ * maybe a small city --> buildings
