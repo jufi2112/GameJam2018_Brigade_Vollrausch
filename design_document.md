@@ -24,6 +24,6 @@ The art style is low poly and flat shaded.
  * mostly rural
  * mountain
  * some trees
- * a small see
+ * a small lake
  * bushes
  * maybe a small city --> buildings
