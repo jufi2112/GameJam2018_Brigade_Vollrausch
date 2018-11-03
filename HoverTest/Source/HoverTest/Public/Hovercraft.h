@@ -118,4 +118,7 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = Setup)
 	void ToggleDrawDebugTraces();
+
+	UFUNCTION()
+	bool GetStaticMeshLocation(FVector& Location);
 };
