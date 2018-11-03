@@ -21,6 +21,8 @@ protected:
 	UPROPERTY(VisibleAnywhere, Category = Reset)
 	float ResetYaw = 0.f;
 
+	FTimerHandle StartDelayTimerHandle;
+
 public:
 
 	UFUNCTION(BlueprintCallable)
@@ -35,7 +37,8 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void SetResetYaw(float Yaw);
 
-
+	UFUNCTION()
+	void AfterDelay();
 
 	virtual void BeginPlay() override;
 

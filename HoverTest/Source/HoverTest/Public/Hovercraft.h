@@ -9,6 +9,7 @@
 class UStaticMeshComponent;
 class UHoverThruster;
 class USceneComponent;
+class UMomentumThruster;
 
 UCLASS()
 class HOVERTEST_API AHovercraft : public APawn
@@ -57,6 +58,24 @@ private:
 
 	bool bDrawDebugTraces = false;
 
+	// unused
+	UPROPERTY()
+	UMomentumThruster* RightMomentumThruster = nullptr;
+
+	// unused
+	UPROPERTY()
+	UMomentumThruster* LeftMomentumThruster = nullptr;
+
+	// unused
+	UPROPERTY()
+	UMomentumThruster* BackMomentumThruster = nullptr;
+
+	UPROPERTY()
+	USceneComponent* RightRotationPoint = nullptr;
+
+	UPROPERTY()
+	USceneComponent* LeftRotationPoint = nullptr;
+
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
@@ -104,6 +123,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = Setup)
 	float ResetHeightModificator = 100.f;
 
+	UPROPERTY(EditAnywhere, Category = Movement)
+	float RotationForce = 12000000.f;
+
 	UFUNCTION(BlueprintCallable, Category = Movement)
 	void ResetHovercraft(USceneComponent* AzimuthGimbal);
 
@@ -121,4 +143,15 @@ public:
 
 	UFUNCTION()
 	bool GetStaticMeshLocation(FVector& Location);
+
+	// returns the hovercrafts speed in km/h
+	UFUNCTION(BlueprintCallable)
+	int32 GetSpeed();
+
+	// unused
+	UFUNCTION(BlueprintCallable)
+	void SetMomentumThrusterReferences(UMomentumThruster* RightMomentumReference, UMomentumThruster* LeftMomentumReference, UMomentumThruster* BackMomentumReference);
+
+	UFUNCTION(BlueprintCallable)
+	void SetRotationPointReferences(USceneComponent* RightRotationPointReference, USceneComponent* LeftRotationPointReference);
 };

@@ -7,6 +7,8 @@
 #include "Classes/Engine/World.h"
 #include "HoverThruster.h"
 #include "HovercraftPlayerController.h"
+#include "Classes/Components/SceneComponent.h"
+#include "MomentumThruster.h"
 
 
 // Sets default values
@@ -31,8 +33,6 @@ void AHovercraft::BeginPlay()
 
 void AHovercraft::MoveForward(float Value)
 {
-
-	// TODO think about frame rate independency
 	if (!StaticMesh) { return; }
 	Value = FMath::Clamp<float>(Value, -1.f, 1.f);
 	FVector ForceDirection = GetActorForwardVector();
@@ -49,11 +49,17 @@ void AHovercraft::MoveForward(float Value)
 	}
 
 	StaticMesh->AddForce(ForceToApply);
+
+	//// Momentum force
+	//if (!BackMomentumThruster) { return; }
+	//if (Value <= 0)
+	//{
+	//	BackMomentumThruster->ApplyForce();
+	//}
 }
 
 void AHovercraft::MoveRight(float Value)
 {
-	// TODO think about frame rate independency
 	if (!StaticMesh) { return; }
 	Value = FMath::Clamp<float>(Value, -1.f, 1.f);
 	FVector ForceDirection = GetActorRightVector();
@@ -75,9 +81,22 @@ void AHovercraft::MoveRight(float Value)
 void AHovercraft::RotateRight(float Value)
 {
 	if (!StaticMesh || !GetWorld()) { return; }
-	Value = FMath::Clamp<float>(Value, -1.f, 1.f);
+	/*Value = FMath::Clamp<float>(Value, -1.f, 1.f);
 	FRotator Rotator = FRotator(0, RotationSpeed * GetWorld()->DeltaTimeSeconds * Value, 0);
-	StaticMesh->AddWorldRotation(Rotator);
+	StaticMesh->AddWorldRotation(Rotator);*/
+
+	Value = FMath::Clamp<float>(Value, -1.f, 1.f);
+	// momentum force
+	if (!RightRotationPoint || !LeftRotationPoint) { return; }
+	FVector ForceToApply = StaticMesh->GetRightVector() * Value * RotationForce;
+	if (Value > 0)
+	{
+		StaticMesh->AddForceAtLocation(ForceToApply, LeftRotationPoint->GetComponentLocation());
+	}
+	else
+	{
+		StaticMesh->AddForceAtLocation(ForceToApply, RightRotationPoint->GetComponentLocation());
+	}
 }
 
 
@@ -257,6 +276,25 @@ bool AHovercraft::GetStaticMeshLocation(FVector& Location)
 	if (!StaticMesh) { return false; }
 	Location = StaticMesh->GetComponentLocation();
 	return true;
+}
+
+int32 AHovercraft::GetSpeed()
+{
+	FVector Velocity = GetVelocity() * StaticMesh->GetForwardVector();
+	return int32(Velocity.Size() / 100.f);
+}
+
+void AHovercraft::SetMomentumThrusterReferences(UMomentumThruster * RightMomentumReference, UMomentumThruster * LeftMomentumReference, UMomentumThruster * BackMomentumReference)
+{
+	RightMomentumThruster = RightMomentumReference;
+	LeftMomentumThruster = LeftMomentumReference;
+	BackMomentumThruster = BackMomentumReference;
+}
+
+void AHovercraft::SetRotationPointReferences(USceneComponent * RightRotationPointReference, USceneComponent * LeftRotationPointReference)
+{
+	RightRotationPoint = RightRotationPointReference;
+	LeftRotationPoint = LeftRotationPointReference;
 }
 
 // Called every frame
