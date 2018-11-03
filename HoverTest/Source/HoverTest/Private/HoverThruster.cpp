@@ -106,6 +106,7 @@ void UHoverThruster::HoverLogic()
 			if (bShouldHover)
 			{
 				float Ratio = HitResult.Distance / HoverHeight;
+				Ratio = FMath::Clamp<float>(Ratio, 0.f, 1.f);
 				FVector ForceToApply = FMath::Lerp<float>(MaxHoverForce, 0.f, Ratio) * HitResult.ImpactNormal;
 				StaticMesh->AddForceAtLocation(ForceToApply, GetComponentLocation());
 				bIsFalling = false;
