@@ -2,6 +2,8 @@
 
 #include "HovercraftPlayerController.h"
 #include "Hovercraft.h"
+#include "TimerManager.h"
+#include "Engine/World.h"
 
 void AHovercraftPlayerController::SetResetPosition(FVector NewResetPosition)
 {
@@ -23,10 +25,8 @@ void AHovercraftPlayerController::SetResetYaw(float Yaw)
 	ResetYaw = Yaw;
 }
 
-void AHovercraftPlayerController::BeginPlay()
+void AHovercraftPlayerController::AfterDelay()
 {
-	Super::BeginPlay();
-
 	AHovercraft* Pawn = Cast<AHovercraft>(GetPawn());
 
 	if (Pawn)
@@ -40,5 +40,16 @@ void AHovercraftPlayerController::BeginPlay()
 	{
 		UE_LOG(LogTemp, Error, TEXT("Could not retrieve Controlled Pawn in %s"), *GetName());
 	}
+}
 
+void AHovercraftPlayerController::BeginPlay()
+{
+	Super::BeginPlay();
+
+	ResetPosition = FVector(0.f, 0.f, 0.f);
+	// execute after one second
+	if (GetWorld())
+	{
+		GetWorld()->GetTimerManager().SetTimer(StartDelayTimerHandle, this, &AHovercraftPlayerController::AfterDelay, 1.f, false);
+	}
 }
