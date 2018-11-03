@@ -64,7 +64,7 @@ void ACheckpoint::OnBeginOverlap(UPrimitiveComponent * OverlappedComponent, AAct
 			{
 				/* OtherActor is player controlled */
 				PC->SetResetPosition(GetActorLocation());
-				PC->SetResetYaw(GetActorRotation().Yaw);
+				PC->SetResetYaw(HovercraftResetYaw);
 			}
 		}
 		

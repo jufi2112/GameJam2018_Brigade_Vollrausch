@@ -38,4 +38,7 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Setup)
 	int32 IndexOnTrack = -1;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Setup)
+	float HovercraftResetYaw = 0.f;
 };

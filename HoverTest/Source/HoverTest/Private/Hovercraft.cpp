@@ -35,7 +35,14 @@ void AHovercraft::MoveForward(float Value)
 	// TODO think about frame rate independency
 	if (!StaticMesh) { return; }
 	Value = FMath::Clamp<float>(Value, -1.f, 1.f);
-	FVector ForceToApply = GetActorForwardVector() * ForwardAcceleration * Value;
+	FVector ForceDirection = GetActorForwardVector();
+	if (GetIsFalling())
+	{
+		ForceDirection.Z = 0.f;
+		ForceDirection = ForceDirection.GetSafeNormal();
+	}
+
+	FVector ForceToApply = ForceDirection * ForwardAcceleration * Value;
 	if (GetIsFalling())
 	{
 		ForceToApply *= ForwardAirborneControl;
@@ -49,7 +56,14 @@ void AHovercraft::MoveRight(float Value)
 	// TODO think about frame rate independency
 	if (!StaticMesh) { return; }
 	Value = FMath::Clamp<float>(Value, -1.f, 1.f);
-	FVector ForceToApply = GetActorRightVector() * SidewardAcceleration * Value;
+	FVector ForceDirection = GetActorRightVector();
+	if (GetIsFalling())
+	{
+		ForceDirection.Z = 0;
+		ForceDirection = ForceDirection.GetSafeNormal();
+	}
+
+	FVector ForceToApply = ForceDirection * SidewardAcceleration * Value;
 	if (GetIsFalling())
 	{
 		ForceToApply *= SidewardsAirborneControl;
