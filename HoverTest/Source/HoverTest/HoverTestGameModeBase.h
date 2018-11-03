@@ -6,6 +6,8 @@
 #include "GameFramework/GameModeBase.h"
 #include "HoverTestGameModeBase.generated.h"
 
+class ACheckpoint;
+
 /**
  * 
  */
@@ -15,6 +17,9 @@ class HOVERTEST_API AHoverTestGameModeBase : public AGameModeBase
 	GENERATED_BODY()
 	
 	
-	
+public:
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Setup)
+	TArray<ACheckpoint*> CheckPoints;
 	
 };

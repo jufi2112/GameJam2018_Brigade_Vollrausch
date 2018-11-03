@@ -6,6 +6,7 @@
 #include "Classes/Components/PrimitiveComponent.h"
 #include "Classes/Engine/World.h"
 #include "HoverThruster.h"
+#include "HovercraftPlayerController.h"
 
 
 // Sets default values
@@ -151,41 +152,57 @@ bool AHovercraft::GetIsFalling()
 void AHovercraft::ResetHovercraft(USceneComponent* AzimuthGimbal)
 {
 	if (!StaticMesh || !AzimuthGimbal) { return; }
-	if (bIsUpsideDown)
+
+	// Reset Hovercraft
+
+	//// get AzimuthGimbal location
+	//FVector AzimuthGimbalLocation = AzimuthGimbal->GetComponentLocation();
+	//AzimuthGimbalLocation.Z += ResetHeightModificator;
+
+	//// get current AzimuthGimbal rotation
+	//FRotator AzimuthGimbalRotator = AzimuthGimbal->GetComponentRotation();
+
+	//// set roll values to 0
+	//AzimuthGimbalRotator.Roll = 0.f;
+
+	// transform hovercraft
+
+	// translation
+	FVector ResetLocation;
+	FRotator ResetRotation;
+	AHovercraftPlayerController* PC = Cast<AHovercraftPlayerController>(GetController());
+	if (PC)
 	{
-		// Reset Hovercraft
-
-		// get AzimuthGimbal location
-		FVector AzimuthGimbalLocation = AzimuthGimbal->GetComponentLocation();
-		AzimuthGimbalLocation.Z += ResetHeightModificator;
-
-		// get current AzimuthGimbal rotation
-		FRotator AzimuthGimbalRotator = AzimuthGimbal->GetComponentRotation();
-
-		// set roll values to 0
-		AzimuthGimbalRotator.Roll = 0.f;
-
-		// transform hovercraft
-
-		// translation
-		FVector ResetLocation = StaticMesh->GetComponentLocation();
+		ResetLocation = PC->GetResetPosition();
+		if (HoverThrusters[0])
+		{
+			ResetLocation.Z = HoverThrusters[0]->HoverHeight;
+		}
 		ResetLocation.Z += ResetHeightModificator;
-
-		// rotation
-		FRotator ResetRotation = GetActorRotation();
-		ResetRotation.Roll = 0.f;
-		ResetRotation.Pitch = 0.f;
-
-		// apply values
-		SetActorLocation(ResetLocation);
-		SetActorRotation(ResetRotation);
-
-
-		// set old AzimuthGimbal and SpringArm rotations
-		AzimuthGimbal->SetWorldLocation(AzimuthGimbalLocation);
-		AzimuthGimbal->SetWorldRotation(AzimuthGimbalRotator);
-
+		ResetRotation = FRotator(0.f, PC->GetResetYaw(), 0.f);
 	}
+	else
+	{
+		ResetLocation = StaticMesh->GetComponentLocation();
+		ResetLocation.Z += ResetHeightModificator;
+		ResetRotation = GetActorRotation();
+		ResetRotation.Pitch = 0.f;
+		ResetRotation.Roll = 0.f;
+		UE_LOG(LogTemp, Warning, TEXT("Could not find PlayerController in %s, used local values instead"), *GetName());
+	}
+
+	// set velocity to zero
+	StaticMesh->SetPhysicsLinearVelocity(FVector(0.f, 0.f, 0.f));
+
+	// apply values
+	SetActorLocation(ResetLocation);
+	SetActorRotation(ResetRotation);
+
+
+	//// set old AzimuthGimbal and SpringArm rotations
+	//AzimuthGimbal->SetWorldLocation(AzimuthGimbalLocation);
+	//AzimuthGimbal->SetWorldRotation(AzimuthGimbalRotator);
+
 }
 
 void AHovercraft::ToggleShouldHover()
@@ -219,6 +236,13 @@ void AHovercraft::ToggleDrawDebugTraces()
 	bDrawDebugTraces = !bDrawDebugTraces;
 	const FName DebugTraceToDraw = bDrawDebugTraces ? FName("HoverTrace") : NAME_None;
 	GetWorld()->DebugDrawTraceTag = DebugTraceToDraw;
+}
+
+bool AHovercraft::GetStaticMeshLocation(FVector& Location)
+{
+	if (!StaticMesh) { return false; }
+	Location = StaticMesh->GetComponentLocation();
+	return true;
 }
 
 // Called every frame
