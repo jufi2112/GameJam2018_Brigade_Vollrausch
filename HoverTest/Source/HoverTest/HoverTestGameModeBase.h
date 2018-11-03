@@ -6,7 +6,7 @@
 #include "GameFramework/GameModeBase.h"
 #include "HoverTestGameModeBase.generated.h"
 
-class ACheckpoint;
+class ATrackObserver;
 
 /**
  * 
@@ -15,11 +15,15 @@ UCLASS()
 class HOVERTEST_API AHoverTestGameModeBase : public AGameModeBase
 {
 	GENERATED_BODY()
+
+private:
+	UPROPERTY(VisibleAnywhere, Category = Checkpoints)
+	ATrackObserver* TrackObserver = nullptr;
 	
 	
 public:
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Setup)
-	TArray<ACheckpoint*> CheckPoints;
+	virtual void BeginPlay() override;
+
 	
 };
