@@ -14,6 +14,10 @@ The aim is to create a very fast paced (3D) hover block racing game.
  * AI enemies
  * multiple maps
  * breaking blocks
+ 
+# Input / Controls
+
+Input concept similar to GTA 5
 
 # Art Style
 
