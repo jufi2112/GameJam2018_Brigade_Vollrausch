@@ -110,7 +110,7 @@ void AHoverTestGameModeBase::HandleHovercraftFinishLineOverlap(AHovercraft * Hov
 		{
 			/* player */
 			PC->SetResetPosition(FinishLine->GetActorLocation());
-			PC->SetResetYaw(FinishLine->HovercraftResetYaw);
+			PC->SetResetYaw(Hovercraft->GetActorRotation().Yaw);
 		}
 	}
 	else
