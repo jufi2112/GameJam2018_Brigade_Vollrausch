@@ -278,7 +278,7 @@ bool AHovercraft::GetStaticMeshLocation(FVector& Location)
 	return true;
 }
 
-int32 AHovercraft::GetSpeed()
+int32 AHovercraft::GetSpeed() const
 {
 	FVector Velocity = GetVelocity() * StaticMesh->GetForwardVector();
 	return int32(Velocity.Size() / 100.f);
@@ -297,10 +297,42 @@ void AHovercraft::SetRotationPointReferences(USceneComponent * RightRotationPoin
 	LeftRotationPoint = LeftRotationPointReference;
 }
 
+int32 AHovercraft::GetIndexOfLastCheckpoint() const
+{
+	return IndexOfLastCheckpoint;
+}
+
+void AHovercraft::SetIndexOfLastCheckpoint(int32 NewCheckpointID)
+{
+	IndexOfLastCheckpoint = NewCheckpointID;
+}
+
+void AHovercraft::SetStopLapTime(bool ShouldStopLapTime)
+{
+	bShouldStopTime = ShouldStopLapTime;
+}
+
+float AHovercraft::ResetLapTimer()
+{
+	float Buffer = LapTime;
+	LapTime = 0.f;
+	return Buffer;
+}
+
+float AHovercraft::GetLapTime() const
+{
+	return LapTime;
+}
+
 // Called every frame
 void AHovercraft::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+
+	if (bShouldStopTime)
+	{
+		LapTime += DeltaTime;
+	}
 
 	if (!StaticMesh) { return; }
 

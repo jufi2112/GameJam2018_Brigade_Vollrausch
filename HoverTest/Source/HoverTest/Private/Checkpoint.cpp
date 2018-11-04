@@ -5,6 +5,8 @@
 #include "Classes/Components/SceneComponent.h"
 #include "HovercraftPlayerController.h"
 #include "Hovercraft.h"
+#include "HoverTestGameModeBase.h"
+#include "Engine/World.h"
 
 
 // Sets default values
@@ -12,16 +14,6 @@ ACheckpoint::ACheckpoint()
 {
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
-	/*RootComponent = CreateDefaultSubobject<USceneComponent>(FName("Root Component"));
-	CollisionBox = CreateDefaultSubobject<UBoxComponent>(FName("Collision Box"));
-	if (!CollisionBox)
-	{
-		UE_LOG(LogTemp, Error, TEXT("Could not create BoxComponent in %s"), *GetName());
-	}
-	else
-	{
-		CollisionBox->SetupAttachment(RootComponent);
-	}*/
 
 }
 
@@ -55,7 +47,6 @@ void ACheckpoint::OnBeginOverlap(UPrimitiveComponent * OverlappedComponent, AAct
 {
 	if (OtherActor)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("%s got overlapped by %s"), *GetName(), *OtherActor->GetName());
 		AHovercraft* Craft = Cast<AHovercraft>(OtherActor);
 		if (Craft)
 		{
@@ -63,11 +54,25 @@ void ACheckpoint::OnBeginOverlap(UPrimitiveComponent * OverlappedComponent, AAct
 			if (PC)
 			{
 				/* OtherActor is player controlled */
-				PC->SetResetPosition(GetActorLocation());
-				PC->SetResetYaw(HovercraftResetYaw);
+				// call game mode function
+				AHoverTestGameModeBase* GameMode = Cast<AHoverTestGameModeBase>(GetWorld()->GetAuthGameMode());
+				if (!GameMode)
+				{
+					UE_LOG(LogTemp, Error, TEXT("Could not cast the game mode to the correct class in %s"), *GetName());
+					return;
+				}
+				else
+				{
+					GameMode->HandlePlayerHovercraftCheckpointOverlap(Craft, PC, this);
+				}
 			}
 		}
 		
 	}
+}
+
+int32 ACheckpoint::GetCheckpointIndex() const
+{
+	return IndexOnTrack;
 }
 

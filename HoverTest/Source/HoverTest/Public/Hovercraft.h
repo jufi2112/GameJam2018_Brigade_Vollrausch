@@ -47,6 +47,17 @@ protected:
 	UPROPERTY(VisibleAnywhere, Category = Movement)
 	bool bShouldHover = true;
 
+	// index of the last passed checkpoint, -1 when passed finish line but not yet passed a checkpoint, -2 if not yet passed the finish line
+	UPROPERTY(VisibleAnywhere, Category = Checkpoints)
+	int32 IndexOfLastCheckpoint = -2;
+
+	UPROPERTY(VisibleAnywhere, Category = Time)
+	float LapTime = 0.f;
+
+	UPROPERTY(VisibleAnywhere, Category = Time)
+	bool bShouldStopTime = false;
+
+
 private:
 
 	UStaticMeshComponent* StaticMesh = nullptr;
@@ -146,7 +157,7 @@ public:
 
 	// returns the hovercrafts speed in km/h
 	UFUNCTION(BlueprintCallable)
-	int32 GetSpeed();
+	int32 GetSpeed() const;
 
 	// unused
 	UFUNCTION(BlueprintCallable)
@@ -154,4 +165,20 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	void SetRotationPointReferences(USceneComponent* RightRotationPointReference, USceneComponent* LeftRotationPointReference);
+
+	UFUNCTION(BlueprintCallable)
+	int32 GetIndexOfLastCheckpoint() const;
+
+	UFUNCTION(BlueprintCallable)
+	void SetIndexOfLastCheckpoint(int32 NewCheckpointID);
+
+	UFUNCTION(BlueprintCallable)
+	void SetStopLapTime(bool ShouldStopLapTime);
+
+	UFUNCTION(BlueprintCallable)
+	float ResetLapTimer();
+
+	UFUNCTION(BlueprintCallable)
+	float GetLapTime() const;
+
 };
