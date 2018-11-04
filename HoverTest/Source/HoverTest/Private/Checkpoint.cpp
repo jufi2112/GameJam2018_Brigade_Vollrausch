@@ -7,6 +7,7 @@
 #include "Hovercraft.h"
 #include "HoverTestGameModeBase.h"
 #include "Engine/World.h"
+#include "HovercraftAIController.h"
 
 
 // Sets default values
@@ -64,6 +65,24 @@ void ACheckpoint::OnBeginOverlap(UPrimitiveComponent * OverlappedComponent, AAct
 				else
 				{
 					GameMode->HandlePlayerHovercraftCheckpointOverlap(Craft, PC, this);
+				}
+			}
+			else
+			{
+				AHovercraftAIController* AIController = Cast<AHovercraftAIController>(Craft->GetController());
+				if (AIController)
+				{
+					/* AI */
+					AHoverTestGameModeBase* GameMode = Cast<AHoverTestGameModeBase>(GetWorld()->GetAuthGameMode());
+					if (!GameMode)
+					{
+						UE_LOG(LogTemp, Error, TEXT("Could not cast the game mode to the correct class in %s"), *GetName());
+						return;
+					}
+					else
+					{
+						GameMode->HandleAIHovercraftCheckpointOverlap(Craft, this);
+					}
 				}
 			}
 		}

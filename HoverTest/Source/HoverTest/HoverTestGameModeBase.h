@@ -25,6 +25,9 @@ private:
 	ATrackObserver* TrackObserver = nullptr;
 
 	UPROPERTY(VisibleAnywhere, Category = Checkpoints)
+	AFinishLine* FinishLineInternPointer = nullptr;
+
+	UPROPERTY(VisibleAnywhere, Category = Checkpoints)
 	int32 NumberOfCheckpointsOnTrack = -1;
 
 	UFUNCTION(BlueprintCallable)
@@ -48,8 +51,12 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void HandlePlayerHovercraftCheckpointOverlap(AHovercraft* Hovercraft, AHovercraftPlayerController* PlayerController, ACheckpoint* Checkpoint);
 
+	UFUNCTION()
+	void HandleAIHovercraftCheckpointOverlap(AHovercraft* Hovercraft, ACheckpoint* Checkpoint);
+
 	UFUNCTION(BlueprintCallable)
 	void HandleHovercraftFinishLineOverlap(AHovercraft* Hovercraft, AFinishLine* FinishLine);
 
-
+	UFUNCTION()
+	AActor* GetAINextCheckpointActor(const int32 LastCheckpointIndex);
 };

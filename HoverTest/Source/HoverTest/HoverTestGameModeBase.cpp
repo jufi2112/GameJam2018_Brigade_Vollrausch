@@ -10,6 +10,7 @@
 #include "EngineGlobals.h"
 #include "Engine/Engine.h"
 #include "FinishLine.h"
+#include "Classes/GameFramework/Actor.h"
 
 void AHoverTestGameModeBase::BeginPlay()
 {
@@ -21,6 +22,11 @@ void AHoverTestGameModeBase::BeginPlay()
 		{
 			TrackObserver = *ActorIter;
 		}
+
+		for (TActorIterator<AFinishLine> ActorIter(GetWorld()); ActorIter; ++ActorIter)
+		{
+			FinishLineInternPointer = *ActorIter;
+		}
 	}
 
 	if (!TrackObserver)
@@ -30,6 +36,11 @@ void AHoverTestGameModeBase::BeginPlay()
 	else
 	{
 		NumberOfCheckpointsOnTrack = TrackObserver->Checkpoints.Num();
+	}
+
+	if (!FinishLineInternPointer)
+	{
+		UE_LOG(LogTemp, Error, TEXT("Could not find a FinishLine in %s. Did you forget to add one to the level?"), *GetName());
 	}
 }
 
@@ -67,6 +78,17 @@ void AHoverTestGameModeBase::HandlePlayerHovercraftCheckpointOverlap(AHovercraft
 			GEngine->AddOnScreenDebugMessage(-1, 10.f, FColor::Red, TEXT("Missed a checkpoint! Use F to reset to latest checkpoint."));
 		}
 	}
+}
+
+void AHoverTestGameModeBase::HandleAIHovercraftCheckpointOverlap(AHovercraft * Hovercraft, ACheckpoint * Checkpoint)
+{
+	if (!Hovercraft || !Checkpoint) { return; }
+	if (IsSameCheckpointForHovercraft(Checkpoint, Hovercraft)) { return; }
+	if (IsCorrectNextCheckpointForHovercraft(Checkpoint, Hovercraft))
+	{
+		Hovercraft->SetIndexOfLastCheckpoint(Checkpoint->GetCheckpointIndex());
+	}
+
 }
 
 void AHoverTestGameModeBase::HandleHovercraftFinishLineOverlap(AHovercraft * Hovercraft, AFinishLine * FinishLine)
@@ -114,6 +136,28 @@ void AHoverTestGameModeBase::HandleHovercraftFinishLineOverlap(AHovercraft * Hov
 
 
 
+}
+
+AActor* AHoverTestGameModeBase::GetAINextCheckpointActor(const int32 LastCheckpointIndex)
+{
+	if (!TrackObserver || !FinishLineInternPointer) { return false; }
+
+	// -1 = spawned, already passed finish line but not yet passed first checkpoint
+	// -2 = spawned, not yet passed finish line
+	if (LastCheckpointIndex <= -2 || LastCheckpointIndex == (NumberOfCheckpointsOnTrack - 1))
+	{
+		return FinishLineInternPointer;
+	}
+	// invalid LastCheckpointIndex
+	else if (LastCheckpointIndex >= NumberOfCheckpointsOnTrack)
+	{
+		return nullptr;
+	}
+	// valid last checkpoint -> seach location of next checkpoint
+	else
+	{
+		return TrackObserver->Checkpoints[LastCheckpointIndex + 1];
+	}
 }
 
 bool AHoverTestGameModeBase::IsCorrectNextCheckpointForHovercraft(ACheckpoint * Checkpoint, AHovercraft * Hovercraft) const

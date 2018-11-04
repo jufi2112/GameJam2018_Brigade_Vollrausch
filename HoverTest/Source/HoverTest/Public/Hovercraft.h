@@ -24,16 +24,6 @@ protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
-	UFUNCTION(BlueprintCallable, Category = Input)
-	void MoveForward(float Value);
-
-	UFUNCTION(BlueprintCallable, Category = Input)
-	void MoveRight(float Value);
-
-	// already frame rate independent implemented
-	UFUNCTION(BlueprintCallable, Category = Input)
-	void RotateRight(float Value);
-
 	UFUNCTION(BlueprintCallable, Category = Setup)
 	void SetStaticMeshReference(UStaticMeshComponent* MeshToSet);
 
@@ -90,6 +80,16 @@ private:
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
+
+	UFUNCTION(BlueprintCallable, Category = Input)
+	void MoveForward(float Value);
+
+	UFUNCTION(BlueprintCallable, Category = Input)
+	void MoveRight(float Value);
+
+	// already frame rate independent implemented
+	UFUNCTION(BlueprintCallable, Category = Input)
+	void RotateRight(float Value);
 
 	// Called to bind functionality to input
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;

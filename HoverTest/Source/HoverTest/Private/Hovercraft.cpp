@@ -27,8 +27,7 @@ void AHovercraft::BeginPlay()
 	// needs to be called before IsFallingArray.Init()
 	InitializeThrusters();
 
-	IsFallingArray.Init(false, NumberOfThrusters);
-	
+	IsFallingArray.Init(false, NumberOfThrusters);	
 }
 
 void AHovercraft::MoveForward(float Value)
@@ -49,13 +48,6 @@ void AHovercraft::MoveForward(float Value)
 	}
 
 	StaticMesh->AddForce(ForceToApply);
-
-	//// Momentum force
-	//if (!BackMomentumThruster) { return; }
-	//if (Value <= 0)
-	//{
-	//	BackMomentumThruster->ApplyForce();
-	//}
 }
 
 void AHovercraft::MoveRight(float Value)
