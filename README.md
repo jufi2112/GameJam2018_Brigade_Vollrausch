@@ -11,3 +11,9 @@ Since it is possible that we further develop this game, the master branch can ha
 ## Releases
 
 * Original GameJam 2018 Release is [here (Dropbox)](https://www.dropbox.com/s/frym1ccezrul49l/Hoverblocks_GameJam2018_Original_Release.zip?dl=0)
+
+## Contributors
+
+* Art by [@Jonas Schenke](https://github.com/kloppstock)
+* Level by [@Torsten Mehnert](https://github.com/tormehn)
+* Code by [@Julien Fischer](https://github.com/jufi2112)
