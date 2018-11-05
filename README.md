@@ -1,6 +1,6 @@
 # Hoverblocks by Brigade Vollrausch
 
-This is our contribution as 'Brigade Vollrausch' to the 2nd Game Jam [(link)](https://imld.de/gamejam/) of the faculty of computer science of the Technische Universität Dresden. Our group consisted of three crazy people (hence our group name) and we originally had 48 hours to create this masterpiece. 
+This is our contribution as 'Brigade Vollrausch' to the 2nd Game Jam [(link)](https://imld.de/gamejam/) of the faculty of computer science at the Technische Universität Dresden. Our group consisted of three crazy people (hence our group name) and we originally had 48 hours to create this masterpiece. 
 
 Our game is about hovering blocks!
 
