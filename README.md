@@ -1,6 +1,6 @@
 # GameJam2018_Brigade_Vollrausch
 
-This is our conrtibution as 'Brigade Vollrausch' to the 2nd Game Jam of the computer science faculty of the Technische Universität Dresden.
+This is our contribution as 'Brigade Vollrausch' to the 2nd Game Jam of the faculty of computer science of the Technische Universität Dresden. Our group of three people had 48 hours to develop this masterpiece.
 
 Our game is about hovering blocks!
 
