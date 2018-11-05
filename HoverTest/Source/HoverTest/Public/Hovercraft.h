@@ -70,10 +70,10 @@ protected:
 	UPROPERTY()
 	FTimerHandle ResetTimerHandle;
 
-private:
-
+	UPROPERTY(BlueprintReadOnly)
 	UStaticMeshComponent* StaticMesh = nullptr;
 
+private:
 	TArray<bool> IsFallingArray;
 
 	UPROPERTY(VisibleAnywhere, Category = Movement)
@@ -103,10 +103,13 @@ private:
 	void OnResetComplete();
 
 	UPROPERTY()
-	UMaterialInstanceDynamic* DynamicMaterial = nullptr;
+	UMaterialInstanceDynamic* DynamicMaterialStandard = nullptr;
+
+	UPROPERTY()
+	UMaterialInstanceDynamic* DynamicMaterialTranslucent = nullptr;
 
 	UFUNCTION()
-	void HandleResetStuff(float DeltaTime);
+	bool HandleResetStuff(float DeltaTime);
 
 public:	
 	// Called every frame

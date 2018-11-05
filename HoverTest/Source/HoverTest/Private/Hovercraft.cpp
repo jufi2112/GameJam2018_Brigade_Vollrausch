@@ -103,10 +103,47 @@ void AHovercraft::SetStaticMeshReference(UStaticMeshComponent * MeshToSet)
 {
 	StaticMesh = MeshToSet;
 
-	DynamicMaterial = UMaterialInstanceDynamic::Create(StaticMesh->GetMaterial(0), this);
-	if (!DynamicMaterial)
+	if (!StaticMesh)
 	{
-		UE_LOG(LogTemp, Error, TEXT("Could not create dynamic material instance in %s"), *GetName());
+		UE_LOG(LogTemp, Error, TEXT("Invalid static mesh assigned to %s"), *GetName());
+		return;
+	}
+
+	if (StaticMesh->GetNumMaterials() < 2)
+	{
+		UE_LOG(LogTemp, Error, TEXT("Static mesh on %s has not assigned 2 materials!"), *GetName());
+	}
+
+	DynamicMaterialStandard = UMaterialInstanceDynamic::Create(StaticMesh->GetMaterial(0), this);
+	if (!DynamicMaterialStandard)
+	{
+		UE_LOG(LogTemp, Error, TEXT("Could not create standard dynamic material instance on %s"), *GetName());
+	}
+	DynamicMaterialTranslucent = UMaterialInstanceDynamic::Create(StaticMesh->GetMaterial(1), this);
+	if (!DynamicMaterialTranslucent)
+	{
+		UE_LOG(LogTemp, Error, TEXT("Could not create translucent dynamic material instance on %s. Does your static mesh model has 2 materials assigned?"), *GetName());
+	}
+
+	if (DynamicMaterialStandard)
+	{
+		if (DynamicMaterialStandard->GetBlendMode() != EBlendMode::BLEND_Opaque)
+		{
+			UE_LOG(LogTemp, Error, TEXT("Material at index 0 in %s on %s needs blend mode set to opaque!"), *StaticMesh->GetName(), *GetName());
+		}
+	}
+
+	if (DynamicMaterialTranslucent)
+	{
+		if (DynamicMaterialTranslucent->GetBlendMode() != EBlendMode::BLEND_Translucent)
+		{
+			UE_LOG(LogTemp, Error, TEXT("Material at index 1 in %s on %s needs blend mode set to translucent!"), *StaticMesh->GetName(), *GetName());
+		}
+	}
+
+	if (StaticMesh && DynamicMaterialStandard)
+	{
+		StaticMesh->SetMaterial(0, DynamicMaterialStandard);
 	}
 }
 
@@ -347,9 +384,13 @@ void AHovercraft::OnResetComplete()
 {
 	bIsResetting = false;
 	ResetCurveTimer = 0.f;
+	if (DynamicMaterialStandard && StaticMesh)
+	{
+		StaticMesh->SetMaterial(0, DynamicMaterialStandard);
+	}
 }
 
-void AHovercraft::HandleResetStuff(float DeltaTime)
+bool AHovercraft::HandleResetStuff(float DeltaTime)
 {
 	if (bIsResetting)
 	{
@@ -359,7 +400,7 @@ void AHovercraft::HandleResetStuff(float DeltaTime)
 		if (ResetCurve)
 		{
 			float ResetCurveValue = ResetCurve->GetFloatValue(ResetCurveTimer);
-			if (!DynamicMaterial)
+			if (!DynamicMaterialTranslucent)
 			{
 				UE_LOG(LogTemp, Error, TEXT("Could not set dynamic material in %s."), *GetName());
 			}
@@ -371,8 +412,8 @@ void AHovercraft::HandleResetStuff(float DeltaTime)
 				}
 				else
 				{
-					DynamicMaterial->SetScalarParameterValue("Alpha", ResetCurveValue);
-					StaticMesh->SetMaterial(0, DynamicMaterial);
+					DynamicMaterialTranslucent->SetScalarParameterValue("Alpha", ResetCurveValue);
+					StaticMesh->SetMaterial(0, DynamicMaterialTranslucent);
 				}
 			}
 		}
@@ -381,6 +422,8 @@ void AHovercraft::HandleResetStuff(float DeltaTime)
 			UE_LOG(LogTemp, Error, TEXT("Could not find a ResetCurve in %s."), *GetName());
 		}
 	}
+
+	return bIsResetting;
 }
 
 // Called every frame
