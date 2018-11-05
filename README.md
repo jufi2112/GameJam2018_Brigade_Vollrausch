@@ -1,7 +1,9 @@
-# GameJam2018_Brigade_Vollrausch
+# Hoverblocks by Brigade Vollrausch
 
-This is our conrtibution as 'Brigade Vollrausch' to the 2nd Game Jam of the computer science faculty of the Technische Universität Dresden.
+This is our contribution as 'Brigade Vollrausch' to the 2nd Game Jam [(link)](https://imld.de/gamejam/) of the faculty of computer science of the Technische Universität Dresden. Our group consisted of three crazy people (hence our group name) and we originally had 48 hours to create this masterpiece. 
 
 Our game is about hovering blocks!
 
 For more information about our game design, see [design_document.md](design_document.md)!
+
+Since it is possible that we further develop this game, the master branch can have updated game files that derivate from our GameJam release. If you are interested in our original GameJam 2018 release, have a look at the [Original GameJam 2018 Release branch](../../tree/Original_GameJam_Release) or [this release](../../releases/tag/v1.0).
