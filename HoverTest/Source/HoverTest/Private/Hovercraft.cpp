@@ -9,6 +9,9 @@
 #include "HovercraftPlayerController.h"
 #include "Classes/Components/SceneComponent.h"
 #include "MomentumThruster.h"
+#include "Classes/Curves/CurveFloat.h"
+#include "Public/TimerManager.h"
+#include "Classes/Materials/MaterialInstanceDynamic.h"
 
 
 // Sets default values
@@ -28,11 +31,13 @@ void AHovercraft::BeginPlay()
 	InitializeThrusters();
 
 	IsFallingArray.Init(false, NumberOfThrusters);	
+
 }
 
 void AHovercraft::MoveForward(float Value)
 {
 	if (!StaticMesh) { return; }
+	if (bIsResetting) { return; }
 	Value = FMath::Clamp<float>(Value, -1.f, 1.f);
 	FVector ForceDirection = GetActorForwardVector();
 	if (GetIsFalling())
@@ -53,6 +58,7 @@ void AHovercraft::MoveForward(float Value)
 void AHovercraft::MoveRight(float Value)
 {
 	if (!StaticMesh) { return; }
+	if (bIsResetting) { return; }
 	Value = FMath::Clamp<float>(Value, -1.f, 1.f);
 	FVector ForceDirection = GetActorRightVector();
 	if (GetIsFalling())
@@ -73,6 +79,7 @@ void AHovercraft::MoveRight(float Value)
 void AHovercraft::RotateRight(float Value)
 {
 	if (!StaticMesh || !GetWorld()) { return; }
+	if (bIsResetting) { return; }
 	/*Value = FMath::Clamp<float>(Value, -1.f, 1.f);
 	FRotator Rotator = FRotator(0, RotationSpeed * GetWorld()->DeltaTimeSeconds * Value, 0);
 	StaticMesh->AddWorldRotation(Rotator);*/
@@ -95,6 +102,12 @@ void AHovercraft::RotateRight(float Value)
 void AHovercraft::SetStaticMeshReference(UStaticMeshComponent * MeshToSet)
 {
 	StaticMesh = MeshToSet;
+
+	DynamicMaterial = UMaterialInstanceDynamic::Create(StaticMesh->GetMaterial(0), this);
+	if (!DynamicMaterial)
+	{
+		UE_LOG(LogTemp, Error, TEXT("Could not create dynamic material instance in %s"), *GetName());
+	}
 }
 
 void AHovercraft::CheckIsUpsideDown()
@@ -177,6 +190,7 @@ bool AHovercraft::GetIsFalling()
 void AHovercraft::ResetHovercraft(USceneComponent* AzimuthGimbal)
 {
 	if (!StaticMesh || !AzimuthGimbal) { return; }
+	if (bIsResetting) { return; }
 
 	// Reset Hovercraft
 
@@ -199,10 +213,10 @@ void AHovercraft::ResetHovercraft(USceneComponent* AzimuthGimbal)
 	if (PC)
 	{
 		ResetLocation = PC->GetResetPosition();
-		if (HoverThrusters[0])
+		/*if (HoverThrusters[0])
 		{
 			ResetLocation.Z = HoverThrusters[0]->HoverHeight;
-		}
+		}*/
 		ResetLocation.Z += ResetHeightModificator;
 		ResetRotation = FRotator(0.f, PC->GetResetYaw(), 0.f);
 	}
@@ -218,10 +232,15 @@ void AHovercraft::ResetHovercraft(USceneComponent* AzimuthGimbal)
 
 	// set velocity to zero
 	StaticMesh->SetPhysicsLinearVelocity(FVector(0.f, 0.f, 0.f));
+	StaticMesh->SetPhysicsAngularVelocity(FVector(0.f, 0.f, 0.f));
 
 	// apply values
 	SetActorLocation(ResetLocation);
 	SetActorRotation(ResetRotation);
+
+	bIsResetting = true;
+	
+	GetWorld()->GetTimerManager().SetTimer(ResetTimerHandle, this, &AHovercraft::OnResetComplete, TimeNeededForReset, false);
 
 
 	//// set old AzimuthGimbal and SpringArm rotations
@@ -232,6 +251,7 @@ void AHovercraft::ResetHovercraft(USceneComponent* AzimuthGimbal)
 
 void AHovercraft::ToggleShouldHover()
 {
+	if (bIsResetting) { return; }
 	bShouldHover = !bShouldHover;
 
 	for (const auto& Thruster : HoverThrusters)
@@ -242,6 +262,7 @@ void AHovercraft::ToggleShouldHover()
 
 void AHovercraft::ResetHoverHeight()
 {
+	if (bIsResetting) { return; }
 	for (const auto& Thruster : HoverThrusters)
 	{
 		Thruster->ResetHoverValues();
@@ -250,6 +271,7 @@ void AHovercraft::ResetHoverHeight()
 
 void AHovercraft::ChangeHoverHeightBySteps(int32 Steps)
 {
+	if (bIsResetting) { return; }
 	for (const auto& Thruster : HoverThrusters)
 	{
 		Thruster->ChangeHoverHeightBySteps(Steps);
@@ -316,6 +338,51 @@ float AHovercraft::GetLapTime() const
 	return LapTime;
 }
 
+void AHovercraft::SetResetCurveReference(UCurveFloat * CurveReference)
+{
+	ResetCurve = CurveReference;
+}
+
+void AHovercraft::OnResetComplete()
+{
+	bIsResetting = false;
+	ResetCurveTimer = 0.f;
+}
+
+void AHovercraft::HandleResetStuff(float DeltaTime)
+{
+	if (bIsResetting)
+	{
+		ResetCurveTimer += DeltaTime;
+		ResetCurveTimer = (ResetCurveTimer >= ResetCurveLength) ? (ResetCurveTimer - ResetCurveLength) : ResetCurveTimer;
+
+		if (ResetCurve)
+		{
+			float ResetCurveValue = ResetCurve->GetFloatValue(ResetCurveTimer);
+			if (!DynamicMaterial)
+			{
+				UE_LOG(LogTemp, Error, TEXT("Could not set dynamic material in %s."), *GetName());
+			}
+			else
+			{
+				if (!StaticMesh)
+				{
+					UE_LOG(LogTemp, Error, TEXT("Could not assign dynamic material to static mesh in %s because no static mesh is available."), *GetName());
+				}
+				else
+				{
+					DynamicMaterial->SetScalarParameterValue("Alpha", ResetCurveValue);
+					StaticMesh->SetMaterial(0, DynamicMaterial);
+				}
+			}
+		}
+		else
+		{
+			UE_LOG(LogTemp, Error, TEXT("Could not find a ResetCurve in %s."), *GetName());
+		}
+	}
+}
+
 // Called every frame
 void AHovercraft::Tick(float DeltaTime)
 {
@@ -325,6 +392,10 @@ void AHovercraft::Tick(float DeltaTime)
 	{
 		LapTime += DeltaTime;
 	}
+
+
+	// do stuff when resetting
+	HandleResetStuff(DeltaTime);
 
 	if (!StaticMesh) { return; }
 

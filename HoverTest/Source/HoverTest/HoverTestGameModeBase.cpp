@@ -68,8 +68,8 @@ void AHoverTestGameModeBase::HandlePlayerHovercraftCheckpointOverlap(AHovercraft
 	if (IsCorrectNextCheckpointForHovercraft(Checkpoint, Hovercraft))
 	{
 		Hovercraft->SetIndexOfLastCheckpoint(Checkpoint->GetCheckpointIndex());
-		PlayerController->SetResetPosition(Checkpoint->GetActorLocation());
-		PlayerController->SetResetYaw(Checkpoint->HovercraftResetYaw);
+		PlayerController->SetResetPosition(Hovercraft->GetActorLocation());
+		PlayerController->SetResetYaw(Hovercraft->GetActorRotation().Yaw);
 	}
 	else
 	{
@@ -109,7 +109,7 @@ void AHoverTestGameModeBase::HandleHovercraftFinishLineOverlap(AHovercraft * Hov
 		if (PC)
 		{
 			/* player */
-			PC->SetResetPosition(FinishLine->GetActorLocation());
+			PC->SetResetPosition(Hovercraft->GetActorLocation());
 			PC->SetResetYaw(Hovercraft->GetActorRotation().Yaw);
 		}
 	}
@@ -128,8 +128,8 @@ void AHoverTestGameModeBase::HandleHovercraftFinishLineOverlap(AHovercraft * Hov
 			if (PC)
 			{
 				/* player */
-				PC->SetResetPosition(FinishLine->GetActorLocation());
-				PC->SetResetYaw(FinishLine->HovercraftResetYaw);
+				PC->SetResetPosition(Hovercraft->GetActorLocation());
+				PC->SetResetYaw(Hovercraft->GetActorRotation().Yaw);
 			}
 		}
 	}

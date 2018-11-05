@@ -10,6 +10,8 @@ class UStaticMeshComponent;
 class UHoverThruster;
 class USceneComponent;
 class UMomentumThruster;
+class UCurveFloat;
+class UMaterialInstanceDynamic;
 
 UCLASS()
 class HOVERTEST_API AHovercraft : public APawn
@@ -47,6 +49,26 @@ protected:
 	UPROPERTY(VisibleAnywhere, Category = Time)
 	bool bShouldStopTime = false;
 
+	// Length of the reset curve in seconds
+	UPROPERTY(EditDefaultsOnly, Category = Reset)
+	float ResetCurveLength = 1.f;
+
+	UPROPERTY(VisibleAnywhere, Category = Reset)
+	float ResetCurveTimer = 0.f;
+
+	// when resetting, input is accepted
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = Reset)
+	bool bIsResetting = false;
+
+	UPROPERTY(VisibleAnywhere, Category = Reset)
+	UCurveFloat* ResetCurve = nullptr;
+
+	// time needed for resetting in seconds
+	UPROPERTY(EditDefaultsOnly, Category = Reset)
+	float TimeNeededForReset = 3.f;
+
+	UPROPERTY()
+	FTimerHandle ResetTimerHandle;
 
 private:
 
@@ -76,6 +98,15 @@ private:
 
 	UPROPERTY()
 	USceneComponent* LeftRotationPoint = nullptr;
+
+	UFUNCTION()
+	void OnResetComplete();
+
+	UPROPERTY()
+	UMaterialInstanceDynamic* DynamicMaterial = nullptr;
+
+	UFUNCTION()
+	void HandleResetStuff(float DeltaTime);
 
 public:	
 	// Called every frame
@@ -180,5 +211,8 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	float GetLapTime() const;
+
+	UFUNCTION(BlueprintCallable)
+	void SetResetCurveReference(UCurveFloat* CurveReference);
 
 };

@@ -29,7 +29,7 @@ void AHovercraftAIController::Tick(float DeltaTime)
 			if (!TargetActor) { return; }
 			else
 			{
-				UE_LOG(LogTemp, Warning, TEXT("TargetActor: %s"), *TargetActor->GetName());
+				//UE_LOG(LogTemp, Warning, TEXT("TargetActor: %s"), *TargetActor->GetName());
 				//MoveToActor(TargetActor, AcceptanceRadius, false);
 
 
