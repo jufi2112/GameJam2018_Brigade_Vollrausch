@@ -8,9 +8,12 @@ For more information about our game design, see [design_document.md](design_docu
 
 Since it is possible that we further develop this game, the master branch can have updated game files that derivate from our original GameJam release. If you are interested in our original GameJam 2018 release, have a look at the [Original GameJam 2018 Release branch](../../tree/Original_GameJam_Release) or [this release](../../releases/tag/v1.0).
 
-## Releases
+The game engine used is Unreal Engine (version 4.20.3) with Visual Studio 17 Community.
+If you only want to play the game, have a look at the release section beneath.
 
-* Original GameJam 2018 Release is [here (Dropbox)](https://www.dropbox.com/s/frym1ccezrul49l/Hoverblocks_GameJam2018_Original_Release.zip?dl=0)
+## Releases (64bit Windows only)
+
+* Original GameJam 2018 Release (v1.0) can be found [here (Dropbox)](https://www.dropbox.com/s/frym1ccezrul49l/Hoverblocks_GameJam2018_Original_Release.zip?dl=0)
 
 ## Contributors
 
