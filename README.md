@@ -7,3 +7,7 @@ Our game is about hovering blocks!
 For more information about our game design, see [design_document.md](design_document.md)!
 
 Since it is possible that we further develop this game, the master branch can have updated game files that derivate from our GameJam release. If you are interested in our original GameJam 2018 release, have a look at the [Original GameJam 2018 Release branch](../../tree/Original_GameJam_Release) or [this release](../../releases/tag/v1.0).
+
+## Releases
+
+* Original GameJam 2018 Release is [here (Dropbox)](https://www.dropbox.com/s/frym1ccezrul49l/Hoverblocks_GameJam2018_Original_Release.zip?dl=0)
