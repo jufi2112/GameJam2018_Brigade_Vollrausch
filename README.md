@@ -6,7 +6,7 @@ Our game is about hovering blocks!
 
 For more information about our game design, see [design_document.md](design_document.md)!
 
-Since it is possible that we further develop this game, the master branch can have updated game files that derivate from our original GameJam release. If you are interested in our original GameJam 2018 release, have a look at the [Original GameJam 2018 Release branch](../../tree/Original_GameJam_Release) or [this release](../../releases/tag/v1.0).
+Since it is possible that we further develop this game, the master branch can have updated game files that derivate from our original GameJam release. If you are interested in our original GameJam 2018 release, have a look at the [Original GameJam 2018 Release branch](../../tree/Original_GameJam_Release) or [this release](../../releases/tag/v1.0). If you are only interested in playing the original game, have a look at the Releases section below.
 
 The game engine used is Unreal Engine (version 4.20.3) with Visual Studio 17 Community.
 If you only want to play the game, have a look at the release section beneath.
