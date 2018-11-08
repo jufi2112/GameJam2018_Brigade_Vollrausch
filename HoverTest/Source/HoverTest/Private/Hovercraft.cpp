@@ -12,6 +12,8 @@
 #include "Classes/Curves/CurveFloat.h"
 #include "Public/TimerManager.h"
 #include "Classes/Materials/MaterialInstanceDynamic.h"
+#include "Camera/CameraComponent.h"
+#include "Classes/Components/PostProcessComponent.h"
 
 
 // Sets default values
@@ -277,6 +279,7 @@ void AHovercraft::ResetHovercraft(USceneComponent* AzimuthGimbal)
 
 	bIsResetting = true;
 	
+	//SetActorEnableCollision(false);
 	GetWorld()->GetTimerManager().SetTimer(ResetTimerHandle, this, &AHovercraft::OnResetComplete, TimeNeededForReset, false);
 
 
@@ -331,7 +334,7 @@ bool AHovercraft::GetStaticMeshLocation(FVector& Location)
 
 int32 AHovercraft::GetSpeed() const
 {
-	FVector Velocity = GetVelocity() * StaticMesh->GetForwardVector();
+	FVector Velocity = GetVelocity();// *StaticMesh->GetForwardVector();
 	return int32(Velocity.Size() / 100.f);
 }
 
@@ -380,8 +383,20 @@ void AHovercraft::SetResetCurveReference(UCurveFloat * CurveReference)
 	ResetCurve = CurveReference;
 }
 
+void AHovercraft::SetPostProcessMaterialReference(UMaterialInterface * MaterialInterface, UCameraComponent * CameraToAdd)
+{
+	if (!MaterialInterface || !CameraToAdd) { return; }
+	CameraComponent = CameraToAdd;
+	DynamicMaterialPostProcess = UMaterialInstanceDynamic::Create(MaterialInterface, this);
+	DynamicMaterialPostProcess->SetScalarParameterValue("BlurAmount", 0.f);
+	DynamicMaterialPostProcess->SetScalarParameterValue("BlurRadius", RadialBlurRadius);
+	CameraComponent->PostProcessSettings.AddBlendable(DynamicMaterialPostProcess, 1.f);
+	bIsRadialBlurApplied = false;
+}
+
 void AHovercraft::OnResetComplete()
 {
+	//SetActorEnableCollision(true);
 	bIsResetting = false;
 	ResetCurveTimer = 0.f;
 	if (DynamicMaterialStandard && StaticMesh)
@@ -426,6 +441,27 @@ bool AHovercraft::HandleResetStuff(float DeltaTime)
 	return bIsResetting;
 }
 
+void AHovercraft::HandlePostProcessStuff()
+{
+	if (!DynamicMaterialPostProcess || !CameraComponent) { return; }
+	if (!bIsRadialBlurApplied && GetSpeed() >= 70)
+	{
+		bIsRadialBlurApplied = true;
+		CameraComponent->PostProcessSettings.RemoveBlendable(DynamicMaterialPostProcess);
+		DynamicMaterialPostProcess->SetScalarParameterValue("BlurRadius", RadialBlurRadius);
+		DynamicMaterialPostProcess->SetScalarParameterValue("BlurAmount", RadialBlurMaxStrength);
+		CameraComponent->PostProcessSettings.AddBlendable(DynamicMaterialPostProcess, 1.f);
+	}
+	else if (bIsRadialBlurApplied && GetSpeed() < 70)
+	{
+		bIsRadialBlurApplied = false;
+		CameraComponent->PostProcessSettings.RemoveBlendable(DynamicMaterialPostProcess);
+		DynamicMaterialPostProcess->SetScalarParameterValue("BlurAmount", 0.f);
+		DynamicMaterialPostProcess->SetScalarParameterValue("BlurRadius", RadialBlurRadius);
+		CameraComponent->PostProcessSettings.AddBlendable(DynamicMaterialPostProcess, 1.f);
+	}
+}
+
 // Called every frame
 void AHovercraft::Tick(float DeltaTime)
 {
@@ -436,6 +472,7 @@ void AHovercraft::Tick(float DeltaTime)
 		LapTime += DeltaTime;
 	}
 
+	HandlePostProcessStuff();
 
 	// do stuff when resetting
 	HandleResetStuff(DeltaTime);

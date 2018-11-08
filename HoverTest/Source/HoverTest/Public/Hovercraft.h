@@ -12,6 +12,8 @@ class USceneComponent;
 class UMomentumThruster;
 class UCurveFloat;
 class UMaterialInstanceDynamic;
+class UMaterialInterface;
+class UCameraComponent;
 
 UCLASS()
 class HOVERTEST_API AHovercraft : public APawn
@@ -28,6 +30,17 @@ protected:
 
 	UFUNCTION(BlueprintCallable, Category = Setup)
 	void SetStaticMeshReference(UStaticMeshComponent* MeshToSet);
+
+	UFUNCTION(BlueprintCallable)
+	void SetResetCurveReference(UCurveFloat* CurveReference);
+
+	UFUNCTION(BlueprintCallable, Category = Setup)
+	void SetPostProcessMaterialReference(UMaterialInterface* MaterialInterface, UCameraComponent* CameraToAdd);
+
+	UPROPERTY(VisibleAnywhere, Category = PostProcess)
+	bool bIsRadialBlurApplied = false;
+
+	//UFUNCTION(BlueprintCallable, Category = Setup)
 
 	void CheckIsUpsideDown();
 
@@ -111,14 +124,27 @@ private:
 	UMaterialInstanceDynamic* DynamicMaterialTranslucent = nullptr;
 
 	// post process material instance
+	UPROPERTY()
+	UMaterialInstanceDynamic* DynamicMaterialPostProcess = nullptr;
 
+	UPROPERTY()
+	UCameraComponent* CameraComponent = nullptr;
 
 	UFUNCTION()
 	bool HandleResetStuff(float DeltaTime);
 
+	UFUNCTION()
+	void HandlePostProcessStuff();
+
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
+
+	UPROPERTY(EditDefaultsOnly, Category = PostProcess)
+	float RadialBlurMaxStrength = .3f;
+
+	UPROPERTY(EditDefaultsOnly, Category = PostProcess)
+	float RadialBlurRadius = .25f;
 
 	UFUNCTION(BlueprintCallable, Category = Input)
 	void MoveForward(float Value);
@@ -220,7 +246,6 @@ public:
 	UFUNCTION(BlueprintCallable)
 	float GetLapTime() const;
 
-	UFUNCTION(BlueprintCallable)
-	void SetResetCurveReference(UCurveFloat* CurveReference);
+
 
 };
