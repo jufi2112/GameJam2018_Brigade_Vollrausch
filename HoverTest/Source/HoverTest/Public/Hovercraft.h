@@ -102,11 +102,16 @@ private:
 	UFUNCTION()
 	void OnResetComplete();
 
+	// material instance for standard pawn material
 	UPROPERTY()
 	UMaterialInstanceDynamic* DynamicMaterialStandard = nullptr;
 
+	// material instance for pawn while resetting
 	UPROPERTY()
 	UMaterialInstanceDynamic* DynamicMaterialTranslucent = nullptr;
+
+	// post process material instance
+
 
 	UFUNCTION()
 	bool HandleResetStuff(float DeltaTime);
