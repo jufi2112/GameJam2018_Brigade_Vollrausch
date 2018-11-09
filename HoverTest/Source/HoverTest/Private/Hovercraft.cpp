@@ -34,10 +34,25 @@ void AHovercraft::BeginPlay()
 
 	IsFallingArray.Init(false, NumberOfThrusters);	
 
+	// check if pawn is player controlled
+	AHovercraftPlayerController* PC = Cast<AHovercraftPlayerController>(GetController());
+	if (PC)
+	{
+		bIsPlayerControlled = true;
+	}
+	else
+	{
+		bIsPlayerControlled = false;
+	}
+
 }
 
-void AHovercraft::MoveForward(float Value)
+void AHovercraft::MoveForward(float Value, EControllerType InputControllerType)
 {
+	if (Value != 0)
+	{
+		ControllerType = InputControllerType;
+	}
 	if (!StaticMesh) { return; }
 	if (bIsResetting) { return; }
 	Value = FMath::Clamp<float>(Value, -1.f, 1.f);
@@ -57,8 +72,12 @@ void AHovercraft::MoveForward(float Value)
 	StaticMesh->AddForce(ForceToApply);
 }
 
-void AHovercraft::MoveRight(float Value)
+void AHovercraft::MoveRight(float Value, EControllerType InputControllerType)
 {
+	if (Value != 0)
+	{
+		ControllerType = InputControllerType;
+	}
 	if (!StaticMesh) { return; }
 	if (bIsResetting) { return; }
 	Value = FMath::Clamp<float>(Value, -1.f, 1.f);
@@ -78,8 +97,12 @@ void AHovercraft::MoveRight(float Value)
 	StaticMesh->AddForce(ForceToApply);
 }
 
-void AHovercraft::RotateRight(float Value)
+void AHovercraft::RotateRight(float Value, EControllerType InputControllerType)
 {
+	if (Value != 0)
+	{
+		ControllerType = InputControllerType;
+	}
 	if (!StaticMesh || !GetWorld()) { return; }
 	if (bIsResetting) { return; }
 	/*Value = FMath::Clamp<float>(Value, -1.f, 1.f);
@@ -487,6 +510,15 @@ void AHovercraft::Tick(float DeltaTime)
 	// check if hovercraft is upside down
 	CheckIsUpsideDown();
 
+}
+
+EControllerType AHovercraft::GetControllerType() const
+{
+	if (!bIsPlayerControlled) { return EControllerType::ECT_None; }
+	else
+	{
+		return ControllerType;
+	}
 }
 
 // Called to bind functionality to input

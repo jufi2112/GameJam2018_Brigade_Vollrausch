@@ -15,6 +15,14 @@ class UMaterialInstanceDynamic;
 class UMaterialInterface;
 class UCameraComponent;
 
+UENUM(BlueprintType)
+enum class EControllerType : uint8
+{
+	ECT_Keyboard UMETA(DisplayName="Keyboard"),
+	ECT_XBox UMETA(DisplayName="XBox"),
+	ECT_None UMETA(DisplayName="None")
+};
+
 UCLASS()
 class HOVERTEST_API AHovercraft : public APawn
 {
@@ -86,6 +94,12 @@ protected:
 	UPROPERTY(BlueprintReadOnly)
 	UStaticMeshComponent* StaticMesh = nullptr;
 
+	UPROPERTY(BlueprintReadOnly, Category = Controls)
+	bool bIsPlayerControlled = false;
+
+	UPROPERTY(VisibleAnywhere, Category = Controls)
+	EControllerType ControllerType = EControllerType::ECT_Keyboard;
+
 private:
 	TArray<bool> IsFallingArray;
 
@@ -147,14 +161,18 @@ public:
 	float RadialBlurRadius = .25f;
 
 	UFUNCTION(BlueprintCallable, Category = Input)
-	void MoveForward(float Value);
+	void MoveForward(float Value, EControllerType InputControllerType);
 
 	UFUNCTION(BlueprintCallable, Category = Input)
-	void MoveRight(float Value);
+	void MoveRight(float Value, EControllerType InputControllerType);
 
 	// already frame rate independent implemented
 	UFUNCTION(BlueprintCallable, Category = Input)
-	void RotateRight(float Value);
+	void RotateRight(float Value, EControllerType InputControllerType);
+
+	// returns ECT_None if pawn is controlled by AI rather than by a player
+	UFUNCTION(BlueprintCallable, Category = Controls)
+	EControllerType GetControllerType() const;
 
 	// Called to bind functionality to input
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;

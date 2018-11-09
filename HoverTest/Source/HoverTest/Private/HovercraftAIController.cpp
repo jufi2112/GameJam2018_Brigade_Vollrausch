@@ -39,12 +39,12 @@ void AHovercraftAIController::Tick(float DeltaTime)
 				FVector AIForwardIntention = (TargetActor->GetActorLocation()-Craft->GetActorLocation()).GetSafeNormal();
 
 				float ForwardThrow = FVector::DotProduct(HovercraftForward, AIForwardIntention);
-				Craft->MoveForward(ForwardThrow);
+				Craft->MoveForward(ForwardThrow, EControllerType::ECT_None);
 
 				float RightThrow = FVector::CrossProduct(HovercraftForward, AIForwardIntention).Z;
-				Craft->RotateRight(RightThrow);
+				Craft->RotateRight(RightThrow, EControllerType::ECT_None);
 
-				Craft->MoveRight(RightThrow);
+				Craft->MoveRight(RightThrow, EControllerType::ECT_None);
 			}
 		}
 	}
