@@ -24,4 +24,4 @@ If you only want to play the game, have a look at the release section beneath.
 ## Requirements
 
 If you want to compile this project, you'll need the following plugins:
-* RuntimeMeshComponent by Koderz [link](https://github.com/Koderz/RuntimeMeshComponent)
+* RuntimeMeshComponent by Koderz [link (Github)](https://github.com/Koderz/RuntimeMeshComponent)
