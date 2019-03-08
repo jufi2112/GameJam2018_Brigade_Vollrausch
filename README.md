@@ -20,3 +20,8 @@ If you only want to play the game, have a look at the release section beneath.
 * Art by [@Jonas Schenke](https://github.com/kloppstock)
 * Level by [@Torsten Mehnert](https://github.com/tormehn)
 * Code by [@Julien Fischer](https://github.com/jufi2112)
+
+## Requirements
+
+If you want to compile this project, you'll need the following plugins:
+* RuntimeMeshComponent by Koderz [link](https://github.com/Koderz/RuntimeMeshComponent)
