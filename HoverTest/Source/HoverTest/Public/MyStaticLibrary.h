@@ -16,7 +16,7 @@ struct FIntVector2D
 {
 	GENERATED_USTRUCT_BODY()
 
-		int32 X;
+	int32 X;
 	int32 Y;
 
 	FIntVector2D(int32 x, int32 y)
@@ -83,40 +83,40 @@ struct FTerrainSettings
 {
 	GENERATED_USTRUCT_BODY()
 
-		// size of a terrain tile in X direction in tile units
-		UPROPERTY(EditAnywhere, BlueprintReadWrite)
-		int32 TileSizeXUnits = 0;
+	// size of a terrain tile in X direction in tile units
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int32 TileSizeXUnits = 0;
 
 	// size of a terrain tile in Y direction in tile units
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-		int32 TileSizeYUnits = 0;
+	int32 TileSizeYUnits = 0;
 
 	// size of a terrain tile unit
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-		int32 UnitTileSize = 0;
+	int32 UnitTileSize = 0;
 
 	// shall async collision cooking be used
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-		bool bUseAsyncCollisionCooking = true;
+	bool bUseAsyncCollisionCooking = true;
 
 	// material that should be applied to the default terrain
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-		UMaterialInterface* TerrainMaterial = nullptr;
+	UMaterialInterface* TerrainMaterial = nullptr;
 
 	// material that should be applied to the track
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-		UMaterialInterface* TrackMaterial = nullptr;
+	UMaterialInterface* TrackMaterial = nullptr;
 
 	/**
 	* specifies the number of tiles that should be created around a tracked actor
 	* since it is the radius, a value of n will result in (2*n + 1) * (2*n + 1) tiles created around each tracked actor
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-		int32 TilesToBeCreatedAroundActorRadius = 3;
+	int32 TilesToBeCreatedAroundActorRadius = 3;
 
 	//Time in seconds after which a freed tile should be deleted
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-		float SecondsUntilFreeTileGetsDeleted = 30.f;
+	float SecondsUntilFreeTileGetsDeleted = 30.f;
 
 
 };
@@ -129,12 +129,12 @@ struct FMeshData
 {
 	GENERATED_USTRUCT_BODY()
 
-		// vertex buffer
-		TArray<FRuntimeMeshVertexSimple> VertexBuffer;
+	// vertex buffer
+	TArray<FRuntimeMeshVertexSimple> VertexBuffer;
 
 	// triangle buffer
 	UPROPERTY()
-		TArray<int32> TriangleBuffer;
+	TArray<int32> TriangleBuffer;
 
 };
 
@@ -190,6 +190,29 @@ public:
 			UE_LOG(LogTemp, Warning, TEXT("%i: %s"), i, *Vector.ToString());
 			i++;
 		}
+	}
+
+	static void CreateSimpleMeshData(FTerrainSettings TerrainSettings, FMeshData& TerrainMeshDataOUT, FMeshData& TrackMeshDataOUT)
+	{
+		// First vertex
+		TerrainMeshDataOUT.VertexBuffer.Add(FRuntimeMeshVertexSimple(FVector(0, 0, 0), FVector(0, 0, 1), FRuntimeMeshTangent(0, -1, 0), FColor::White, FVector2D(0, 0)));
+
+		// second vertex
+		TerrainMeshDataOUT.VertexBuffer.Add(FRuntimeMeshVertexSimple(FVector(TerrainSettings.TileSizeXUnits * TerrainSettings.UnitTileSize, 0, 0), FVector(0, 0, 1), FRuntimeMeshTangent(0, -1, 0), FColor::White, FVector2D(TerrainSettings.UnitTileSize, 0)));
+
+		// third vertex
+		TerrainMeshDataOUT.VertexBuffer.Add(FRuntimeMeshVertexSimple(FVector(TerrainSettings.TileSizeXUnits * TerrainSettings.UnitTileSize, TerrainSettings.TileSizeYUnits * TerrainSettings.UnitTileSize, 0), FVector(0, 0, 1), FRuntimeMeshTangent(0, -1, 0), FColor::White, FVector2D(TerrainSettings.UnitTileSize, TerrainSettings.UnitTileSize)));
+
+		// fourth vertex
+		TerrainMeshDataOUT.VertexBuffer.Add(FRuntimeMeshVertexSimple(FVector(0, TerrainSettings.TileSizeYUnits * TerrainSettings.UnitTileSize, 0), FVector(0, 0, 1), FRuntimeMeshTangent(0, -1, 0), FColor::White, FVector2D(0, TerrainSettings.UnitTileSize)));
+
+		// Triangles
+		TerrainMeshDataOUT.TriangleBuffer.Add(0);
+		TerrainMeshDataOUT.TriangleBuffer.Add(2);
+		TerrainMeshDataOUT.TriangleBuffer.Add(1);
+		TerrainMeshDataOUT.TriangleBuffer.Add(3);
+		TerrainMeshDataOUT.TriangleBuffer.Add(2);
+		TerrainMeshDataOUT.TriangleBuffer.Add(0);
 	}
 
 

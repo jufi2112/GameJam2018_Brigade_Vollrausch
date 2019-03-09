@@ -28,58 +28,58 @@ public:
 
 	// to be called only once directly after terrain tile is created
 	UFUNCTION()
-		void SetupTile(FTerrainSettings TerrainSettings, FIntVector2D Sector);
+	void SetupTile(FTerrainSettings TerrainSettings, FIntVector2D Sector);
 
 	/**
 	* to be called when the position of a tile is changed
 	* hides the actor ingame
 	*/
 	UFUNCTION()
-		void UpdateTilePosition(FTerrainSettings TerrainSettings, FIntVector2D Sector);
+	void UpdateTilePosition(FTerrainSettings TerrainSettings, FIntVector2D Sector);
 
 	/**
 	* called when mesh data should be updated
 	* unhides the actor
 	*/
 	UFUNCTION()
-		void UpdateMeshData(FMeshData& TerrainMeshData, FMeshData& TrackMeshData);
+	void UpdateMeshData(FTerrainSettings TerrainSettings, FMeshData& TerrainMeshData, FMeshData& TrackMeshData);
 
 	UFUNCTION(BlueprintCallable)
-		FIntVector2D GetCurrentSector() const;
+	FIntVector2D GetCurrentSector() const;
 
 	UFUNCTION(BlueprintCallable)
-		void AddAssociatedActor();
+	void AddAssociatedActor();
 
 	UFUNCTION(BlueprintCallable)
-		int32 RemoveAssociatedActor();
+	int32 RemoveAssociatedActor();
 
 	/**
 	* manages freeing the tile
 	* hides the tile ingame
 	*/
 	UFUNCTION(BlueprintCallable)
-		void FreeTile();
+	void FreeTile();
 
 	// returns time in seconds since the tile was freed
 	UFUNCTION(BlueprintCallable)
-		float GetTimeSinceTileFreed() const;
+	float GetTimeSinceTileFreed() const;
 
 	UFUNCTION(BlueprintCallable)
-		ETileStatus GetTileStatus() const;
+	ETileStatus GetTileStatus() const;
 
 private:
 
 	// component that is responsible for rendering the terrain
 	UPROPERTY()
-		URuntimeMeshComponent* TerrainMesh = nullptr;
+	URuntimeMeshComponent* TerrainMesh = nullptr;
 
 	// component that is responsible for rendering the track
 	UPROPERTY()
-		URuntimeMeshComponent* TrackMesh = nullptr;
+	URuntimeMeshComponent* TrackMesh = nullptr;
 
 	// represents the state of the tile
 	UPROPERTY()
-		ETileStatus TileStatus = ETileStatus::TILE_UNDEFINED;
+	ETileStatus TileStatus = ETileStatus::TILE_UNDEFINED;
 
 	// is the tile initialized
 	bool bIsInitialized = false;
@@ -89,16 +89,16 @@ private:
 	* a sector has the same size as a tile but has a fixed position, whereas tiles can be moved around (i.e. tiles can be moved to different sectors)
 	*/
 	UPROPERTY()
-		FIntVector2D CurrentSector;
+	FIntVector2D CurrentSector;
 
 	/**
 	* number of actors that are associated with this tile (i.e. actors that this tile is relevant for)
 	* if this number is zero, the tile can be freed
 	*/
 	UPROPERTY()
-		int32 ActorsAssociatedWithThisTile = 0;
+	int32 ActorsAssociatedWithThisTile = 0;
 
 	UPROPERTY()
-		float TimeSinceTileFreed = 0;
+	float TimeSinceTileFreed = 0;
 
 };

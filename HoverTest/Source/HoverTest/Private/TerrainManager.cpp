@@ -69,6 +69,7 @@ void ATerrainManager::Tick(float DeltaTime)
 		}
 	}
 
+	// TODO
 	// check if mesh creation / retrieval jobs can be executed
 	// check if mesh creation / retrieval jobs are finished
 
@@ -107,27 +108,15 @@ void ATerrainManager::AddActorToTrack(AActor * ActorToTrack)
 		// calculate the sectors the actor needs covered
 		TArray<FIntVector2D> SectorsThatNeedCoverage = CalculateSectorsNeededAroundGivenLocation(ActorToTrack->GetActorLocation());
 
-		//UE_LOG(LogTemp, Warning, TEXT("Sectors that need coverage: "));
-		//UMyStaticLibrary::PrintFIntVector2DArray(SectorsThatNeedCoverage);
-
 		// iterate all existing tiles and check if they already cover the sectors the actor needs covered
 		for (ATerrainTile* Tile : TilesInUse)
 		{
-
-			//FIntVector2D Vec = Tile->GetCurrentSector();
-
 			int32 RemovedItems = SectorsThatNeedCoverage.Remove(Tile->GetCurrentSector());
 			if (RemovedItems > 0)
 			{
 				Tile->AddAssociatedActor();
 			}
-
-			//UE_LOG(LogTemp, Error, TEXT("Tile sector is %s, removed it %i times from array"), *Vec.ToString(), RemovedItems);
-
 		}
-
-		/*UE_LOG(LogTemp, Warning, TEXT("Sectors that are not covered by existing tiles: "));
-		UMyStaticLibrary::PrintFIntVector2DArray(SectorsThatNeedCoverage);*/
 
 		// use free tiles to cover sectors
 		while (SectorsThatNeedCoverage.Num() > 0 && FreeTiles.Num() > 0)
@@ -137,11 +126,13 @@ void ATerrainManager::AddActorToTrack(AActor * ActorToTrack)
 			Tile->UpdateTilePosition(TerrainSettings, Sector);
 			Tile->AddAssociatedActor();
 			// TODO update mesh data
+			FMeshData TerrainMesh;
+			FMeshData TrackMesh;
+			UMyStaticLibrary::CreateSimpleMeshData(TerrainSettings, TerrainMesh, TrackMesh);
+			Tile->UpdateMeshData(TerrainSettings, TerrainMesh, TrackMesh);
+
 			TilesInUse.Add(Tile);
 		}
-
-		/*UE_LOG(LogTemp, Warning, TEXT("Sectors that could not be covered with free tiles: "));
-		UMyStaticLibrary::PrintFIntVector2DArray(SectorsThatNeedCoverage);*/
 
 		// check if we need to create additional tiles to cover the sectors
 		if (SectorsThatNeedCoverage.Num() > 0)
@@ -153,28 +144,17 @@ void ATerrainManager::AddActorToTrack(AActor * ActorToTrack)
 				FIntVector2D Sector = SectorsThatNeedCoverage.Pop();
 				ATerrainTile* Tile = FreeTiles.Pop();
 
-				//UE_LOG(LogTemp, Error, TEXT("Sector that gets covered by newly created tile: %s"), *Sector.ToString());
 				Tile->UpdateTilePosition(TerrainSettings, Sector);
 				Tile->AddAssociatedActor();
 
-				//UE_LOG(LogTemp, Error, TEXT("Sector that got saved in the newly created tile: %s"), *Tile->GetCurrentSector().ToString());
-
 				// TODO update mesh data
+				FMeshData TerrainMesh;
+				FMeshData TrackMesh;
+				UMyStaticLibrary::CreateSimpleMeshData(TerrainSettings, TerrainMesh, TrackMesh);
+				Tile->UpdateMeshData(TerrainSettings, TerrainMesh, TrackMesh);
+
 				TilesInUse.Add(Tile);
 			}
-
-
-			/*int32 i = 0;
-			for (ATerrainTile* Tile : TilesInUse)
-			{
-			UE_LOG(LogTemp, Error, TEXT("%i: %s"), i, *Tile->GetCurrentSector().ToString());
-			i++;
-			}*/
-
-			// check if something went wrong and we still have sectors to cover
-
-			/*UE_LOG(LogTemp, Warning, TEXT("Sectors still remaining without coverage: "));
-			UMyStaticLibrary::PrintFIntVector2DArray(SectorsThatNeedCoverage);*/
 
 			if (SectorsThatNeedCoverage.Num() != 0)
 			{
@@ -227,8 +207,6 @@ void ATerrainManager::HandleTrackedActorChangedSector(AActor * TrackedActor, FIn
 {
 	// my rhymes are lit
 
-	/*UE_LOG(LogTemp, Warning, TEXT("HandleTrackedActorChangedSector called"));*/
-
 	// identify sectors that are no longer needed by this actor
 	TArray<FIntVector2D> SectorsNeededAtNewPosition = CalculateSectorsNeededAroundGivenSector(NewSector);
 	TArray<FIntVector2D> SectorsNeededAtPreviousPosition = CalculateSectorsNeededAroundGivenSector(PreviousSector);
@@ -237,17 +215,6 @@ void ATerrainManager::HandleTrackedActorChangedSector(AActor * TrackedActor, FIn
 	{
 		SectorsNeededAtPreviousPosition.Remove(Vec);
 	}
-
-	/*UE_LOG(LogTemp, Error, TEXT("Tiles in use:"));
-	int32 i = 0;
-	for (ATerrainTile* Tile : TilesInUse)
-	{
-	UE_LOG(LogTemp, Warning, TEXT("%i: %s"), i, *Tile->GetCurrentSector().ToString());
-	i++;
-	}*/
-
-	/*UE_LOG(LogTemp, Error, TEXT("Sectors that are no longer needed:"));
-	UMyStaticLibrary::PrintFIntVector2DArray(SectorsNeededAtPreviousPosition);*/
 
 	TArray<ATerrainTile*> TilesToFree;
 	// identify tiles that cover these sectors
@@ -270,22 +237,6 @@ void ATerrainManager::HandleTrackedActorChangedSector(AActor * TrackedActor, FIn
 		FreeTiles.Add(Tile);
 	}
 
-	/*UE_LOG(LogTemp, Error, TEXT("Remaining tiles in use: "));
-	i = 0;
-	for (ATerrainTile* Tile : TilesInUse)
-	{
-	UE_LOG(LogTemp, Warning, TEXT("%i: %s"), i, *Tile->GetCurrentSector().ToString());
-	i++;
-	}*/
-
-	/*UE_LOG(LogTemp, Error, TEXT("New free tiles: "));
-	i = 0;
-	for (ATerrainTile* Tile : FreeTiles)
-	{
-	UE_LOG(LogTemp, Warning, TEXT("%i: %s"), i, *Tile->GetCurrentSector().ToString());
-	i++;
-	}*/
-
 	SectorsNeededAtNewPosition.Empty();
 	SectorsNeededAtPreviousPosition.Empty();
 	TilesToFree.Empty();
@@ -302,9 +253,6 @@ void ATerrainManager::HandleTrackedActorChangedSector(AActor * TrackedActor, FIn
 		SectorsNeededAtNewPosition.Remove(Sector);
 	}
 
-	/*UE_LOG(LogTemp, Error, TEXT("New sectors needed at new position: "));
-	UMyStaticLibrary::PrintFIntVector2DArray(SectorsNeededAtNewPosition);*/
-
 	// check all tiles in use if they already cover the needed sectors
 	// identify sectors that need new tiles (i.e. that are uncovered by existing tiles)
 	for (ATerrainTile* Tile : TilesInUse)
@@ -316,24 +264,11 @@ void ATerrainManager::HandleTrackedActorChangedSector(AActor * TrackedActor, FIn
 		}
 	}
 
-	/*UE_LOG(LogTemp, Error, TEXT("Sectors that are not covered by existing tiles: "));
-	UMyStaticLibrary::PrintFIntVector2DArray(SectorsNeededAtNewPosition);
-
-	UE_LOG(LogTemp, Error, TEXT("Free tiles available: %i"), FreeTiles.Num());*/
-
 	// check how many free tiles are available
 	// (if necessary: create new tiles if free tiles do not suffice to cover all newly needed sectors)
-
-	/*UE_LOG(LogTemp, Warning, TEXT("SectorsNeededAtNewPosition: %i"), SectorsNeededAtNewPosition.Num());
-	UE_LOG(LogTemp, Warning, TEXT("FreeTiles: %i"), FreeTiles.Num());*/
-
 	if (SectorsNeededAtNewPosition.Num() > FreeTiles.Num())
 	{
 		CreateAndInitializeTiles(SectorsNeededAtNewPosition.Num() - FreeTiles.Num());
-
-		/*UE_LOG(LogTemp, Error, TEXT("Need to create %i new tiles"), SectorsNeededAtNewPosition.Num() - FreeTiles.Num());
-		UE_LOG(LogTemp, Warning, TEXT("Available free tiles after creation: %i"), FreeTiles.Num());*/
-
 	}
 
 	// update free tiles to cover new sectors and increase associatedactors count
@@ -344,13 +279,15 @@ void ATerrainManager::HandleTrackedActorChangedSector(AActor * TrackedActor, FIn
 
 		Tile->UpdateTilePosition(TerrainSettings, Sector);
 		Tile->AddAssociatedActor();
+
 		// TODO update mesh data
+		FMeshData TerrainMesh;
+		FMeshData TrackMesh;
+		UMyStaticLibrary::CreateSimpleMeshData(TerrainSettings, TerrainMesh, TrackMesh);
+		Tile->UpdateMeshData(TerrainSettings, TerrainMesh, TrackMesh);
 
 		TilesInUse.Add(Tile);
 	}
-
-	/*UE_LOG(LogTemp, Error, TEXT("Available free tiles: %i"), FreeTiles.Num());
-	UE_LOG(LogTemp, Error, TEXT("TilesInUse: %i"), TilesInUse.Num());*/
 }
 
 

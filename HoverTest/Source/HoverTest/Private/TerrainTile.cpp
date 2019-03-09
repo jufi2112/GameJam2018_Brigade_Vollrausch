@@ -79,7 +79,7 @@ void ATerrainTile::UpdateTilePosition(FTerrainSettings TerrainSettings, FIntVect
 	SetActorHiddenInGame(true);
 }
 
-void ATerrainTile::UpdateMeshData(FMeshData& TerrainMeshData, FMeshData& TrackMeshData)
+void ATerrainTile::UpdateMeshData(FTerrainSettings TerrainSettings, FMeshData& TerrainMeshData, FMeshData& TrackMeshData)
 {
 	if (TerrainMesh == nullptr || TrackMesh == nullptr) { return; }
 	if (!bIsInitialized || TileStatus == ETileStatus::TILE_UNDEFINED)
@@ -92,9 +92,10 @@ void ATerrainTile::UpdateMeshData(FMeshData& TerrainMeshData, FMeshData& TrackMe
 	{
 		// tile is initialized, but runtime mesh sections do not exist
 		TerrainMesh->CreateMeshSection(0, TerrainMeshData.VertexBuffer, TerrainMeshData.TriangleBuffer, true, EUpdateFrequency::Infrequent, ESectionUpdateFlags::None);
-		TrackMesh->CreateMeshSection(0, TrackMeshData.VertexBuffer, TrackMeshData.TriangleBuffer, true, EUpdateFrequency::Infrequent, ESectionUpdateFlags::None);
-		TerrainMesh->RegisterComponent();
-		TrackMesh->RegisterComponent();
+		//TrackMesh->CreateMeshSection(0, TrackMeshData.VertexBuffer, TrackMeshData.TriangleBuffer, true, EUpdateFrequency::Infrequent, ESectionUpdateFlags::None);
+		// TODO think if following 2 lines can be deleted
+		//TerrainMesh->RegisterComponent();
+		//TrackMesh->RegisterComponent();
 		TileStatus = ETileStatus::TILE_FINISHED;
 	}
 
@@ -102,10 +103,13 @@ void ATerrainTile::UpdateMeshData(FMeshData& TerrainMeshData, FMeshData& TrackMe
 	else if (TileStatus == ETileStatus::TILE_FINISHED)
 	{
 		TerrainMesh->UpdateMeshSection(0, TerrainMeshData.VertexBuffer, TerrainMeshData.TriangleBuffer, ESectionUpdateFlags::None);
-		TrackMesh->UpdateMeshSection(0, TrackMeshData.VertexBuffer, TrackMeshData.TriangleBuffer, ESectionUpdateFlags::None);
+		//TrackMesh->UpdateMeshSection(0, TrackMeshData.VertexBuffer, TrackMeshData.TriangleBuffer, ESectionUpdateFlags::None);
 		TileStatus = ETileStatus::TILE_FINISHED;
 	}
+	else { return; }
 
+	TerrainMesh->SetMaterial(0, TerrainSettings.TerrainMaterial);
+	//TrackMesh->SetMaterial(0, TerrainSettings.TrackMaterial);
 	TerrainMesh->SetVisibility(true);
 	TrackMesh->SetVisibility(true);
 	SetActorHiddenInGame(false);

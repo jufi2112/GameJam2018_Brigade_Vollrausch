@@ -24,22 +24,22 @@ protected:
 
 	// actors that are tracked by the terrain manager, i.e. actors around which terrain is generated
 	UPROPERTY()
-		TArray<AActor*> TrackedActors;
+	TArray<AActor*> TrackedActors;
 
 	// terrain tiles that are currently not used (free to use)
 	UPROPERTY()
-		TArray<ATerrainTile*> FreeTiles;
+	TArray<ATerrainTile*> FreeTiles;
 
 	// terrain tiles that are currently used (not free to use)
 	UPROPERTY()
-		TArray<ATerrainTile*> TilesInUse;
+	TArray<ATerrainTile*> TilesInUse;
 
 	/**
 	* returns an array containing all sectors around the input location that should be covered with tiles according to TilesToBeCreatedAroundActorRadius in FTerrainSettings
 	* the function does not check if sectors may already be covered by tiles
 	*/
 	UFUNCTION(BlueprintCallable)
-		TArray<FIntVector2D> CalculateSectorsNeededAroundGivenLocation(FVector Location);
+	TArray<FIntVector2D> CalculateSectorsNeededAroundGivenLocation(FVector Location);
 
 	/**
 	* returns an array containing all sectors around the given sector that should be covered with tiles according to TilesToBeCreatedAroundActorRadius in FTerrainSettings
@@ -47,7 +47,7 @@ protected:
 	* the sector provided to the function will also get included in the return array
 	*/
 	UFUNCTION(BlueprintCallable)
-		TArray<FIntVector2D> CalculateSectorsNeededAroundGivenSector(FIntVector2D Sector);
+	TArray<FIntVector2D> CalculateSectorsNeededAroundGivenSector(FIntVector2D Sector);
 
 
 
@@ -57,11 +57,11 @@ public:
 
 	// settings for terrain generation
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite)
-		FTerrainSettings TerrainSettings;
+	FTerrainSettings TerrainSettings;
 
 	// should the terrain manager start generating terrain as soon as an actor registers itself
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite)
-		bool bGenerateTerrainOnActorRegister = true;
+	bool bGenerateTerrainOnActorRegister = true;
 
 	/**
 	* to make it possible to begin terrain generation not just when an actor registers itself but also on an input event,
@@ -69,19 +69,19 @@ public:
 	* called by default from the AddActorToTrack() method, but can also be called from for example blueprint when setting bGenerateTerrainOnActorRegister to false
 	*/
 	UFUNCTION(BlueprintCallable)
-		void CreateAndInitializeTiles(int32 NumberOfTilesToCreate = 9);
+	void CreateAndInitializeTiles(int32 NumberOfTilesToCreate = 9);
 
 	// adds the specified actor to the list of actors that are tracked, i.e. that terrain is generated around
 	UFUNCTION(BlueprintCallable)
-		void AddActorToTrack(AActor* ActorToTrack);
+	void AddActorToTrack(AActor* ActorToTrack);
 
 	// removes the specified actor from the list of actors that are tracked, i.e. no terrain is generated around this actor anymore
 	UFUNCTION(BlueprintCallable)
-		void RemoveTrackedActor(AActor* ActorToRemove);
+	void RemoveTrackedActor(AActor* ActorToRemove);
 
 	// used to calculate the sector an entity with the given world location is in
 	UFUNCTION(BlueprintCallable)
-		FIntVector2D CalculateSectorFromLocation(FVector CurrentWorldLocation);
+	FIntVector2D CalculateSectorFromLocation(FVector CurrentWorldLocation);
 
 	/**
 	* function called from a TerrainTrackerComponent when its actor changes sector
@@ -89,10 +89,9 @@ public:
 	* TODO to be implemented
 	*/
 	UFUNCTION(BlueprintCallable)
-		void HandleTrackedActorChangedSector(AActor* TrackedActor, FIntVector2D PreviousSector, FIntVector2D NewSector);
+	void HandleTrackedActorChangedSector(AActor* TrackedActor, FIntVector2D PreviousSector, FIntVector2D NewSector);
 
 	/**
 	* TODO
-	* destroy free tiles that were not used since x seconds
 	*/
 };
