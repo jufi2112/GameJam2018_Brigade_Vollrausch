@@ -207,12 +207,34 @@ void ATerrainManager::RemoveTrackedActor(AActor * ActorToRemove)
 	if (ActorToRemove == nullptr) { return; }
 	int32 NumberOfRemovedActors = TrackedActors.RemoveSingle(ActorToRemove);
 
-	// TODO: free Tiles associated with this actor
-
 	if (NumberOfRemovedActors != 1)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Could not remove specified Actor in RemoveTrackedActor in %s"), *GetName());
 	}
+
+	// free Tiles associated with this actor
+	TArray<FIntVector2D> Sectors = CalculateSectorsNeededAroundGivenLocation(ActorToRemove->GetActorLocation());
+	TArray<ATerrainTile*> TilesToFree;
+
+	for (ATerrainTile* Tile : TilesInUse)
+	{
+		if (Sectors.Remove(Tile->GetCurrentSector()) > 0)
+		{
+			if (Tile->RemoveAssociatedActor() == 0)
+			{
+				Tile->FreeTile();
+				TilesToFree.Add(Tile);
+			}
+		}
+	}
+
+	for (ATerrainTile* Tile : TilesToFree)
+	{
+		TilesInUse.Remove(Tile);
+		FreeTiles.Add(Tile);
+	}
+
+	TilesToFree.Empty();
 }
 
 FIntVector2D ATerrainManager::CalculateSectorFromLocation(FVector CurrentWorldLocation)
