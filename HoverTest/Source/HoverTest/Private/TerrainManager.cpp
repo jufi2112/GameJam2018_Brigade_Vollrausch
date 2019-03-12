@@ -119,9 +119,6 @@ void ATerrainManager::Tick(float DeltaTime)
 
 void ATerrainManager::CreateAndInitializeTiles(int32 NumberOfTilesToCreate)
 {
-
-	//UE_LOG(LogTemp, Error, TEXT("Creating %i new tiles"), NumberOfTilesToCreate);
-
 	for (int i = 0; i < NumberOfTilesToCreate; ++i)
 	{
 		ATerrainTile* Tile = GetWorld()->SpawnActor<ATerrainTile>(FVector(0.f, 0.f, 0.f), FRotator(0.f, 0.f, 0.f), FActorSpawnParameters());
@@ -146,7 +143,6 @@ void ATerrainManager::AddActorToTrack(AActor * ActorToTrack)
 
 	if (bGenerateTerrainOnActorRegister)
 	{
-		// TODO
 		// calculate the sectors the actor needs covered
 		TArray<FIntVector2D> SectorsThatNeedCoverage = CalculateSectorsNeededAroundGivenLocation(ActorToTrack->GetActorLocation());
 
@@ -167,17 +163,11 @@ void ATerrainManager::AddActorToTrack(AActor * ActorToTrack)
 			ATerrainTile* Tile = FreeTiles.Pop();
 			Tile->UpdateTilePosition(TerrainSettings, Sector);
 			Tile->AddAssociatedActor();
-			// TODO update mesh data
-			/*FMeshData TerrainMesh;
-			FMeshData TrackMesh;
-			UMyStaticLibrary::CreateSimpleMeshData(TerrainSettings, TerrainMesh, TrackMesh);
-			Tile->UpdateMeshData(TerrainSettings, TerrainMesh, TrackMesh);*/
-
 			FTerrainJob Job;
 			Job.TerrainTile = Tile;
 			PendingTerrainJobQueue.Enqueue(Job);
 
-			//TilesInUse.Add(Tile);
+			TilesInUse.Add(Tile);
 		}
 
 		// check if we need to create additional tiles to cover the sectors
@@ -192,13 +182,6 @@ void ATerrainManager::AddActorToTrack(AActor * ActorToTrack)
 
 				Tile->UpdateTilePosition(TerrainSettings, Sector);
 				Tile->AddAssociatedActor();
-
-				// TODO update mesh data
-				/*FMeshData TerrainMesh;
-				FMeshData TrackMesh;
-				UMyStaticLibrary::CreateSimpleMeshData(TerrainSettings, TerrainMesh, TrackMesh);
-				Tile->UpdateMeshData(TerrainSettings, TerrainMesh, TrackMesh);*/
-
 				FTerrainJob Job;
 				Job.TerrainTile = Tile;
 				PendingTerrainJobQueue.Enqueue(Job);
@@ -223,7 +206,9 @@ void ATerrainManager::RemoveTrackedActor(AActor * ActorToRemove)
 {
 	if (ActorToRemove == nullptr) { return; }
 	int32 NumberOfRemovedActors = TrackedActors.RemoveSingle(ActorToRemove);
+
 	// TODO: free Tiles associated with this actor
+
 	if (NumberOfRemovedActors != 1)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Could not remove specified Actor in RemoveTrackedActor in %s"), *GetName());
@@ -303,9 +288,6 @@ void ATerrainManager::HandleTrackedActorChangedSector(AActor * TrackedActor, FIn
 	SectorsNeededAtPreviousPosition.Empty();
 	TilesToFree.Empty();
 
-
-
-
 	// identify new sectors needed for the new actor location
 	SectorsNeededAtNewPosition = CalculateSectorsNeededAroundGivenSector(NewSector);
 	SectorsNeededAtPreviousPosition = CalculateSectorsNeededAroundGivenSector(PreviousSector);
@@ -341,13 +323,6 @@ void ATerrainManager::HandleTrackedActorChangedSector(AActor * TrackedActor, FIn
 
 		Tile->UpdateTilePosition(TerrainSettings, Sector);
 		Tile->AddAssociatedActor();
-
-		// TODO update mesh data
-		//FMeshData TerrainMesh;
-		//FMeshData TrackMesh;
-		//UMyStaticLibrary::CreateSimpleMeshData(TerrainSettings, TerrainMesh, TrackMesh);
-		//Tile->UpdateMeshData(TerrainSettings, TerrainMesh, TrackMesh);
-
 		FTerrainJob Job;
 		Job.TerrainTile = Tile;
 		PendingTerrainJobQueue.Enqueue(Job);
