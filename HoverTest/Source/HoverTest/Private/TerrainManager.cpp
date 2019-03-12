@@ -3,6 +3,7 @@
 #include "TerrainManager.h"
 #include "TerrainTile.h"
 #include "Runtime/Engine/Classes/Engine/World.h"
+#include "TerrainGeneratorWorker.h"
 
 
 // Sets default values
@@ -16,6 +17,24 @@ ATerrainManager::ATerrainManager()
 void ATerrainManager::BeginPlay()
 {
 	Super::BeginPlay();
+
+	// create threads
+	FString ThreadName = "TerrainGeneratorWorkerThread";
+	for (int i = 0; i < TerrainSettings.NumberOfThreadsToUse; ++i)
+	{
+		TerrainCreationQueue.Emplace();
+		Threads.Add(
+			FRunnableThread::Create(
+				new TerrainGeneratorWorker(this, TerrainSettings, &TerrainCreationQueue[i]),
+				*ThreadName,
+				0,
+				EThreadPriority::TPri_Normal,
+				FPlatformAffinity::GetNoAffinityMask()
+			)
+		);
+
+
+	}
 }
 
 TArray<FIntVector2D> ATerrainManager::CalculateSectorsNeededAroundGivenLocation(FVector Location)
@@ -56,7 +75,7 @@ void ATerrainManager::Tick(float DeltaTime)
 	Super::Tick(DeltaTime);
 
 	// check if free tiles can be deleted
-	for (int32 i = FreeTiles.Num() - 1; i >= 0; --i)
+	for (int i = FreeTiles.Num() - 1; i >= 0; --i)
 	{
 		if (FreeTiles[i]->GetTileStatus() == ETileStatus::TILE_FREE)
 		{
@@ -69,10 +88,33 @@ void ATerrainManager::Tick(float DeltaTime)
 		}
 	}
 
-	// TODO
-	// check if mesh creation / retrieval jobs can be executed
-	// check if mesh creation / retrieval jobs are finished
+	// check if we need to create mesh data
+	for (int i = 0; i < TerrainSettings.NumberOfThreadsToUse; ++i)
+	{
+		FTerrainJob Job;
+		// TODO check if we need a limit on mesh data (Job) memory usage
+		if (PendingTerrainJobQueue.Dequeue(Job))
+		{
+			TerrainCreationQueue[i].Enqueue(Job);
+		}
+	}
 
+	// check if we need to update mesh data
+	for (int i = 0; i < TerrainSettings.MeshUpdatesPerFrame; ++i)
+	{
+		FTerrainJob Job;
+		if (FinishedJobQueue.Dequeue(Job))
+		{
+			if (Job.TerrainTile == nullptr)
+			{
+				UE_LOG(LogTemp, Error, TEXT("TerrainTile pointer in Job is nullptr!"));
+			}
+			else
+			{
+				Job.TerrainTile->UpdateMeshData(TerrainSettings, Job.TerrainMeshData, Job.TrackMeshData);
+			}
+		}
+	}
 }
 
 void ATerrainManager::CreateAndInitializeTiles(int32 NumberOfTilesToCreate)
@@ -126,12 +168,16 @@ void ATerrainManager::AddActorToTrack(AActor * ActorToTrack)
 			Tile->UpdateTilePosition(TerrainSettings, Sector);
 			Tile->AddAssociatedActor();
 			// TODO update mesh data
-			FMeshData TerrainMesh;
+			/*FMeshData TerrainMesh;
 			FMeshData TrackMesh;
 			UMyStaticLibrary::CreateSimpleMeshData(TerrainSettings, TerrainMesh, TrackMesh);
-			Tile->UpdateMeshData(TerrainSettings, TerrainMesh, TrackMesh);
+			Tile->UpdateMeshData(TerrainSettings, TerrainMesh, TrackMesh);*/
 
-			TilesInUse.Add(Tile);
+			FTerrainJob Job;
+			Job.TerrainTile = Tile;
+			PendingTerrainJobQueue.Enqueue(Job);
+
+			//TilesInUse.Add(Tile);
 		}
 
 		// check if we need to create additional tiles to cover the sectors
@@ -148,10 +194,14 @@ void ATerrainManager::AddActorToTrack(AActor * ActorToTrack)
 				Tile->AddAssociatedActor();
 
 				// TODO update mesh data
-				FMeshData TerrainMesh;
+				/*FMeshData TerrainMesh;
 				FMeshData TrackMesh;
 				UMyStaticLibrary::CreateSimpleMeshData(TerrainSettings, TerrainMesh, TrackMesh);
-				Tile->UpdateMeshData(TerrainSettings, TerrainMesh, TrackMesh);
+				Tile->UpdateMeshData(TerrainSettings, TerrainMesh, TrackMesh);*/
+
+				FTerrainJob Job;
+				Job.TerrainTile = Tile;
+				PendingTerrainJobQueue.Enqueue(Job);
 
 				TilesInUse.Add(Tile);
 			}
@@ -201,6 +251,18 @@ FIntVector2D ATerrainManager::CalculateSectorFromLocation(FVector CurrentWorldLo
 		}
 	}
 	return FIntVector2D(static_cast<int32>(XSector), static_cast<int32>(YSector));
+}
+
+void ATerrainManager::BeginDestroy()
+{
+	for (auto& Thread : Threads)
+	{
+		if (Thread != nullptr)
+		{
+			Thread->Kill();
+		}
+	}
+	Super::BeginDestroy();
 }
 
 void ATerrainManager::HandleTrackedActorChangedSector(AActor * TrackedActor, FIntVector2D PreviousSector, FIntVector2D NewSector)
@@ -281,10 +343,14 @@ void ATerrainManager::HandleTrackedActorChangedSector(AActor * TrackedActor, FIn
 		Tile->AddAssociatedActor();
 
 		// TODO update mesh data
-		FMeshData TerrainMesh;
-		FMeshData TrackMesh;
-		UMyStaticLibrary::CreateSimpleMeshData(TerrainSettings, TerrainMesh, TrackMesh);
-		Tile->UpdateMeshData(TerrainSettings, TerrainMesh, TrackMesh);
+		//FMeshData TerrainMesh;
+		//FMeshData TrackMesh;
+		//UMyStaticLibrary::CreateSimpleMeshData(TerrainSettings, TerrainMesh, TrackMesh);
+		//Tile->UpdateMeshData(TerrainSettings, TerrainMesh, TrackMesh);
+
+		FTerrainJob Job;
+		Job.TerrainTile = Tile;
+		PendingTerrainJobQueue.Enqueue(Job);
 
 		TilesInUse.Add(Tile);
 	}

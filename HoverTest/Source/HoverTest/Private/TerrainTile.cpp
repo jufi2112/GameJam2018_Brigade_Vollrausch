@@ -74,7 +74,7 @@ void ATerrainTile::UpdateTilePosition(FTerrainSettings TerrainSettings, FIntVect
 	{
 		TileStatus = ETileStatus::TILE_TRANSITION;
 	}
-	SetActorLocation(FVector(TerrainSettings.TileSizeXUnits * TerrainSettings.UnitTileSize * Sector.X, TerrainSettings.TileSizeYUnits * TerrainSettings.UnitTileSize * Sector.Y, 0));
+	SetActorLocation(FVector((TerrainSettings.TileSizeXUnits -1) * TerrainSettings.UnitTileSize * Sector.X, (TerrainSettings.TileSizeYUnits -1) * TerrainSettings.UnitTileSize * Sector.Y, 0));
 	CurrentSector = Sector;
 	SetActorHiddenInGame(true);
 }
@@ -91,8 +91,14 @@ void ATerrainTile::UpdateMeshData(FTerrainSettings TerrainSettings, FMeshData& T
 	if (TileStatus == ETileStatus::TILE_INITIALIZED || TileStatus == ETileStatus::TILE_TRANSITION)
 	{
 		// tile is initialized, but runtime mesh sections do not exist
-		TerrainMesh->CreateMeshSection(0, TerrainMeshData.VertexBuffer, TerrainMeshData.TriangleBuffer, true, EUpdateFrequency::Infrequent, ESectionUpdateFlags::None);
-		//TrackMesh->CreateMeshSection(0, TrackMeshData.VertexBuffer, TrackMeshData.TriangleBuffer, true, EUpdateFrequency::Infrequent, ESectionUpdateFlags::None);
+		if (TerrainMeshData.VertexBuffer.Num() != 0)
+		{
+			TerrainMesh->CreateMeshSection(0, TerrainMeshData.VertexBuffer, TerrainMeshData.TriangleBuffer, true, EUpdateFrequency::Infrequent, ESectionUpdateFlags::None);
+		}
+		if (TrackMeshData.VertexBuffer.Num() != 0)
+		{
+			TrackMesh->CreateMeshSection(0, TrackMeshData.VertexBuffer, TrackMeshData.TriangleBuffer, true, EUpdateFrequency::Infrequent, ESectionUpdateFlags::None);
+		}
 		// TODO think if following 2 lines can be deleted
 		//TerrainMesh->RegisterComponent();
 		//TrackMesh->RegisterComponent();
@@ -102,14 +108,26 @@ void ATerrainTile::UpdateMeshData(FTerrainSettings TerrainSettings, FMeshData& T
 	// runtime mesh sections exist, so only update them
 	else if (TileStatus == ETileStatus::TILE_FINISHED)
 	{
-		TerrainMesh->UpdateMeshSection(0, TerrainMeshData.VertexBuffer, TerrainMeshData.TriangleBuffer, ESectionUpdateFlags::None);
-		//TrackMesh->UpdateMeshSection(0, TrackMeshData.VertexBuffer, TrackMeshData.TriangleBuffer, ESectionUpdateFlags::None);
+		if (TerrainMeshData.VertexBuffer.Num() != 0)
+		{
+			TerrainMesh->UpdateMeshSection(0, TerrainMeshData.VertexBuffer, TerrainMeshData.TriangleBuffer, ESectionUpdateFlags::None);
+		}
+		if (TrackMeshData.VertexBuffer.Num() != 0)
+		{
+			TrackMesh->UpdateMeshSection(0, TrackMeshData.VertexBuffer, TrackMeshData.TriangleBuffer, ESectionUpdateFlags::None);
+		}
 		TileStatus = ETileStatus::TILE_FINISHED;
 	}
 	else { return; }
 
-	TerrainMesh->SetMaterial(0, TerrainSettings.TerrainMaterial);
-	//TrackMesh->SetMaterial(0, TerrainSettings.TrackMaterial);
+	if (TerrainMeshData.VertexBuffer.Num() != 0)
+	{
+		TerrainMesh->SetMaterial(0, TerrainSettings.TerrainMaterial);
+	}
+	if (TrackMeshData.VertexBuffer.Num() != 0)
+	{
+		TrackMesh->SetMaterial(0, TerrainSettings.TrackMaterial);
+	}
 	TerrainMesh->SetVisibility(true);
 	TrackMesh->SetVisibility(true);
 	SetActorHiddenInGame(false);

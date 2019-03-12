@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "MyStaticLibrary.h"
+#include "Runtime/Core/Public/Containers/Queue.h"
 #include "TerrainManager.generated.h"
 
 class ATerrainTile;
@@ -49,6 +50,17 @@ protected:
 	UFUNCTION(BlueprintCallable)
 	TArray<FIntVector2D> CalculateSectorsNeededAroundGivenSector(FIntVector2D Sector);
 
+	// array of queues, where each queue is an input queue for a thread
+	TArray<TQueue<FTerrainJob, EQueueMode::Spsc>> TerrainCreationQueue;
+
+	// queue for pending terrain jobs
+	TQueue<FTerrainJob, EQueueMode::Spsc> PendingTerrainJobQueue;
+
+	// array of all used threads
+	TArray<FRunnableThread*> Threads;
+
+
+
 
 
 public:
@@ -83,6 +95,8 @@ public:
 	UFUNCTION(BlueprintCallable)
 	FIntVector2D CalculateSectorFromLocation(FVector CurrentWorldLocation);
 
+	virtual void BeginDestroy() override;
+
 	/**
 	* function called from a TerrainTrackerComponent when its actor changes sector
 	* the function handles moving of associated tiles
@@ -90,6 +104,9 @@ public:
 	*/
 	UFUNCTION(BlueprintCallable)
 	void HandleTrackedActorChangedSector(AActor* TrackedActor, FIntVector2D PreviousSector, FIntVector2D NewSector);
+
+	// queue where threads send their finished jobs to
+	TQueue<FTerrainJob, EQueueMode::Mpsc> FinishedJobQueue;
 
 	/**
 	* TODO

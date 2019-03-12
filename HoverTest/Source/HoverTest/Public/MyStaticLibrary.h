@@ -8,6 +8,8 @@
 #include "Engine/Classes/Materials/MaterialInterface.h"
 #include "MyStaticLibrary.generated.h"
 
+class ATerrainTile;
+
 /**
 * struct that defines an integer vector in 2D space, since Unreal decides to not come up with such a thing by default
 */
@@ -118,6 +120,14 @@ struct FTerrainSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float SecondsUntilFreeTileGetsDeleted = 30.f;
 
+	// number of threads that should be used for terrain generation
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int32 NumberOfThreadsToUse = 4;
+
+	// how many meshes should be updated per frame
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int32 MeshUpdatesPerFrame = 8;
+
 
 };
 
@@ -136,6 +146,27 @@ struct FMeshData
 	UPROPERTY()
 	TArray<int32> TriangleBuffer;
 
+};
+
+/**
+* struct for a job in which terrain is generated
+*/
+USTRUCT()
+struct FTerrainJob
+{
+	GENERATED_USTRUCT_BODY()
+
+	// the terrain tile this job calculates mesh data for
+	UPROPERTY()
+	ATerrainTile* TerrainTile = nullptr;
+
+	// the terrain mesh data
+	UPROPERTY()
+	FMeshData TerrainMeshData;
+
+	// the track mesh data
+	UPROPERTY()
+	FMeshData TrackMeshData;
 };
 
 /**
@@ -213,6 +244,44 @@ public:
 		TerrainMeshDataOUT.TriangleBuffer.Add(3);
 		TerrainMeshDataOUT.TriangleBuffer.Add(2);
 		TerrainMeshDataOUT.TriangleBuffer.Add(0);
+	}
+
+	static void CreateComplexMeshData(FTerrainSettings TerrainSettings, FMeshData& TerrainMeshDataOUT, FMeshData& TrackMeshDataOUT)
+	{
+		for (int x = 0; x < TerrainSettings.TileSizeXUnits; ++x)
+		{
+			for (int y = 0; y < TerrainSettings.TileSizeYUnits; ++y)
+			{
+				float z = FMath::RandRange(-1.f, 1.f);
+				FVector Vec = FVector(x * TerrainSettings.UnitTileSize, y * TerrainSettings.UnitTileSize, z * 10.f);
+				TerrainMeshDataOUT.VertexBuffer.Add(FRuntimeMeshVertexSimple(Vec, FVector(0.f, 0.f, 1.f), FRuntimeMeshTangent(0, -1, 0), FColor::White, FVector2D(x, y)));
+			}
+		}
+
+		int32 VertexIterator = 0;
+
+		while (VertexIterator < ((TerrainSettings.TileSizeXUnits - 1) * TerrainSettings.TileSizeXUnits))
+		{
+			/* 2 vertices from "left", 1 vertex from "right" */
+			TerrainMeshDataOUT.TriangleBuffer.Add(VertexIterator);
+			TerrainMeshDataOUT.TriangleBuffer.Add(VertexIterator + 1);
+			TerrainMeshDataOUT.TriangleBuffer.Add(VertexIterator + TerrainSettings.TileSizeXUnits);
+
+			/* 2 vertices from "right", 1 vertex from "left" */
+			TerrainMeshDataOUT.TriangleBuffer.Add(VertexIterator + 1);
+			TerrainMeshDataOUT.TriangleBuffer.Add((VertexIterator + TerrainSettings.TileSizeXUnits) + 1);
+			TerrainMeshDataOUT.TriangleBuffer.Add(VertexIterator + TerrainSettings.TileSizeXUnits);
+
+			/* check if we reached the end of the column */
+			if ((VertexIterator + 2) % TerrainSettings.TileSizeXUnits == 0)	// +2 because VertexIterator is 0-based
+			{
+				VertexIterator += 2;
+			}
+			else
+			{
+				VertexIterator += 1;
+			}
+		}
 	}
 
 
