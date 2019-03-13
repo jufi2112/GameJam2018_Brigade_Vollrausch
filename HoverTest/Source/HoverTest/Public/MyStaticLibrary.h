@@ -101,13 +101,19 @@ struct FTerrainSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	bool bUseAsyncCollisionCooking = true;
 
-	// material that should be applied to the default terrain
+	/** array of materials that should be applied to the terrain
+	* index 0 is default terrain material
+	* index 1 is default track material
+	* corresponds to the mesh index in FTerrainJob
+	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	UMaterialInterface* TerrainMaterial = nullptr;
+	TArray<UMaterialInterface*> Materials;
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	//UMaterialInterface* TerrainMaterial = nullptr;
 
-	// material that should be applied to the track
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	UMaterialInterface* TrackMaterial = nullptr;
+	//// material that should be applied to the track
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	//UMaterialInterface* TrackMaterial = nullptr;
 
 	/**
 	* specifies the number of tiles that should be created around a tracked actor
@@ -160,13 +166,21 @@ struct FTerrainJob
 	UPROPERTY()
 	ATerrainTile* TerrainTile = nullptr;
 
-	// the terrain mesh data
-	UPROPERTY()
-	FMeshData TerrainMeshData;
+	//// the terrain mesh data
+	//UPROPERTY()
+	//FMeshData TerrainMeshData;
 
-	// the track mesh data
+	//// the track mesh data
+	//UPROPERTY()
+	//FMeshData TrackMeshData;
+
+	/**
+	* array where each index corresponds to one mesh section
+	* first index corresponds to terrain
+	* second index corresponds to track
+	*/
 	UPROPERTY()
-	FMeshData TrackMeshData;
+	TArray<FMeshData> MeshData;
 };
 
 /**
@@ -223,38 +237,41 @@ public:
 		}
 	}
 
-	static void CreateSimpleMeshData(FTerrainSettings TerrainSettings, FMeshData& TerrainMeshDataOUT, FMeshData& TrackMeshDataOUT)
+	static void CreateSimpleMeshData(FTerrainSettings TerrainSettings, TArray<FMeshData>& MeshDataOUT)
 	{
 		// First vertex
-		TerrainMeshDataOUT.VertexBuffer.Add(FRuntimeMeshVertexSimple(FVector(0, 0, 0), FVector(0, 0, 1), FRuntimeMeshTangent(0, -1, 0), FColor::White, FVector2D(0, 0)));
+		FMeshData MeshData;
+		MeshData.VertexBuffer.Add(FRuntimeMeshVertexSimple(FVector(0, 0, 0), FVector(0, 0, 1), FRuntimeMeshTangent(0, -1, 0), FColor::White, FVector2D(0, 0)));
 
 		// second vertex
-		TerrainMeshDataOUT.VertexBuffer.Add(FRuntimeMeshVertexSimple(FVector(TerrainSettings.TileSizeXUnits * TerrainSettings.UnitTileSize, 0, 0), FVector(0, 0, 1), FRuntimeMeshTangent(0, -1, 0), FColor::White, FVector2D(TerrainSettings.UnitTileSize, 0)));
+		MeshData.VertexBuffer.Add(FRuntimeMeshVertexSimple(FVector(TerrainSettings.TileSizeXUnits * TerrainSettings.UnitTileSize, 0, 0), FVector(0, 0, 1), FRuntimeMeshTangent(0, -1, 0), FColor::White, FVector2D(TerrainSettings.UnitTileSize, 0)));
 
 		// third vertex
-		TerrainMeshDataOUT.VertexBuffer.Add(FRuntimeMeshVertexSimple(FVector(TerrainSettings.TileSizeXUnits * TerrainSettings.UnitTileSize, TerrainSettings.TileSizeYUnits * TerrainSettings.UnitTileSize, 0), FVector(0, 0, 1), FRuntimeMeshTangent(0, -1, 0), FColor::White, FVector2D(TerrainSettings.UnitTileSize, TerrainSettings.UnitTileSize)));
+		MeshData.VertexBuffer.Add(FRuntimeMeshVertexSimple(FVector(TerrainSettings.TileSizeXUnits * TerrainSettings.UnitTileSize, TerrainSettings.TileSizeYUnits * TerrainSettings.UnitTileSize, 0), FVector(0, 0, 1), FRuntimeMeshTangent(0, -1, 0), FColor::White, FVector2D(TerrainSettings.UnitTileSize, TerrainSettings.UnitTileSize)));
 
 		// fourth vertex
-		TerrainMeshDataOUT.VertexBuffer.Add(FRuntimeMeshVertexSimple(FVector(0, TerrainSettings.TileSizeYUnits * TerrainSettings.UnitTileSize, 0), FVector(0, 0, 1), FRuntimeMeshTangent(0, -1, 0), FColor::White, FVector2D(0, TerrainSettings.UnitTileSize)));
+		MeshData.VertexBuffer.Add(FRuntimeMeshVertexSimple(FVector(0, TerrainSettings.TileSizeYUnits * TerrainSettings.UnitTileSize, 0), FVector(0, 0, 1), FRuntimeMeshTangent(0, -1, 0), FColor::White, FVector2D(0, TerrainSettings.UnitTileSize)));
 
 		// Triangles
-		TerrainMeshDataOUT.TriangleBuffer.Add(0);
-		TerrainMeshDataOUT.TriangleBuffer.Add(2);
-		TerrainMeshDataOUT.TriangleBuffer.Add(1);
-		TerrainMeshDataOUT.TriangleBuffer.Add(3);
-		TerrainMeshDataOUT.TriangleBuffer.Add(2);
-		TerrainMeshDataOUT.TriangleBuffer.Add(0);
+		MeshData.TriangleBuffer.Add(0);
+		MeshData.TriangleBuffer.Add(2);
+		MeshData.TriangleBuffer.Add(1);
+		MeshData.TriangleBuffer.Add(3);
+		MeshData.TriangleBuffer.Add(2);
+		MeshData.TriangleBuffer.Add(0);
+		MeshDataOUT.Add(MeshData);
 	}
 
-	static void CreateComplexMeshData(FTerrainSettings TerrainSettings, FMeshData& TerrainMeshDataOUT, FMeshData& TrackMeshDataOUT)
+	static void CreateComplexMeshData(FTerrainSettings TerrainSettings, TArray<FMeshData>& MeshDataOUT)
 	{
+		FMeshData MeshData;
 		for (int x = 0; x < TerrainSettings.TileSizeXUnits; ++x)
 		{
 			for (int y = 0; y < TerrainSettings.TileSizeYUnits; ++y)
 			{
 				float z = FMath::RandRange(-1.f, 1.f);
 				FVector Vec = FVector(x * TerrainSettings.UnitTileSize, y * TerrainSettings.UnitTileSize, z * 10.f);
-				TerrainMeshDataOUT.VertexBuffer.Add(FRuntimeMeshVertexSimple(Vec, FVector(0.f, 0.f, 1.f), FRuntimeMeshTangent(0, -1, 0), FColor::White, FVector2D(x, y)));
+				MeshData.VertexBuffer.Add(FRuntimeMeshVertexSimple(Vec, FVector(0.f, 0.f, 1.f), FRuntimeMeshTangent(0, -1, 0), FColor::White, FVector2D(x, y)));
 			}
 		}
 
@@ -263,14 +280,14 @@ public:
 		while (VertexIterator < ((TerrainSettings.TileSizeXUnits - 1) * TerrainSettings.TileSizeXUnits))
 		{
 			/* 2 vertices from "left", 1 vertex from "right" */
-			TerrainMeshDataOUT.TriangleBuffer.Add(VertexIterator);
-			TerrainMeshDataOUT.TriangleBuffer.Add(VertexIterator + 1);
-			TerrainMeshDataOUT.TriangleBuffer.Add(VertexIterator + TerrainSettings.TileSizeXUnits);
+			MeshData.TriangleBuffer.Add(VertexIterator);
+			MeshData.TriangleBuffer.Add(VertexIterator + 1);
+			MeshData.TriangleBuffer.Add(VertexIterator + TerrainSettings.TileSizeXUnits);
 
 			/* 2 vertices from "right", 1 vertex from "left" */
-			TerrainMeshDataOUT.TriangleBuffer.Add(VertexIterator + 1);
-			TerrainMeshDataOUT.TriangleBuffer.Add((VertexIterator + TerrainSettings.TileSizeXUnits) + 1);
-			TerrainMeshDataOUT.TriangleBuffer.Add(VertexIterator + TerrainSettings.TileSizeXUnits);
+			MeshData.TriangleBuffer.Add(VertexIterator + 1);
+			MeshData.TriangleBuffer.Add((VertexIterator + TerrainSettings.TileSizeXUnits) + 1);
+			MeshData.TriangleBuffer.Add(VertexIterator + TerrainSettings.TileSizeXUnits);
 
 			/* check if we reached the end of the column */
 			if ((VertexIterator + 2) % TerrainSettings.TileSizeXUnits == 0)	// +2 because VertexIterator is 0-based
@@ -282,6 +299,8 @@ public:
 				VertexIterator += 1;
 			}
 		}
+
+		MeshDataOUT.Add(MeshData);
 	}
 
 

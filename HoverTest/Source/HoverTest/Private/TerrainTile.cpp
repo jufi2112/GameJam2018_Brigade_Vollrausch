@@ -13,6 +13,7 @@ ATerrainTile::ATerrainTile()
 
 	RootComponent = CreateDefaultSubobject<USphereComponent>(TEXT("RootComponent"));
 
+	MeshSectionsCreated.Empty();
 
 }
 
@@ -39,21 +40,13 @@ void ATerrainTile::SetupTile(FTerrainSettings TerrainSettings, FIntVector2D Sect
 	TimeSinceTileFreed = FPlatformTime::Seconds();
 	if (!bIsInitialized)
 	{
-		TerrainMesh = NewObject<URuntimeMeshComponent>(this, URuntimeMeshComponent::StaticClass(), FName("Terrain Mesh"));
-		TerrainMesh->SetRelativeTransform(FTransform());
-		TerrainMesh->AttachToComponent(RootComponent, FAttachmentTransformRules::KeepRelativeTransform);
-		TerrainMesh->BodyInstance.SetResponseToAllChannels(ECollisionResponse::ECR_Block);
-		TerrainMesh->SetCollisionUseAsyncCooking(TerrainSettings.bUseAsyncCollisionCooking);
-		TerrainMesh->RegisterComponent();
-		TerrainMesh->SetVisibility(false);
-
-		TrackMesh = NewObject<URuntimeMeshComponent>(this, URuntimeMeshComponent::StaticClass(), FName("Track Mesh"));
-		TrackMesh->SetRelativeTransform(FTransform());
-		TrackMesh->AttachToComponent(RootComponent, FAttachmentTransformRules::KeepRelativeTransform);
-		TrackMesh->BodyInstance.SetResponseToAllChannels(ECollisionResponse::ECR_Block);
-		TrackMesh->SetCollisionUseAsyncCooking(TerrainSettings.bUseAsyncCollisionCooking);
-		TrackMesh->RegisterComponent();
-		TrackMesh->SetVisibility(false);
+		RuntimeMesh = NewObject<URuntimeMeshComponent>(this, URuntimeMeshComponent::StaticClass(), FName("Runtime Mesh"));
+		RuntimeMesh->SetRelativeTransform(FTransform());
+		RuntimeMesh->AttachToComponent(RootComponent, FAttachmentTransformRules::KeepRelativeTransform);
+		RuntimeMesh->BodyInstance.SetResponseToAllChannels(ECollisionResponse::ECR_Block);
+		RuntimeMesh->SetCollisionUseAsyncCooking(TerrainSettings.bUseAsyncCollisionCooking);
+		RuntimeMesh->RegisterComponent();
+		RuntimeMesh->SetVisibility(false);
 
 		bIsInitialized = true;
 	}
@@ -79,9 +72,9 @@ void ATerrainTile::UpdateTilePosition(FTerrainSettings TerrainSettings, FIntVect
 	SetActorHiddenInGame(true);
 }
 
-void ATerrainTile::UpdateMeshData(FTerrainSettings TerrainSettings, FMeshData& TerrainMeshData, FMeshData& TrackMeshData)
+void ATerrainTile::UpdateMeshData(FTerrainSettings TerrainSettings, TArray<FMeshData>& MeshData)
 {
-	if (TerrainMesh == nullptr || TrackMesh == nullptr) { return; }
+	if (RuntimeMesh == nullptr) { return; }
 	if (!bIsInitialized || TileStatus == ETileStatus::TILE_UNDEFINED)
 	{
 		UE_LOG(LogTemp, Error, TEXT("Tried to call UpdateMeshData on %s before calling SetupTile"), *GetName());
@@ -91,45 +84,47 @@ void ATerrainTile::UpdateMeshData(FTerrainSettings TerrainSettings, FMeshData& T
 	if (TileStatus == ETileStatus::TILE_INITIALIZED || TileStatus == ETileStatus::TILE_TRANSITION)
 	{
 		// tile is initialized, but runtime mesh sections do not exist
-		if (TerrainMeshData.VertexBuffer.Num() != 0)
+		for (int32 i = 0; i < MeshData.Num(); ++i)
 		{
-			TerrainMesh->CreateMeshSection(0, TerrainMeshData.VertexBuffer, TerrainMeshData.TriangleBuffer, true, EUpdateFrequency::Infrequent, ESectionUpdateFlags::None);
+			if (MeshData[i].VertexBuffer.Num() != 0)
+			{
+				RuntimeMesh->CreateMeshSection(i, MeshData[i].VertexBuffer, MeshData[i].TriangleBuffer, true, EUpdateFrequency::Infrequent, ESectionUpdateFlags::None);
+				MeshSectionsCreated.Add(i);
+			}
 		}
-		if (TrackMeshData.VertexBuffer.Num() != 0)
-		{
-			TrackMesh->CreateMeshSection(0, TrackMeshData.VertexBuffer, TrackMeshData.TriangleBuffer, true, EUpdateFrequency::Infrequent, ESectionUpdateFlags::None);
-		}
-		// TODO think if following 2 lines can be deleted
-		//TerrainMesh->RegisterComponent();
-		//TrackMesh->RegisterComponent();
 		TileStatus = ETileStatus::TILE_FINISHED;
 	}
 
 	// runtime mesh sections exist, so only update them
 	else if (TileStatus == ETileStatus::TILE_FINISHED)
 	{
-		if (TerrainMeshData.VertexBuffer.Num() != 0)
+		for (int32 i = 0; i < MeshData.Num(); ++i)
 		{
-			TerrainMesh->UpdateMeshSection(0, TerrainMeshData.VertexBuffer, TerrainMeshData.TriangleBuffer, ESectionUpdateFlags::None);
+			if (MeshSectionsCreated.Find(i) == INDEX_NONE) { continue; }
+			if (MeshData[i].VertexBuffer.Num() != 0)
+			{
+				RuntimeMesh->UpdateMeshSection(i, MeshData[i].VertexBuffer, MeshData[i].TriangleBuffer, ESectionUpdateFlags::None);
+			}
 		}
-		if (TrackMeshData.VertexBuffer.Num() != 0)
-		{
-			TrackMesh->UpdateMeshSection(0, TrackMeshData.VertexBuffer, TrackMeshData.TriangleBuffer, ESectionUpdateFlags::None);
-		}
+
 		TileStatus = ETileStatus::TILE_FINISHED;
 	}
 	else { return; }
 
-	if (TerrainMeshData.VertexBuffer.Num() != 0)
+	// apply materials
+	for (int32 i = 0; i < MeshData.Num(); ++i)
 	{
-		TerrainMesh->SetMaterial(0, TerrainSettings.TerrainMaterial);
+		if (MeshSectionsCreated.Find(i) == INDEX_NONE) { continue; }
+		if (MeshData[i].VertexBuffer.Num() != 0)
+		{
+			if (TerrainSettings.Materials.IsValidIndex(i))
+			{
+				RuntimeMesh->SetMaterial(i, TerrainSettings.Materials[i]);
+			}
+		}
 	}
-	if (TrackMeshData.VertexBuffer.Num() != 0)
-	{
-		TrackMesh->SetMaterial(0, TerrainSettings.TrackMaterial);
-	}
-	TerrainMesh->SetVisibility(true);
-	TrackMesh->SetVisibility(true);
+
+	RuntimeMesh->SetVisibility(true);
 	SetActorHiddenInGame(false);
 }
 
@@ -153,9 +148,16 @@ void ATerrainTile::FreeTile()
 {
 	if (TileStatus == ETileStatus::TILE_FINISHED)
 	{
-		TerrainMesh->ClearMeshSection(0);
-		TrackMesh->ClearMeshSection(0);
+		while (MeshSectionsCreated.Num() > 0)
+		{
+			RuntimeMesh->ClearMeshSection(MeshSectionsCreated.Pop());
+		}
+		/*TerrainMesh->ClearMeshSection(0);
+		TrackMesh->ClearMeshSection(0);*/
 	}
+	// better safe than sorry
+	MeshSectionsCreated.Empty();
+
 	TileStatus = ETileStatus::TILE_FREE;
 	SetActorHiddenInGame(true);
 	// TODO check if visibility gets propagated to children

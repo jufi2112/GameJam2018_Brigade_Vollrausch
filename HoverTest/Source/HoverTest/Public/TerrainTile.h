@@ -42,7 +42,7 @@ public:
 	* unhides the actor
 	*/
 	UFUNCTION()
-	void UpdateMeshData(FTerrainSettings TerrainSettings, FMeshData& TerrainMeshData, FMeshData& TrackMeshData);
+	void UpdateMeshData(FTerrainSettings TerrainSettings, TArray<FMeshData>& MeshData);
 
 	UFUNCTION(BlueprintCallable)
 	FIntVector2D GetCurrentSector() const;
@@ -71,11 +71,8 @@ private:
 
 	// component that is responsible for rendering the terrain
 	UPROPERTY()
-	URuntimeMeshComponent* TerrainMesh = nullptr;
+	URuntimeMeshComponent* RuntimeMesh = nullptr;
 
-	// component that is responsible for rendering the track
-	UPROPERTY()
-	URuntimeMeshComponent* TrackMesh = nullptr;
 
 	// represents the state of the tile
 	UPROPERTY()
@@ -101,4 +98,6 @@ private:
 	UPROPERTY()
 	float TimeSinceTileFreed = 0;
 
+	UPROPERTY()
+	TArray<int32> MeshSectionsCreated;
 };

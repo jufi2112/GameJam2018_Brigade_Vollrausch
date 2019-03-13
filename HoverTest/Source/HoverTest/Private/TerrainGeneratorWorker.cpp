@@ -28,7 +28,7 @@ uint32 TerrainGeneratorWorker::Run()
 	{
 		if (InputQueue->Dequeue(TerrainJob))
 		{
-			UMyStaticLibrary::CreateComplexMeshData(TerrainSettings, TerrainJob.TerrainMeshData, TerrainJob.TrackMeshData);
+			UMyStaticLibrary::CreateComplexMeshData(TerrainSettings, TerrainJob.MeshData);
 			TerrainManager->FinishedJobQueue.Enqueue(TerrainJob);
 		}
 		else

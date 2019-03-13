@@ -111,7 +111,7 @@ void ATerrainManager::Tick(float DeltaTime)
 			}
 			else
 			{
-				Job.TerrainTile->UpdateMeshData(TerrainSettings, Job.TerrainMeshData, Job.TrackMeshData);
+				Job.TerrainTile->UpdateMeshData(TerrainSettings, Job.MeshData);
 			}
 		}
 	}
