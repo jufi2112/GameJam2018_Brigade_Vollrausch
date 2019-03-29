@@ -98,7 +98,11 @@ struct FDEM
 	{
 		FString Key = UMyStaticLibrary::GetFloatAsStringWithPrecision(Point.X, 2) + UMyStaticLibrary::GetFloatAsStringWithPrecision(Point.Y, 2);
 		const FDEMData* Data = DEM.Find(Key);
-		if (!Data) { return false; }
+		if (!Data) 
+		{
+			UE_LOG(LogTemp, Error, TEXT("Could not find specified key (%s) in GetPointElevation"), *Key);
+			return false; 
+		}
 		Elevation = Data->Elevation;
 		return true;
 	}
@@ -108,7 +112,11 @@ struct FDEM
 	{
 		FString Key = UMyStaticLibrary::GetFloatAsStringWithPrecision(Point.X, 2) + UMyStaticLibrary::GetFloatAsStringWithPrecision(Point.Y, 2);
 		const FDEMData* Data = DEM.Find(Key);
-		if (!Data) { return false; }
+		if (!Data) 
+		{ 
+			UE_LOG(LogTemp, Error, TEXT("Could not find specified key (%s) in GetPointState"), *Key);
+			return false; 
+		}
 		State = Data->State;
 		return true;
 	}
@@ -118,11 +126,47 @@ struct FDEM
 	{
 		FString Key = UMyStaticLibrary::GetFloatAsStringWithPrecision(Point.X, 2) + UMyStaticLibrary::GetFloatAsStringWithPrecision(Point.Y, 2);
 		const FDEMData* Data = DEM.Find(Key);
-		if (!Data) { return false; }
+		if (!Data) 
+		{ 
+			UE_LOG(LogTemp, Error, TEXT("Could not find specified key (%s) in GetPointData"), *Key);
+			return false;
+		}
 		PointData.Elevation = Data->Elevation;
 		PointData.State = Data->State;
 		return true;
 	}
+
+	/**
+	 * simulates the triangle edge algorithm
+	 * i.e. executes the algorithm, but doesn't calculate any height displacements
+	 * instead, only creates a hashmap with all ascending points for each point (AscendingPoints)
+	 * @param DefiningPoints - points that define the current quad (5 points overall) with ordering [A, B, C, D, E]
+	 *
+	 *			D *-------------* C
+	 *			  |	\			|	
+	 *			  |	   \		|
+	 *			  |	   E *		|
+	 *			  |		   \	|
+	 *			  |			  \ |
+	 *			A *-------------* B  
+	 * @param Iteration - the current iteration depth the recursion is in
+	 * @param MaxIterations - number of iterations after which the recursion stops
+	 */
+	void SimulateTriangleEdge(TArray<FVector>* DefiningPoints, const int32 Iteration, const int32 MaxIterations)
+	{
+		if (!DefiningPoints)
+		{
+			UE_LOG(LogTemp, Error, TEXT("DefiningPoints is nullptr in SimulateTriangleEdge at iteration %i"), Iteration);
+			return;
+		}
+		if (DefiningPoints->Num() != 5)
+		{
+			UE_LOG(LogTemp, Error, TEXT("Wrong number of points given to SimulateTriangleEdge at iteration %i. Should be 5, are: %i"), Iteration, DefiningPoints->Num());
+			return;
+		}
+	}
+
+
 };
 
 /**
