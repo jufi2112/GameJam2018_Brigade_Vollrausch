@@ -241,7 +241,7 @@ FIntVector2D ATerrainManager::CalculateSectorFromLocation(FVector CurrentWorldLo
 {
 	float XSector = 0.f;
 	float YSector = 0.f;
-	if (TerrainSettings.TileSizeXUnits * TerrainSettings.UnitTileSize != 0)
+	/*if (TerrainSettings.TileSizeXUnits * TerrainSettings.UnitTileSize != 0)
 	{
 		XSector = CurrentWorldLocation.X / (TerrainSettings.TileSizeXUnits * TerrainSettings.UnitTileSize);
 		if (XSector < 0)
@@ -252,6 +252,19 @@ FIntVector2D ATerrainManager::CalculateSectorFromLocation(FVector CurrentWorldLo
 	if (TerrainSettings.TileSizeYUnits * TerrainSettings.UnitTileSize != 0)
 	{
 		YSector = CurrentWorldLocation.Y / (TerrainSettings.TileSizeYUnits * TerrainSettings.UnitTileSize);
+		if (YSector < 0)
+		{
+			YSector--;
+		}
+	}*/
+	if (TerrainSettings.TileEdgeSize != 0)
+	{
+		XSector = CurrentWorldLocation.X / TerrainSettings.TileEdgeSize;
+		if (XSector < 0)
+		{
+			XSector--;
+		}
+		YSector = CurrentWorldLocation.Y / TerrainSettings.TileEdgeSize;
 		if (YSector < 0)
 		{
 			YSector--;

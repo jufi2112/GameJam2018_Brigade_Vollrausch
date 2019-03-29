@@ -76,6 +76,82 @@ struct FIntVector2D
 	}
 };
 
+///**
+//* struct for a float based index system (x and y components of position) used in the DEM
+//* specially constructed so that the == method could be overloaded by using FMath::IsNearlyEqual
+//*/
+//USTRUCT()
+//struct FComparableFloat
+//{
+//	GENERATED_USTRUCT_BODY()
+//
+//	float Width;
+//	float Height;
+//
+//	FComparableFloat(float width, float height)
+//	{
+//		Width = width;
+//		Height = height;
+//	}
+//
+//	FComparableFloat()
+//	{
+//		Width = 0.f;
+//		Height = 0.f;
+//	}
+//
+//	FORCEINLINE bool operator==(const FComparableFloat& Other) const
+//	{
+//		return (FMath::IsNearlyEqual(Width, Other.Width)) && (FMath::IsNearlyEqual(Height, Other.Height));
+//	}
+//
+//	FORCEINLINE bool operator!=(const FComparableFloat& Other) const
+//	{
+//		return (Width != Other.Width) || (Height != Other.Height);
+//	}
+//
+//	FORCEINLINE uint32 GetTypeHash(const FComparableFloat& ComparableFloat)
+//	{
+//		return FCrc::MemCrc32(&ComparableFloat, sizeof(FComparableFloat));
+//	}
+//};
+
+//UENUM()
+//enum class EDEMState : uint8
+//{
+//	DEM_UNKNOWN,
+//	DEM_KNOWN
+//};
+//
+///**
+//* struct for a digital elevation map (DEM, as presented in "Terrain Modeling: A Constrained Fractal Model" by Farès Belhadj in 2007)
+//* should be used as TMultiMap<FComparableFloat, TMap<FComparableFloat, FDEM>>
+//*/
+//USTRUCT()
+//struct FDEM
+//{
+//	GENERATED_USTRUCT_BODY()
+//
+//	float Elevation;
+//	EDEMState DEMState;
+//
+//	FDEM(float elevation)
+//	{
+//		Elevation = elevation;
+//		DEMState = EDEMState::DEM_UNKNOWN;
+//	}
+//	FDEM(float elevation, EDEMState State)
+//	{
+//		Elevation = elevation;
+//		DEMState = State;
+//	}
+//	FDEM()
+//	{
+//		Elevation = 0.f;
+//		DEMState = EDEMState::DEM_UNKNOWN;
+//	}
+//
+//};
 
 /**
 * struct for terrain settings
@@ -85,6 +161,7 @@ struct FTerrainSettings
 {
 	GENERATED_USTRUCT_BODY()
 
+	// TODO replace tile size definitions with absolute size and triangle edge algorithm iteration count
 	// size of a terrain tile in X direction in tile units
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	int32 TileSizeXUnits = 0;
@@ -96,6 +173,14 @@ struct FTerrainSettings
 	// size of a terrain tile unit
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	int32 UnitTileSize = 0;
+
+	// the edge length of a quadratic tile in cm
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int32 TileEdgeSize = 10000;
+
+	// number of iterations for the triangle edge algorithms
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int32 TriangleEdgeIterations = 20;
 
 	// shall async collision cooking be used
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
@@ -157,7 +242,7 @@ struct FMeshData
 /**
 * struct for a job in which terrain is generated
 */
-USTRUCT()
+USTRUCT(BlueprintType)
 struct FTerrainJob
 {
 	GENERATED_USTRUCT_BODY()
@@ -303,6 +388,21 @@ public:
 		MeshDataOUT.Add(MeshData);
 	}
 
-
+	//Float as String With Precision! || Code Taken from https://wiki.unrealengine.com/Float_as_String_With_Precision Author: Rama
+	static FORCEINLINE FString GetFloatAsStringWithPrecision(float TheFloat, int32 Precision, bool IncludeLeadingZero = true)
+	{
+		//Round to integral if have something like 1.9999 within precision
+		float Rounded = roundf(TheFloat);
+		if (FMath::Abs(TheFloat - Rounded) < FMath::Pow(10, -1 * Precision))
+		{
+			TheFloat = Rounded;
+		}
+		FNumberFormattingOptions NumberFormat;					//Text.h
+		NumberFormat.MinimumIntegralDigits = (IncludeLeadingZero) ? 1 : 0;
+		NumberFormat.MaximumIntegralDigits = 10000;
+		NumberFormat.MinimumFractionalDigits = Precision;
+		NumberFormat.MaximumFractionalDigits = Precision;
+		return FText::AsNumber(TheFloat, &NumberFormat).ToString();
+	}
 };
 	

@@ -28,7 +28,8 @@ uint32 TerrainGeneratorWorker::Run()
 	{
 		if (InputQueue->Dequeue(TerrainJob))
 		{
-			UMyStaticLibrary::CreateComplexMeshData(TerrainSettings, TerrainJob.MeshData);
+			//UMyStaticLibrary::CreateComplexMeshData(TerrainSettings, TerrainJob.MeshData);
+			UE_LOG(LogTemp, Error, TEXT("No terrain generation functions implemented yet!"));
 			TerrainManager->FinishedJobQueue.Enqueue(TerrainJob);
 		}
 		else

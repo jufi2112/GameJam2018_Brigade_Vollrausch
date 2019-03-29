@@ -34,7 +34,8 @@ void ATerrainTile::Tick(float DeltaTime)
 void ATerrainTile::SetupTile(FTerrainSettings TerrainSettings, FIntVector2D Sector)
 {
 	// change tile location
-	SetActorLocation(FVector(TerrainSettings.TileSizeXUnits * TerrainSettings.UnitTileSize * Sector.X, TerrainSettings.TileSizeYUnits * TerrainSettings.UnitTileSize * Sector.Y, 0.f));
+	//SetActorLocation(FVector(TerrainSettings.TileSizeXUnits * TerrainSettings.UnitTileSize * Sector.X, TerrainSettings.TileSizeYUnits * TerrainSettings.UnitTileSize * Sector.Y, 0.f));
+	SetActorLocation(FVector(TerrainSettings.TileEdgeSize * Sector.X, TerrainSettings.TileEdgeSize * Sector.Y, 0.f));
 	CurrentSector = Sector;
 	// make sure newly created tile does not get destroyed immediately
 	TimeSinceTileFreed = FPlatformTime::Seconds();
