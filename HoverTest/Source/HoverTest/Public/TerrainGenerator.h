@@ -58,6 +58,14 @@ struct FDEM
 	// multimap to store all children points for a given point
 	TMultiMap<FString, FVector2D> ChildrenPoints;
 
+	// Delimiter used to separate X and Y coordinate values in FString Keys
+	FString Delimiter = FString("=");
+
+	// tunes the interpolation curve in the midpoint displacement bottom-up process
+	float I_bu = -0.4f;
+
+
+
 	FDEM()
 	{
 		DEM.Empty();
@@ -65,77 +73,104 @@ struct FDEM
 		ChildrenPoints.Empty();
 	}
 
+	FVector2D GetPointFromKey(FString TheKey)
+	{
+		FString FirstFloat;
+		FString SecondFloat;
+		if (!TheKey.Split(Delimiter, &FirstFloat, &SecondFloat))
+		{
+			UE_LOG(LogTemp, Warning, TEXT("Did not find splitting symbol %s in given text: %s"), *Delimiter, *TheKey);
+		}
+		FVector2D Coords;
+		Coords.X = FCString::Atof(*FirstFloat);
+		Coords.Y = FCString::Atof(*SecondFloat);
+		return Coords;
+	}
+
+	FString GetKeyForPoint(const FVector2D Point) const
+	{
+		FString Key = UMyStaticLibrary::GetFloatAsStringWithPrecision(Point.X, 2) + Delimiter + UMyStaticLibrary::GetFloatAsStringWithPrecision(Point.Y, 2);
+		return Key;
+	}
+
+	FString GetKeyForPoint(const FVector Point) const
+	{
+		FString Key = UMyStaticLibrary::GetFloatAsStringWithPrecision(Point.X, 2) + Delimiter + UMyStaticLibrary::GetFloatAsStringWithPrecision(Point.Y, 2);
+		return Key;
+	}
+
 	// for a given point, find all ascending points
 	void GetAscendingPoints(const FVector2D OriginalPoint, TArray<FVector2D>& OUTAscendents) const
 	{
-		FString Key = UMyStaticLibrary::GetFloatAsStringWithPrecision(OriginalPoint.X, 2) + UMyStaticLibrary::GetFloatAsStringWithPrecision(OriginalPoint.Y, 2);
-		OUTAscendents = (*(AscendingPoints.Find(Key)));
+		OUTAscendents = (*(AscendingPoints.Find(GetKeyForPoint(OriginalPoint))));
 		//AscendingPoints.MultiFind(Key, OUTAscendents, true);
 	}
 
 	// for a given point, find all children points
 	void GetChildrenPoints(const FVector2D OriginalPoint, TArray<FVector2D>& OUTChildren) const
 	{
-		FString Key = UMyStaticLibrary::GetFloatAsStringWithPrecision(OriginalPoint.X, 2) + UMyStaticLibrary::GetFloatAsStringWithPrecision(OriginalPoint.Y, 2);
-		ChildrenPoints.MultiFind(Key, OUTChildren, true);
+		ChildrenPoints.MultiFind(GetKeyForPoint(OriginalPoint), OUTChildren, true);
 	}
-
-	// add a point to the ascending point map for the given point
-	/*void AddAscendingPoint(const FVector2D OriginalPoint, const FVector2D Ascendent)
-	{
-		FString Key = UMyStaticLibrary::GetFloatAsStringWithPrecision(OriginalPoint.X, 2) + UMyStaticLibrary::GetFloatAsStringWithPrecision(OriginalPoint.Y, 2);
-		AscendingPoints.Add(Key, Ascendent);
-	}*/
 
 	// add a point to the children point map for the given point
 	void AddChildrenPoint(const FVector2D OriginalPoint, const FVector2D Children)
 	{
-		FString Key = UMyStaticLibrary::GetFloatAsStringWithPrecision(OriginalPoint.X, 2) + UMyStaticLibrary::GetFloatAsStringWithPrecision(OriginalPoint.Y, 2);
-		ChildrenPoints.Add(Key, Children);
+		ChildrenPoints.Add(GetKeyForPoint(OriginalPoint), Children);
 	}
 
 	// gets the points elevation
-	bool GetPointElevation(const FVector2D Point, float& Elevation) const
+	bool GetPointElevation(const FVector2D Point, float& OUTElevation) const
 	{
-		FString Key = UMyStaticLibrary::GetFloatAsStringWithPrecision(Point.X, 2) + UMyStaticLibrary::GetFloatAsStringWithPrecision(Point.Y, 2);
-		const FDEMData* Data = DEM.Find(Key);
+		const FDEMData* Data = DEM.Find(GetKeyForPoint(Point));
 		if (!Data) 
 		{
-			UE_LOG(LogTemp, Error, TEXT("Could not find specified key (%s) in GetPointElevation"), *Key);
+			UE_LOG(LogTemp, Error, TEXT("Could not find specified key (%s) in GetPointElevation"), *GetKeyForPoint(Point));
 			return false; 
 		}
-		Elevation = Data->Elevation;
+		OUTElevation = Data->Elevation;
 		return true;
 	}
 
 	// gets the points state
-	bool GetPointState(const FVector2D Point, EDEMState& State)
+	bool GetPointState(const FVector2D Point, EDEMState& OUTState)
 	{
-		FString Key = UMyStaticLibrary::GetFloatAsStringWithPrecision(Point.X, 2) + UMyStaticLibrary::GetFloatAsStringWithPrecision(Point.Y, 2);
-		const FDEMData* Data = DEM.Find(Key);
+		const FDEMData* Data = DEM.Find(GetKeyForPoint(Point));
 		if (!Data) 
 		{ 
-			UE_LOG(LogTemp, Error, TEXT("Could not find specified key (%s) in GetPointState"), *Key);
+			UE_LOG(LogTemp, Error, TEXT("Could not find specified key (%s) in GetPointState"), *GetKeyForPoint(Point));
 			return false; 
 		}
-		State = Data->State;
+		OUTState = Data->State;
 		return true;
 	}
 
 	// gets the point's whole FDEMData
-	bool GetPointData(const FVector2D Point, FDEMData& PointData)
+	bool GetPointData(const FVector2D Point, FDEMData& OUTPointData)
 	{
-		FString Key = UMyStaticLibrary::GetFloatAsStringWithPrecision(Point.X, 2) + UMyStaticLibrary::GetFloatAsStringWithPrecision(Point.Y, 2);
-		const FDEMData* Data = DEM.Find(Key);
+		const FDEMData* Data = DEM.Find(GetKeyForPoint(Point));
 		if (!Data) 
 		{ 
-			UE_LOG(LogTemp, Error, TEXT("Could not find specified key (%s) in GetPointData"), *Key);
+			UE_LOG(LogTemp, Error, TEXT("Could not find specified key (%s) in GetPointData"), *GetKeyForPoint(Point));
 			return false;
 		}
-		PointData.Elevation = Data->Elevation;
-		PointData.State = Data->State;
+		OUTPointData.Elevation = Data->Elevation;
+		OUTPointData.State = Data->State;
 		return true;
 	}
+
+	int32 Sigma(const float I)
+	{
+		return (I >= 0 ? 1 : -1);
+	}
+
+	float DeltaBU(const float e, const float d)
+	{
+		// TODO implement formula given in paper
+	}
+
+
+
+
 
 	/**
 	 * simulates the triangle edge algorithm
@@ -171,7 +206,7 @@ struct FDEM
 	 * @param Iteration - the current iteration depth the recursion is in
 	 * @param MaxIterations - number of iterations after which the recursion stops
 	 */
-	void SimulateTriangleEdge(TArray<FVector2D>* DefiningPoints, const int32 Iteration, const int32 MaxIterations)
+	void SimulateTriangleEdge(const TArray<FVector2D>* DefiningPoints, const int32 Iteration, const int32 MaxIterations)
 	{
 		if (!DefiningPoints)
 		{
@@ -187,6 +222,13 @@ struct FDEM
 		float HalfWidth = ((*DefiningPoints)[1].X - (*DefiningPoints)[0].X) / 2.f;
 		float HalfHeight = ((*DefiningPoints)[3].Y - (*DefiningPoints)[0].Y) / 2.f;
 
+		/* add defining points to DEM */
+		for (FVector2D Vec : (*DefiningPoints))
+		{
+			// at this point we don't care if we overwrite already set DEM data, because they all get defaultet
+			DEM.Add(GetKeyForPoint(Vec), FDEMData());
+		}
+
 		/* calculate new points */
 		FVector2D E = FVector2D(HalfWidth, (*DefiningPoints)[0].Y);
 		FVector2D F = FVector2D((*DefiningPoints)[1].X, HalfHeight);
@@ -196,37 +238,32 @@ struct FDEM
 
 		/* add ascending points to hashmap */
 		// E
-		FString Key_E = UMyStaticLibrary::GetFloatAsStringWithPrecision(E.X, 2) + UMyStaticLibrary::GetFloatAsStringWithPrecision(E.Y, 2);
 		TArray<FVector2D> Values_E;
 		Values_E.Add((*DefiningPoints)[0]);
 		Values_E.Add((*DefiningPoints)[1]);
-		AscendingPoints.Add(Key_E, Values_E);
+		AscendingPoints.Add(GetKeyForPoint(E), Values_E);
 		// F
-		FString Key_F = UMyStaticLibrary::GetFloatAsStringWithPrecision(F.X, 2) + UMyStaticLibrary::GetFloatAsStringWithPrecision(F.Y, 2);
 		TArray<FVector2D> Values_F;
 		Values_F.Add((*DefiningPoints)[1]);
 		Values_F.Add((*DefiningPoints)[2]);
-		AscendingPoints.Add(Key_F, Values_F);
+		AscendingPoints.Add(GetKeyForPoint(F), Values_F);
 		// G
-		FString Key_G = UMyStaticLibrary::GetFloatAsStringWithPrecision(G.X, 2) + UMyStaticLibrary::GetFloatAsStringWithPrecision(G.Y, 2);
 		TArray<FVector2D> Values_G;
 		Values_G.Add((*DefiningPoints)[2]);
 		Values_G.Add((*DefiningPoints)[3]);
-		AscendingPoints.Add(Key_G, Values_G);
+		AscendingPoints.Add(GetKeyForPoint(G), Values_G);
 		// H
-		FString Key_H = UMyStaticLibrary::GetFloatAsStringWithPrecision(H.X, 2) + UMyStaticLibrary::GetFloatAsStringWithPrecision(H.Y, 2);
 		TArray<FVector2D> Values_H;
 		Values_H.Add((*DefiningPoints)[0]);
 		Values_H.Add((*DefiningPoints)[3]);
-		AscendingPoints.Add(Key_H, Values_H);
+		AscendingPoints.Add(GetKeyForPoint(H), Values_H);
 		// I
-		FString Key_I = UMyStaticLibrary::GetFloatAsStringWithPrecision(I.X, 2) + UMyStaticLibrary::GetFloatAsStringWithPrecision(I.Y, 2);
 		TArray<FVector2D> Values_I;
 		Values_I.Add((*DefiningPoints)[0]);
 		Values_I.Add((*DefiningPoints)[1]);
 		Values_I.Add((*DefiningPoints)[2]);
 		Values_I.Add((*DefiningPoints)[3]);
-		AscendingPoints.Add(Key_I, Values_I);
+		AscendingPoints.Add(GetKeyForPoint(I), Values_I);
 
 
 		if (Iteration == MaxIterations)
@@ -272,9 +309,16 @@ struct FDEM
 
 	/**
 	* implementation of the MDBU algorithm from "Terrain Modeling: A Constrained Fractal Model" by Farès Belhadj (2007)
+	* comments refer to the pseudo code provided in the paper above
 	*/
-	void MidpointDisplacementBottomUp(TArray<FVector>* InitialConstraints)
+	void MidpointDisplacementBottomUp(const TArray<FVector>* InitialConstraints)
 	{
+		// add constraints to the DEM
+		for (const FVector Constraint : (*InitialConstraints))
+		{
+			DEM.Add(GetKeyForPoint(Constraint), FDEMData(Constraint.Z, EDEMState::DEM_KNOWN));
+		}
+
 		// FIFO Queue
 		TQueue<FVector, EQueueMode::Spsc> FQ;
 		// put all initial constraints in the FIFO Queue
@@ -282,13 +326,47 @@ struct FDEM
 		{
 			FQ.Enqueue(Vec);
 		}
-		while (!FQ.IsEmpty)
+		while (!FQ.IsEmpty())
 		{
 			FVector E;
-			FQ.Dequeue(E);
-			// get all ascendents of E
-			FString Key = UMyStaticLibrary::GetFloatAsStringWithPrecision(E.X, 2) + UMyStaticLibrary::GetFloatAsStringWithPrecision(E.Y, 2);
-			TArray<FVector>* A = AscendingPoints.Find(Key);
+			while (FQ.Dequeue(E))
+			{
+				// get all ascendents A of E
+				TArray<FVector2D> A;
+				GetAscendingPoints(FVector2D(E.X, E.Y), A);
+				for (FVector2D a : A)
+				{
+					FDEMData Data_a;
+					if (!GetPointData(a, Data_a))
+					{
+						UE_LOG(LogTemp, Error, TEXT("Could not find specified ascending point in DEM in MidpointDisplacementBottomUp"));
+						return;
+					}
+					if (Data_a.State == EDEMState::DEM_UNKNOWN)
+					{
+						// add A as key in hashtable and add E as value to hashtable : list of known child of A
+						ChildrenPoints.Add(GetKeyForPoint(a), FVector2D(E.X, E.Y));
+					}
+				}
+			}
+
+			TArray<FString> Keys;
+			ChildrenPoints.GetKeys(Keys);
+			for (FString Key : Keys)
+			{
+				FVector2D A = GetPointFromKey(Key);
+				float e = 0.f;
+				int32 n = 0.f;
+				TArray<FVector2D> Children;
+				ChildrenPoints.MultiFind(Key, Children, true);
+				for (FVector2D Child : Children)
+				{
+					//e = e +
+				}
+			}
+
+
+
 		}
 	}
 

@@ -404,5 +404,7 @@ public:
 		NumberFormat.MaximumFractionalDigits = Precision;
 		return FText::AsNumber(TheFloat, &NumberFormat).ToString();
 	}
+
+
 };
 	
