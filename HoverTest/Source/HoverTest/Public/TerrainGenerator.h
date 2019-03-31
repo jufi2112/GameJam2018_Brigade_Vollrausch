@@ -64,6 +64,9 @@ struct FDEM
 	// tunes the interpolation curve in the midpoint displacement bottom-up process
 	float I_bu = -0.4f;
 
+	// the DEM diagonal, used in Delta_BU calculation
+	float d_max = 0.f;
+
 
 
 	FDEM()
@@ -158,17 +161,37 @@ struct FDEM
 		return true;
 	}
 
-	int32 Sigma(const float I)
+	// set new DEMData
+	void SetNewDEMPointData(const FVector2D Point, const FDEMData NewPointData)
+	{
+		DEM.Add(GetKeyForPoint(Point), NewPointData);
+	}
+
+	int32 Sigma(const float I) const
 	{
 		return (I >= 0 ? 1 : -1);
 	}
 
-	float DeltaBU(const float e, const float d)
+	float Delta_BU(const float e, const float d) const
 	{
-		// TODO implement formula given in paper
+		if (d_max == 0.f)
+		{
+			UE_LOG(LogTemp, Error, TEXT("Division By Zero in Delta_BU function, returned 0.f instead!"));
+			return 0.f;
+		}
+		return (e * (1 - Sigma(I_bu) * (1 - FMath::Pow((1 - (d / d_max)), FMath::Abs(I_bu)))));
 	}
 
-
+	// removes all values associated with the given point from the map
+	void RemoveValuesFromChildrenPoints(const FVector2D Point)
+	{
+		int32 NumDeleted = ChildrenPoints.Remove(GetKeyForPoint(Point));
+		if (NumDeleted == 0)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("Could not find any values associated with Point %s in RemoveValuesFromChildrenPoints"), *Point.ToString());
+		}
+		return;
+	}
 
 
 
@@ -235,6 +258,13 @@ struct FDEM
 		FVector2D G = FVector2D(HalfWidth, (*DefiningPoints)[2].Y);
 		FVector2D H = FVector2D((*DefiningPoints)[0].X, HalfHeight);
 		FVector2D I = FVector2D(HalfWidth, HalfHeight);
+
+		/* calculate DEM diagonal, used in calculation of Delta_BU*/
+		if (Iteration == 0)
+		{
+			// TODO check if 0 is our first Iteration (so that we don't start at 1 and wonder why d_max is not set / still 0.f)
+			d_max = FVector2D::Distance((*DefiningPoints)[3], (*DefiningPoints)[1]);
+		}
 
 		/* add ascending points to hashmap */
 		// E
@@ -320,20 +350,20 @@ struct FDEM
 		}
 
 		// FIFO Queue
-		TQueue<FVector, EQueueMode::Spsc> FQ;
+		TQueue<FVector2D, EQueueMode::Spsc> FQ;
 		// put all initial constraints in the FIFO Queue
 		for (FVector Vec : *(InitialConstraints))
 		{
-			FQ.Enqueue(Vec);
+			FQ.Enqueue(FVector2D(Vec.X, Vec.Y));
 		}
 		while (!FQ.IsEmpty())
 		{
-			FVector E;
+			FVector2D E;
 			while (FQ.Dequeue(E))
 			{
 				// get all ascendents A of E
 				TArray<FVector2D> A;
-				GetAscendingPoints(FVector2D(E.X, E.Y), A);
+				GetAscendingPoints(E, A);
 				for (FVector2D a : A)
 				{
 					FDEMData Data_a;
@@ -345,10 +375,12 @@ struct FDEM
 					if (Data_a.State == EDEMState::DEM_UNKNOWN)
 					{
 						// add A as key in hashtable and add E as value to hashtable : list of known child of A
-						ChildrenPoints.Add(GetKeyForPoint(a), FVector2D(E.X, E.Y));
+						ChildrenPoints.Add(GetKeyForPoint(a), E);
 					}
 				}
 			}
+
+			// care: meaning of A switched, now A is a single point, not an array
 
 			TArray<FString> Keys;
 			ChildrenPoints.GetKeys(Keys);
@@ -361,12 +393,25 @@ struct FDEM
 				ChildrenPoints.MultiFind(Key, Children, true);
 				for (FVector2D Child : Children)
 				{
-					//e = e +
+					float ChildElevation;
+					if (!GetPointElevation(Child, ChildElevation))
+					{
+						// could not retrieve child point information from DEM data
+						UE_LOG(LogTemp, Error, TEXT("Could not retrieve child point elevation data from DEM. Child point was: %s"), *Child.ToString());
+						continue;
+					}
+					e = e + Delta_BU(ChildElevation, FVector2D::Distance(A, Child));
+					n++;
 				}
+				FDEMData NewData;
+				NewData.Elevation = (e / n);
+				NewData.State = EDEMState::DEM_KNOWN;
+				SetNewDEMPointData(A, NewData);
+				// remove A from ChildrenPoints map
+				RemoveValuesFromChildrenPoints(A);
+				// put A in FQ
+				FQ.Enqueue(A);
 			}
-
-
-
 		}
 	}
 
