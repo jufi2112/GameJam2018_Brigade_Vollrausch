@@ -193,6 +193,27 @@ struct FDEM
 		return;
 	}
 
+	/**
+	 * interpolates between the given points on one axis, where the X coordinate is the axis value and the Y coordinate is the value that should be interpolated
+	 */
+	/*float InterpolateHeightOneAxis(const FVector2D FirstPoint, const FVector2D SecondPoint, const float InterpolationPoint) const
+	{
+		if (SecondPoint.X - FirstPoint.X == 0)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("Division by zero in InterpolateHeightOneAxis! Returning 0.f instead"));
+			return 0.f;
+		}
+		return (FirstPoint.Y + (InterpolationPoint - FirstPoint.X) * (SecondPoint.Y - FirstPoint.Y) / (SecondPoint.X - FirstPoint.X));
+	}*/
+
+	/**
+	 * interpolates between the two given floats (averages)
+	 */
+	float InterpolateFloat(const float Value1, const float Value2) const
+	{
+		return (FMath::Abs(Value1 - Value2) / 2.f);
+	}
+
 
 
 	/**
