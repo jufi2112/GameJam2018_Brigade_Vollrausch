@@ -1,4 +1,5 @@
 // Fill out your copyright notice in the Description page of Project Settings.
+// TODO access violation at line 144
 
 #pragma once
 
@@ -139,6 +140,7 @@ struct FDEM
 	// for a given point, find all ascending points
 	void GetAscendingPoints(const FVector2D OriginalPoint, TArray<FVector2D>& OUTAscendents) const
 	{
+		// TODO access violation here
 		OUTAscendents = (*(AscendingPoints.Find(GetKeyForPoint(OriginalPoint)))).Array;
 		//AscendingPoints.MultiFind(Key, OUTAscendents, true);
 	}
@@ -291,7 +293,7 @@ struct FDEM
 	 * @param Mean The Mean value of the normal distribution
 	 * @param Deviation The standard deviation of the normal distribution
 	 */
-	float GetNormalDistribution(const float Mean, const float Deviation)
+	float GetNormalDistribution(const float Mean, const float Deviation) const
 	{
 		std::random_device rd{};
 		std::mt19937 gen{ rd() };
@@ -300,9 +302,42 @@ struct FDEM
 		return d(gen);
 	}
 
-	float CalculateDeviation(const float Iteration)
+	float CalculateDeviation(const float Iteration) const
 	{
 		return (k * FMath::Pow(2, -(Iteration * H)));
+	}
+
+	// Creates a FRuntimeMeshVertexSimple from the given Vertex
+	FRuntimeMeshVertexSimple CreateRuntimeMeshVertexSimple(const FVector Vertex)
+	{
+		return FRuntimeMeshVertexSimple(
+			Vertex,										// Vertex position
+			FVector(0.f, 0.f, 1.f),						// Vertex normal
+			FRuntimeMeshTangent(0.f, -1.f, 0.f),		// Vertex tangent
+			FColor::White,								
+			FVector2D(Vertex.X, Vertex.Y)				// Vertex texture coordinates
+		);
+	}
+
+	/**
+	 * adds the given vertices to the vertex buffer and the resulting triangle to the triangle buffer
+	 * @return The next available VertexBuffer index (the next index to be used)
+	 */
+	int32 AddTriangleToBuffers(const FVector Vertex1, const FVector Vertex2, const FVector Vertex3, const int32 NextVertexBufferIndex, TArray<FRuntimeMeshVertexSimple>& OUTVertexBuffer, TArray<int32>& OUTTriangleBuffer)
+	{
+		OUTVertexBuffer.Add(CreateRuntimeMeshVertexSimple(Vertex1));
+		OUTVertexBuffer.Add(CreateRuntimeMeshVertexSimple(Vertex2));
+		OUTVertexBuffer.Add(CreateRuntimeMeshVertexSimple(Vertex3));
+		OUTTriangleBuffer.Add(NextVertexBufferIndex);
+		OUTTriangleBuffer.Add(NextVertexBufferIndex + 1);
+		OUTTriangleBuffer.Add(NextVertexBufferIndex + 2);
+		return (NextVertexBufferIndex + 3);
+	}
+
+	// converts the given FVector to FVector2D
+	FVector2D Vec2Vec2D(const FVector Vector) const
+	{
+		return FVector2D(Vector.X, Vector.Y);
 	}
 
 
@@ -338,7 +373,6 @@ struct FDEM
 	 * @param Iteration - the current iteration depth the recursion is in
 	 * @param MaxIterations - number of iterations after which the recursion stops
 	 */
-	// TODO make TArray<FVector2D> to TArray<FVector> and store elevation data in Z component
 	void TriangleEdge(const TArray<FVector>* DefiningPoints, const int32 Iteration, const int32 MaxIterations, TArray<FRuntimeMeshVertexSimple>& OUTVertexBuffer, TArray<int32>& OUTTriangleBuffer)
 	{
 		if (!DefiningPoints)
@@ -421,7 +455,7 @@ struct FDEM
 			if (State == EDEMState::DEM_UNKNOWN)
 			{
 				// ascendents are (A & C) && (B & D)
-				float PointElevation = (InterpolateFloat((*DefiningPoints)[0].Z, (*DefiningPoints)[2].Z) + InterpolateFloat((*DefiningPoints)[1].Z, (*DefiningPoints)[4].Z)) / 2;
+				float PointElevation = (InterpolateFloat((*DefiningPoints)[0].Z, (*DefiningPoints)[2].Z) + InterpolateFloat((*DefiningPoints)[1].Z, (*DefiningPoints)[3].Z)) / 2;
 				I.Z = GetNormalDistribution(PointElevation, Deviation);
 			}
 		}
@@ -443,6 +477,65 @@ struct FDEM
 		{
 			// fill vertex & triangle buffer
 
+			// the next available vertex buffer index
+			int32 VertexIndex = OUTVertexBuffer.Num();
+
+			// triangle A, E, H
+			VertexIndex = AddTriangleToBuffers((*DefiningPoints)[0], E, H, VertexIndex, OUTVertexBuffer, OUTTriangleBuffer);
+
+			// triangle E, I, H
+			VertexIndex = AddTriangleToBuffers(E, I, H, VertexIndex, OUTVertexBuffer, OUTTriangleBuffer);
+
+			// triangle E, B, I
+			VertexIndex = AddTriangleToBuffers(E, (*DefiningPoints)[1], I, VertexIndex, OUTVertexBuffer, OUTTriangleBuffer);
+
+			// triangle B, F, I
+			VertexIndex = AddTriangleToBuffers((*DefiningPoints)[1], F, I, VertexIndex, OUTVertexBuffer, OUTTriangleBuffer);
+
+			// triangle H, I, D
+			VertexIndex = AddTriangleToBuffers(H, I, (*DefiningPoints)[3], VertexIndex, OUTVertexBuffer, OUTTriangleBuffer);
+
+			// triangle I, G, D
+			VertexIndex = AddTriangleToBuffers(I, G, (*DefiningPoints)[3], VertexIndex, OUTVertexBuffer, OUTTriangleBuffer);
+
+			// triangle I, F, G
+			VertexIndex = AddTriangleToBuffers(I, F, G, VertexIndex, OUTVertexBuffer, OUTTriangleBuffer);
+
+			// triangle F, C, G
+			VertexIndex = AddTriangleToBuffers(F, (*DefiningPoints)[2], G, VertexIndex, OUTVertexBuffer, OUTTriangleBuffer);
+
+			return;
+		}
+		if (Iteration < MaxIterations)
+		{
+			// apply triangle edge algorithm on all newly created quads
+			TArray<FVector> Quad1;
+			Quad1.Add((*DefiningPoints)[0]);
+			Quad1.Add(E);
+			Quad1.Add(I);
+			Quad1.Add(H);
+			TArray<FVector> Quad2;
+			Quad2.Add(E);
+			Quad2.Add((*DefiningPoints)[1]);
+			Quad2.Add(F);
+			Quad2.Add(I);
+			TArray<FVector> Quad3;
+			Quad3.Add(I);
+			Quad3.Add(F);
+			Quad3.Add((*DefiningPoints)[2]);
+			Quad3.Add(G);
+			TArray<FVector> Quad4;
+			Quad4.Add(H);
+			Quad4.Add(I);
+			Quad4.Add(G);
+			Quad4.Add((*DefiningPoints)[3]);
+
+			TriangleEdge(&Quad1, Iteration + 1, MaxIterations, OUTVertexBuffer, OUTTriangleBuffer);
+			TriangleEdge(&Quad2, Iteration + 1, MaxIterations, OUTVertexBuffer, OUTTriangleBuffer);
+			TriangleEdge(&Quad3, Iteration + 1, MaxIterations, OUTVertexBuffer, OUTTriangleBuffer);
+			TriangleEdge(&Quad4, Iteration + 1, MaxIterations, OUTVertexBuffer, OUTTriangleBuffer);
+
+			return;
 		}
 
 	}
@@ -481,7 +574,7 @@ struct FDEM
 	 * @param Iteration - the current iteration depth the recursion is in
 	 * @param MaxIterations - number of iterations after which the recursion stops
 	 */
-	void SimulateTriangleEdge(const TArray<FVector2D>* DefiningPoints, const int32 Iteration, const int32 MaxIterations)
+	void SimulateTriangleEdge(const TArray<FVector>* DefiningPoints, const int32 Iteration, const int32 MaxIterations)
 	{
 		if (!DefiningPoints)
 		{
@@ -498,53 +591,53 @@ struct FDEM
 		float HalfHeight = (((*DefiningPoints)[3].Y - (*DefiningPoints)[0].Y) / 2.f) + (*DefiningPoints)[0].Y;
 
 		/* add defining points to DEM */
-		for (FVector2D Vec : (*DefiningPoints))
+		for (FVector Vec : (*DefiningPoints))
 		{
 			// at this point we don't care if we overwrite already set DEM data, because they all get defaultet
 			SetNewDEMPointData(Vec, FDEMData());
 		}
 
 		/* calculate new points */
-		FVector2D E = FVector2D(HalfWidth, (*DefiningPoints)[0].Y);
-		FVector2D F = FVector2D((*DefiningPoints)[1].X, HalfHeight);
-		FVector2D G = FVector2D(HalfWidth, (*DefiningPoints)[2].Y);
-		FVector2D H = FVector2D((*DefiningPoints)[0].X, HalfHeight);
-		FVector2D I = FVector2D(HalfWidth, HalfHeight);
+		FVector E = FVector(HalfWidth, (*DefiningPoints)[0].Y, 0.f);
+		FVector F = FVector((*DefiningPoints)[1].X, HalfHeight, 0.f);
+		FVector G = FVector(HalfWidth, (*DefiningPoints)[2].Y, 0.f);
+		FVector H = FVector((*DefiningPoints)[0].X, HalfHeight, 0.f);
+		FVector I = FVector(HalfWidth, HalfHeight, 0.f);
 
 		/* calculate DEM diagonal, used in calculation of Delta_BU*/
 		if (Iteration == 0)
 		{
 			// TODO check if 0 is our first Iteration (so that we don't start at 1 and wonder why d_max is not set / still 0.f)
-			d_max = FVector2D::Distance((*DefiningPoints)[3], (*DefiningPoints)[1]);
+			d_max = FVector2D::Distance(Vec2Vec2D((*DefiningPoints)[3]), Vec2Vec2D((*DefiningPoints)[1]));
 		}
 
 		/* add ascending points to hashmap */
 		// E
 		TArray<FVector2D> Values_E;
-		Values_E.Add((*DefiningPoints)[0]);
-		Values_E.Add((*DefiningPoints)[1]);
+		Values_E.Add(Vec2Vec2D((*DefiningPoints)[0]));
+		Values_E.Add(Vec2Vec2D((*DefiningPoints)[1]));
 		AscendingPoints.Add(GetKeyForPoint(E), Values_E);
 		// F
 		TArray<FVector2D> Values_F;
-		Values_F.Add((*DefiningPoints)[1]);
-		Values_F.Add((*DefiningPoints)[2]);
+		Values_F.Add(Vec2Vec2D((*DefiningPoints)[1]));
+		Values_F.Add(Vec2Vec2D((*DefiningPoints)[2]));
 		AscendingPoints.Add(GetKeyForPoint(F), Values_F);
 		// G
 		TArray<FVector2D> Values_G;
-		Values_G.Add((*DefiningPoints)[2]);
-		Values_G.Add((*DefiningPoints)[3]);
+		Values_G.Add(Vec2Vec2D((*DefiningPoints)[2]));
+		Values_G.Add(Vec2Vec2D((*DefiningPoints)[3]));
 		AscendingPoints.Add(GetKeyForPoint(G), Values_G);
 		// H
 		TArray<FVector2D> Values_H;
-		Values_H.Add((*DefiningPoints)[0]);
-		Values_H.Add((*DefiningPoints)[3]);
+		Values_H.Add(Vec2Vec2D((*DefiningPoints)[0]));
+		Values_H.Add(Vec2Vec2D((*DefiningPoints)[3]));
 		AscendingPoints.Add(GetKeyForPoint(H), Values_H);
 		// I
 		TArray<FVector2D> Values_I;
-		Values_I.Add((*DefiningPoints)[0]);
-		Values_I.Add((*DefiningPoints)[1]);
-		Values_I.Add((*DefiningPoints)[2]);
-		Values_I.Add((*DefiningPoints)[3]);
+		Values_I.Add(Vec2Vec2D((*DefiningPoints)[0]));
+		Values_I.Add(Vec2Vec2D((*DefiningPoints)[1]));
+		Values_I.Add(Vec2Vec2D((*DefiningPoints)[2]));
+		Values_I.Add(Vec2Vec2D((*DefiningPoints)[3]));
 		AscendingPoints.Add(GetKeyForPoint(I), Values_I);
 
 
@@ -560,22 +653,22 @@ struct FDEM
 		if (Iteration < MaxIterations)
 		{
 			// apply triangle edge algorithm on all newly created quads
-			TArray<FVector2D> Quad1;
+			TArray<FVector> Quad1;
 			Quad1.Add((*DefiningPoints)[0]);
 			Quad1.Add(E);
 			Quad1.Add(I);
 			Quad1.Add(H);
-			TArray<FVector2D> Quad2;
+			TArray<FVector> Quad2;
 			Quad2.Add(E);
 			Quad2.Add((*DefiningPoints)[1]);
 			Quad2.Add(F);
 			Quad2.Add(I);
-			TArray<FVector2D> Quad3;
+			TArray<FVector> Quad3;
 			Quad3.Add(I);
 			Quad3.Add(F);
 			Quad3.Add((*DefiningPoints)[2]);
 			Quad3.Add(G);
-			TArray<FVector2D> Quad4;
+			TArray<FVector> Quad4;
 			Quad4.Add(H);
 			Quad4.Add(I);
 			Quad4.Add(G);
