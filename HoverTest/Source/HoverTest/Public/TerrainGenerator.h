@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "UObject/NoExportTypes.h"
 #include "MyStaticLibrary.h"
+#include <random>
+#include "RuntimeMeshComponent.h"
 #include "TerrainGenerator.generated.h"
 
 UENUM()
@@ -22,6 +24,7 @@ struct FDEMData
 {
 	GENERATED_USTRUCT_BODY()
 
+	UPROPERTY()
 	EDEMState State;
 	float Elevation;
 
@@ -45,6 +48,28 @@ struct FDEMData
 };
 
 /**
+ * struct because unreal c++ won't allow nested containers
+ */
+USTRUCT()
+struct FVector2DArray
+{
+	GENERATED_USTRUCT_BODY()
+
+	UPROPERTY()
+	TArray<FVector2D> Array;
+
+	FVector2DArray(const TArray<FVector2D>& ArrayToInitialize)
+	{
+		Array = ArrayToInitialize;
+	}
+
+	FVector2DArray()
+	{
+		Array.Empty();
+	}
+};
+
+/**
  * struct for a digital elevation map (DEM) as presented in "Terrain Modeling: A Constrained Fractal Model" by Farès Belhadj in 2007
  */
 USTRUCT()
@@ -52,10 +77,13 @@ struct FDEM
 {
 	GENERATED_USTRUCT_BODY()
 	// map to store DEM data for each point (using FString since points can have float coordinates that can suffer from precision problems)
+	UPROPERTY()
 	TMap<FString, FDEMData> DEM;
 	// map to store all ascending points for a given point
-	TMap<FString, TArray<FVector2D>> AscendingPoints;
+	UPROPERTY()
+	TMap<FString, FVector2DArray> AscendingPoints;
 	// multimap to store all children points for a given point
+	//UPROPERTY()
 	TMultiMap<FString, FVector2D> ChildrenPoints;
 
 	// Delimiter used to separate X and Y coordinate values in FString Keys
@@ -66,6 +94,12 @@ struct FDEM
 
 	// the DEM diagonal, used in Delta_BU calculation
 	float d_max = 0.f;
+
+	// fractal dimension
+	float H = 0.5f;
+
+	// scaling factor
+	float k = 0.55f;
 
 
 
@@ -105,7 +139,7 @@ struct FDEM
 	// for a given point, find all ascending points
 	void GetAscendingPoints(const FVector2D OriginalPoint, TArray<FVector2D>& OUTAscendents) const
 	{
-		OUTAscendents = (*(AscendingPoints.Find(GetKeyForPoint(OriginalPoint))));
+		OUTAscendents = (*(AscendingPoints.Find(GetKeyForPoint(OriginalPoint)))).Array;
 		//AscendingPoints.MultiFind(Key, OUTAscendents, true);
 	}
 
@@ -147,6 +181,19 @@ struct FDEM
 		return true;
 	}
 
+	// gets the points state
+	bool GetPointState(const FVector Point, EDEMState& OUTState)
+	{
+		const FDEMData* Data = DEM.Find(GetKeyForPoint(Point));
+		if (!Data)
+		{
+			UE_LOG(LogTemp, Error, TEXT("Could not find specified key (%s) in GetPointState"), *GetKeyForPoint(Point));
+			return false;
+		}
+		OUTState = Data->State;
+		return true;
+	}
+
 	// gets the point's whole FDEMData
 	bool GetPointData(const FVector2D Point, FDEMData& OUTPointData)
 	{
@@ -161,9 +208,47 @@ struct FDEM
 		return true;
 	}
 
-	// set new DEMData
-	void SetNewDEMPointData(const FVector2D Point, const FDEMData NewPointData)
+	/** 
+	 * set new DEMData
+	 * @param Point The point for which DEMData should be set
+	 * @param NewPointData The DEMData that should be set
+	 * @param WithCheck If the DEMData should only be set if the previous DEMData's state is DEM_UNKNOWN
+	 */
+	void SetNewDEMPointData(const FVector2D Point, const FDEMData NewPointData, bool WithCheck = false)
 	{
+		if (WithCheck)
+		{
+			EDEMState State;
+			if (GetPointState(Point, State))
+			{
+				if (State == EDEMState::DEM_KNOWN)
+				{
+					return;
+				}
+			}
+		}
+		DEM.Add(GetKeyForPoint(Point), NewPointData);
+	}
+
+	/**
+	* set new DEMData
+	* @param Point The point for which DEMData should be set
+	* @param NewPointData The DEMData that should be set
+	* @param WithCheck If the DEMData should only be set if the previous DEMData's state is DEM_UNKNOWN
+	*/
+	void SetNewDEMPointData(const FVector Point, const FDEMData NewPointData, bool WithCheck = false)
+	{
+		if (WithCheck)
+		{
+			EDEMState State;
+			if (GetPointState(Point, State))
+			{
+				if (State == EDEMState::DEM_KNOWN)
+				{
+					return;
+				}
+			}
+		}
 		DEM.Add(GetKeyForPoint(Point), NewPointData);
 	}
 
@@ -194,19 +279,6 @@ struct FDEM
 	}
 
 	/**
-	 * interpolates between the given points on one axis, where the X coordinate is the axis value and the Y coordinate is the value that should be interpolated
-	 */
-	/*float InterpolateHeightOneAxis(const FVector2D FirstPoint, const FVector2D SecondPoint, const float InterpolationPoint) const
-	{
-		if (SecondPoint.X - FirstPoint.X == 0)
-		{
-			UE_LOG(LogTemp, Warning, TEXT("Division by zero in InterpolateHeightOneAxis! Returning 0.f instead"));
-			return 0.f;
-		}
-		return (FirstPoint.Y + (InterpolationPoint - FirstPoint.X) * (SecondPoint.Y - FirstPoint.Y) / (SecondPoint.X - FirstPoint.X));
-	}*/
-
-	/**
 	 * interpolates between the two given floats (averages)
 	 */
 	float InterpolateFloat(const float Value1, const float Value2) const
@@ -214,7 +286,166 @@ struct FDEM
 		return (FMath::Abs(Value1 - Value2) / 2.f);
 	}
 
+	/**
+	 * returns a normal distribution, code taken from https://forums.unrealengine.com/development-discussion/c-gameplay-programming/9284-normal-distribution comment by BNash
+	 * @param Mean The Mean value of the normal distribution
+	 * @param Deviation The standard deviation of the normal distribution
+	 */
+	float GetNormalDistribution(const float Mean, const float Deviation)
+	{
+		std::random_device rd{};
+		std::mt19937 gen{ rd() };
+		std::normal_distribution<float> d{ Mean, Deviation };
 
+		return d(gen);
+	}
+
+	float CalculateDeviation(const float Iteration)
+	{
+		return (k * FMath::Pow(2, -(Iteration * H)));
+	}
+
+
+	/**
+	 * triangle edge algorithm
+	 * @param DefiningPoints - points that define the current quad (4 points overall) with ordering [A, B, C, D] where A = (min_X, min_Y) and C = (max_X, max_Y)
+	 *
+	 *			D *-------------* C
+	 *			  |	\			|
+	 *			  |	   \		|
+	 *			  |	     \		|
+	 *			  |		   \	|
+	 *			  |			  \ |
+	 *			A *-------------* B
+	 *
+	 * newly created points follow this order:
+	 *
+	 *					 G
+	 *			D *------*------* C
+	 *			  |	\			|
+	 *			  |	   \   I	|
+	 *			H *	     *		* F
+	 *			  |		   \	|
+	 *			  |			  \ |
+	 *			A *------*------* B
+	 *					 E
+	 *
+	 *	newly created quads are:	Quad1 = {A, E, I, H}
+	 *								Quad2 = {E, B, F, I}
+	 *								Quad3 = {I, F, C, G}
+	 *								Quad4 = {H, I, G, D}
+	 *
+	 * @param Iteration - the current iteration depth the recursion is in
+	 * @param MaxIterations - number of iterations after which the recursion stops
+	 */
+	// TODO make TArray<FVector2D> to TArray<FVector> and store elevation data in Z component
+	void TriangleEdge(const TArray<FVector>* DefiningPoints, const int32 Iteration, const int32 MaxIterations, TArray<FRuntimeMeshVertexSimple>& OUTVertexBuffer, TArray<int32>& OUTTriangleBuffer)
+	{
+		if (!DefiningPoints)
+		{
+			UE_LOG(LogTemp, Error, TEXT("DefiningPoints is nullptr in TriangleEdge at iteration %i"), Iteration);
+			return;
+		}
+		if (DefiningPoints->Num() != 4)
+		{
+			UE_LOG(LogTemp, Error, TEXT("Wrong number of points given to TriangleEdge at iteration %i. Should be 4, are: %i"), Iteration, DefiningPoints->Num());
+			return;
+		}
+
+		float HalfWidth  = (((*DefiningPoints)[1].X - (*DefiningPoints)[0].X) / 2.f) + (*DefiningPoints)[0].X;
+		float HalfHeight = (((*DefiningPoints)[3].Y - (*DefiningPoints)[0].Y) / 2.f) + (*DefiningPoints)[0].Y;
+
+		// don't need to add DefiningPoints to DEM, because at iteration 0 those are constraints and at iteration i, those points have been added to the DEM at iteration (i-1)
+
+		// calculate new points
+		FVector E = FVector(HalfWidth, (*DefiningPoints)[0].Y, 0.f);
+		FVector F = FVector((*DefiningPoints)[1].X, HalfHeight, 0.f);
+		FVector G = FVector(HalfWidth, (*DefiningPoints)[2].Y, 0.f);
+		FVector H = FVector((*DefiningPoints)[0].X, HalfHeight, 0.f);
+		FVector I = FVector(HalfWidth, HalfHeight, 0.f);
+
+		/* calculate elevation of newly created points */
+
+		float Deviation = CalculateDeviation(Iteration);
+
+		// E
+		EDEMState State;
+		if (GetPointState(E, State))
+		{
+			if (State == EDEMState::DEM_UNKNOWN)
+			{
+				// ascendents are A & B
+
+				float PointElevation = InterpolateFloat((*DefiningPoints)[0].Z, (*DefiningPoints)[1].Z);
+				E.Z = GetNormalDistribution(PointElevation, Deviation);
+
+			}
+		}
+
+		// F
+		if (GetPointState(F, State))
+		{
+			if (State == EDEMState::DEM_UNKNOWN)
+			{
+				// ascendents are B & C
+				float PointElevation = InterpolateFloat((*DefiningPoints)[1].Z, (*DefiningPoints)[2].Z);
+				F.Z = GetNormalDistribution(PointElevation, Deviation);
+			}
+		}
+
+		// G
+		if (GetPointState(G, State))
+		{
+			if (State == EDEMState::DEM_UNKNOWN)
+			{
+				// ascendents are C & D
+				float PointElevation = InterpolateFloat((*DefiningPoints)[2].Z, (*DefiningPoints)[3].Z);
+				G.Z = GetNormalDistribution(PointElevation, Deviation);
+			}
+		}
+
+		// H
+		if (GetPointState(H, State))
+		{
+			if (State == EDEMState::DEM_UNKNOWN)
+			{
+				// ascendents are D & A
+				float PointElevation = InterpolateFloat((*DefiningPoints)[3].Z, (*DefiningPoints)[0].Z);
+				H.Z = GetNormalDistribution(PointElevation, Deviation);
+			}
+		}
+
+		// I
+		if (GetPointState(I, State))
+		{
+			if (State == EDEMState::DEM_UNKNOWN)
+			{
+				// ascendents are (A & C) && (B & D)
+				float PointElevation = (InterpolateFloat((*DefiningPoints)[0].Z, (*DefiningPoints)[2].Z) + InterpolateFloat((*DefiningPoints)[1].Z, (*DefiningPoints)[4].Z)) / 2;
+				I.Z = GetNormalDistribution(PointElevation, Deviation);
+			}
+		}
+
+		// add newly created points to DEM if not already present
+
+		// E
+		SetNewDEMPointData(E, FDEMData(E.Z, EDEMState::DEM_KNOWN));
+		// F
+		SetNewDEMPointData(F, FDEMData(F.Z, EDEMState::DEM_KNOWN));
+		// G
+		SetNewDEMPointData(G, FDEMData(G.Z, EDEMState::DEM_KNOWN));
+		// H
+		SetNewDEMPointData(H, FDEMData(H.Z, EDEMState::DEM_KNOWN));
+		// I
+		SetNewDEMPointData(I, FDEMData(I.Z, EDEMState::DEM_KNOWN));
+
+		if (Iteration == MaxIterations)
+		{
+			// fill vertex & triangle buffer
+
+		}
+
+	}
 
 	/**
 	 * simulates the triangle edge algorithm
@@ -259,18 +490,18 @@ struct FDEM
 		}
 		if (DefiningPoints->Num() != 4)
 		{
-			UE_LOG(LogTemp, Error, TEXT("Wrong number of points given to SimulateTriangleEdge at iteration %i. Should be 5, are: %i"), Iteration, DefiningPoints->Num());
+			UE_LOG(LogTemp, Error, TEXT("Wrong number of points given to SimulateTriangleEdge at iteration %i. Should be 4, are: %i"), Iteration, DefiningPoints->Num());
 			return;
 		}
 
-		float HalfWidth = ((*DefiningPoints)[1].X - (*DefiningPoints)[0].X) / 2.f;
-		float HalfHeight = ((*DefiningPoints)[3].Y - (*DefiningPoints)[0].Y) / 2.f;
+		float HalfWidth  = (((*DefiningPoints)[1].X - (*DefiningPoints)[0].X) / 2.f) + (*DefiningPoints)[0].X;
+		float HalfHeight = (((*DefiningPoints)[3].Y - (*DefiningPoints)[0].Y) / 2.f) + (*DefiningPoints)[0].Y;
 
 		/* add defining points to DEM */
 		for (FVector2D Vec : (*DefiningPoints))
 		{
 			// at this point we don't care if we overwrite already set DEM data, because they all get defaultet
-			DEM.Add(GetKeyForPoint(Vec), FDEMData());
+			SetNewDEMPointData(Vec, FDEMData());
 		}
 
 		/* calculate new points */
@@ -319,7 +550,11 @@ struct FDEM
 
 		if (Iteration == MaxIterations)
 		{
-			// in simulation, do nothing
+			SetNewDEMPointData(E, FDEMData());
+			SetNewDEMPointData(F, FDEMData());
+			SetNewDEMPointData(G, FDEMData());
+			SetNewDEMPointData(H, FDEMData());
+			SetNewDEMPointData(I, FDEMData());
 			return;
 		}
 		if (Iteration < MaxIterations)
@@ -367,7 +602,7 @@ struct FDEM
 		// add constraints to the DEM
 		for (const FVector Constraint : (*InitialConstraints))
 		{
-			DEM.Add(GetKeyForPoint(Constraint), FDEMData(Constraint.Z, EDEMState::DEM_KNOWN));
+			SetNewDEMPointData(Constraint, FDEMData(Constraint.Z, EDEMState::DEM_KNOWN));
 		}
 
 		// FIFO Queue
