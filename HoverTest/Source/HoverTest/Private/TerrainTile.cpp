@@ -35,6 +35,7 @@ void ATerrainTile::SetupTile(FTerrainSettings TerrainSettings, FIntVector2D Sect
 {
 	// change tile location
 	//SetActorLocation(FVector(TerrainSettings.TileSizeXUnits * TerrainSettings.UnitTileSize * Sector.X, TerrainSettings.TileSizeYUnits * TerrainSettings.UnitTileSize * Sector.Y, 0.f));
+	//UE_LOG(LogTemp, Warning, TEXT("Setting %s to position %s"), *GetName(), *FVector(TerrainSettings.TileEdgeSize * Sector.X, TerrainSettings.TileEdgeSize * Sector.Y, 0.f).ToString());
 	SetActorLocation(FVector(TerrainSettings.TileEdgeSize * Sector.X, TerrainSettings.TileEdgeSize * Sector.Y, 0.f));
 	CurrentSector = Sector;
 	// make sure newly created tile does not get destroyed immediately
@@ -68,7 +69,8 @@ void ATerrainTile::UpdateTilePosition(FTerrainSettings TerrainSettings, FIntVect
 	{
 		TileStatus = ETileStatus::TILE_TRANSITION;
 	}
-	SetActorLocation(FVector((TerrainSettings.TileSizeXUnits -1) * TerrainSettings.UnitTileSize * Sector.X, (TerrainSettings.TileSizeYUnits -1) * TerrainSettings.UnitTileSize * Sector.Y, 0));
+	//SetActorLocation(FVector((TerrainSettings.TileSizeXUnits -1) * TerrainSettings.UnitTileSize * Sector.X, (TerrainSettings.TileSizeYUnits -1) * TerrainSettings.UnitTileSize * Sector.Y, 0));
+	SetActorLocation(FVector(TerrainSettings.TileEdgeSize * Sector.X, TerrainSettings.TileEdgeSize * Sector.Y, 0.f));
 	CurrentSector = Sector;
 	SetActorHiddenInGame(true);
 }

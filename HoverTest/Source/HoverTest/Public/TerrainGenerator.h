@@ -28,6 +28,7 @@ struct FDEMData
 	UPROPERTY()
 	EDEMState State;
 	float Elevation;
+	float ScalingFactor = 1.f;
 
 	FDEMData(float elevation)
 	{
@@ -45,6 +46,11 @@ struct FDEMData
 	{
 		Elevation = 0.f;
 		State = EDEMState::DEM_UNKNOWN;
+	}
+
+	void SetElevation(float NewElevation)
+	{
+		Elevation = NewElevation * ScalingFactor;
 	}
 };
 
@@ -97,10 +103,10 @@ struct FDEM
 	float d_max = 0.f;
 
 	// fractal dimension
-	float H = 0.5f;
+	float H = 50.f;
 
 	// scaling factor
-	float k = 0.55f;
+	float k = 55.f;
 
 
 
@@ -111,6 +117,11 @@ struct FDEM
 		ChildrenPoints.Empty();
 	}
 
+	void PrintDEMPointsToFile(FString FileName)
+	{
+
+	}
+
 	FVector2D GetPointFromKey(FString TheKey)
 	{
 		FString FirstFloat;
@@ -118,6 +129,7 @@ struct FDEM
 		if (!TheKey.Split(Delimiter, &FirstFloat, &SecondFloat))
 		{
 			UE_LOG(LogTemp, Warning, TEXT("Did not find splitting symbol %s in given text: %s"), *Delimiter, *TheKey);
+			return FVector2D(0.f, 0.f);
 		}
 		FVector2D Coords;
 		Coords.X = FCString::Atof(*FirstFloat);
@@ -141,7 +153,14 @@ struct FDEM
 	void GetAscendingPoints(const FVector2D OriginalPoint, TArray<FVector2D>& OUTAscendents) const
 	{
 		// TODO access violation here
-		OUTAscendents = (*(AscendingPoints.Find(GetKeyForPoint(OriginalPoint)))).Array;
+		const FVector2DArray* Ascendents = AscendingPoints.Find(GetKeyForPoint(OriginalPoint));
+		if (!Ascendents)
+		{
+			// this is the normal case for all points that define the first, big quad
+			//UE_LOG(LogTemp, Error, TEXT("Did not find any ascending points for original point %s"), *OriginalPoint.ToString());
+			return;
+		}
+		OUTAscendents = Ascendents->Array;
 		//AscendingPoints.MultiFind(Key, OUTAscendents, true);
 	}
 
@@ -165,6 +184,19 @@ struct FDEM
 		{
 			UE_LOG(LogTemp, Error, TEXT("Could not find specified key (%s) in GetPointElevation"), *GetKeyForPoint(Point));
 			return false; 
+		}
+		OUTElevation = Data->Elevation;
+		return true;
+	}
+
+	// gets the point elevation
+	bool GetPointElevation(const FVector Point, float& OUTElevation) const
+	{
+		const FDEMData* Data = DEM.Find(GetKeyForPoint(Point));
+		if (!Data)
+		{
+			UE_LOG(LogTemp, Error, TEXT("Could not find specified key (%s) in GetPointElevation"), *GetKeyForPoint(Point));
+			return false;
 		}
 		OUTElevation = Data->Elevation;
 		return true;
@@ -315,8 +347,62 @@ struct FDEM
 			FVector(0.f, 0.f, 1.f),						// Vertex normal
 			FRuntimeMeshTangent(0.f, -1.f, 0.f),		// Vertex tangent
 			FColor::White,								
-			FVector2D(Vertex.X, Vertex.Y)				// Vertex texture coordinates
+			FVector2D(Vertex.X/1000.f, Vertex.Y/1000.f)	// Vertex texture coordinates
 		);
+	}
+
+	void SaveDEMToFile()
+	{
+		FString SaveDirectory = "D:/Users/Julien/Documents/Unreal Engine Dumps";
+		FString FileName = "DEM.txt";
+		FString DEMContent = "";
+
+		TArray<FString> KeyArray;
+		DEM.GetKeys(KeyArray);
+		DEMContent.Append("-------------- Begin of DEM Data --------------\n");
+		for (const FString Key : KeyArray)
+		{
+			FVector2D Point = GetPointFromKey(Key);
+			DEMContent.Append(Point.ToString() + "X: ");
+			int32 X = static_cast<int32>(Point.X);
+			int32 Y = static_cast<int32>(Point.Y);
+			DEMContent.Append(FString::FromInt(X) + "Y: " + FString::FromInt(Y) + ": DEM Data: ");
+
+
+			FDEMData* Data = DEM.Find(Key);
+			if (!Data)
+			{
+				UE_LOG(LogTemp, Error, TEXT("Could not retrieve Value for (existing!) key %s in SaveDEMToFile"), *Key);
+				DEMContent.Append(" Elevation: unknown, State: unknown \n");
+				continue;
+			}
+			else
+			{
+				FString State;
+				if (Data->State == EDEMState::DEM_KNOWN) { State = "known"; }
+				if (Data->State == EDEMState::DEM_UNKNOWN) { State = "unknown"; }
+				DEMContent.Append(" Elevation: " + FString::SanitizeFloat(Data->Elevation, 3) + " State: " + State + "\n");
+			}
+		}
+		DEMContent.Append("-------------- End of DEM Data --------------\n");
+
+		bool AllowOverwriting = true;
+		IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
+
+		// CreateDirectoryTree returns true if the destination
+		// directory existed prior to call or has been created
+		// during the call.
+		if (PlatformFile.CreateDirectoryTree(*SaveDirectory))
+		{
+			FString VertexAbsolutePath = SaveDirectory + "/" + FileName;
+
+			if (AllowOverwriting || !PlatformFile.FileExists(*VertexAbsolutePath))
+			{
+				FFileHelper::SaveStringToFile(DEMContent, *VertexAbsolutePath);
+			}
+		}
+
+		return;
 	}
 
 	/**
@@ -413,7 +499,20 @@ struct FDEM
 				float PointElevation = InterpolateFloat((*DefiningPoints)[0].Z, (*DefiningPoints)[1].Z);
 				E.Z = GetNormalDistribution(PointElevation, Deviation);
 
+				// add newly created point to DEM
+				SetNewDEMPointData(E, FDEMData(E.Z, EDEMState::DEM_KNOWN));
+
 			}
+			else
+			{
+				// since we directly use E's coordinates in our last iteration (and we also pass them on to the next iteration if we're not at the final iteration) we need to get the points elevation from the DEM data
+				GetPointElevation(E, E.Z);
+			}
+		}
+		else
+		{
+			// TODO check if we need to add the point if it cannot be found (most likely not necessary)
+			UE_LOG(LogTemp, Error, TEXT("Could not find Point E=%s in DEM Data in TriangleEdge algorithm at iteration %i"), *E.ToString(), Iteration);
 		}
 
 		// F
@@ -424,7 +523,19 @@ struct FDEM
 				// ascendents are B & C
 				float PointElevation = InterpolateFloat((*DefiningPoints)[1].Z, (*DefiningPoints)[2].Z);
 				F.Z = GetNormalDistribution(PointElevation, Deviation);
+
+				// add newly created point to DEM
+				SetNewDEMPointData(F, FDEMData(F.Z, EDEMState::DEM_KNOWN));
 			}
+			else
+			{
+				GetPointElevation(F, F.Z);
+			}
+		}
+		else
+		{
+			// TODO check if we need to add the point if it cannot be found (most likely not necessary)
+			UE_LOG(LogTemp, Error, TEXT("Could not find Point F=%s in DEM Data in TriangleEdge algorithm at iteration %i"), *F.ToString(), Iteration);
 		}
 
 		// G
@@ -435,7 +546,19 @@ struct FDEM
 				// ascendents are C & D
 				float PointElevation = InterpolateFloat((*DefiningPoints)[2].Z, (*DefiningPoints)[3].Z);
 				G.Z = GetNormalDistribution(PointElevation, Deviation);
+
+				// add newly created point to DEM
+				SetNewDEMPointData(G, FDEMData(G.Z, EDEMState::DEM_KNOWN));
 			}
+			else
+			{
+				GetPointElevation(G, G.Z);
+			}
+		}
+		else
+		{
+			// TODO check if we need to add the point if it cannot be found (most likely not necessary)
+			UE_LOG(LogTemp, Error, TEXT("Could not find Point G=%s in DEM Data in TriangleEdge algorithm at iteration %i"), *G.ToString(), Iteration);
 		}
 
 		// H
@@ -446,7 +569,19 @@ struct FDEM
 				// ascendents are D & A
 				float PointElevation = InterpolateFloat((*DefiningPoints)[3].Z, (*DefiningPoints)[0].Z);
 				H.Z = GetNormalDistribution(PointElevation, Deviation);
+
+				// add newly created point to DEM
+				SetNewDEMPointData(H, FDEMData(H.Z, EDEMState::DEM_KNOWN));
 			}
+			else
+			{
+				GetPointElevation(H, H.Z);
+			}
+		}
+		else
+		{
+			// TODO check if we need to add the point if it cannot be found (most likely not necessary)
+			UE_LOG(LogTemp, Error, TEXT("Could not find Point H=%s in DEM Data in TriangleEdge algorithm at iteration %i"), *H.ToString(), Iteration);
 		}
 
 		// I
@@ -457,21 +592,33 @@ struct FDEM
 				// ascendents are (A & C) && (B & D)
 				float PointElevation = (InterpolateFloat((*DefiningPoints)[0].Z, (*DefiningPoints)[2].Z) + InterpolateFloat((*DefiningPoints)[1].Z, (*DefiningPoints)[3].Z)) / 2;
 				I.Z = GetNormalDistribution(PointElevation, Deviation);
+
+				// add newly created point to DEM
+				SetNewDEMPointData(I, FDEMData(I.Z, EDEMState::DEM_KNOWN));
 			}
+			else
+			{
+				GetPointElevation(I, I.Z);
+			}
+		}
+		else
+		{
+			// TODO check if we need to add the point if it cannot be found (most likely not necessary)
+			UE_LOG(LogTemp, Error, TEXT("Could not find Point I=%s in DEM Data in TriangleEdge algorithm at iteration %i"), *I.ToString(), Iteration);
 		}
 
 		// add newly created points to DEM if not already present
 
-		// E
-		SetNewDEMPointData(E, FDEMData(E.Z, EDEMState::DEM_KNOWN));
-		// F
-		SetNewDEMPointData(F, FDEMData(F.Z, EDEMState::DEM_KNOWN));
-		// G
-		SetNewDEMPointData(G, FDEMData(G.Z, EDEMState::DEM_KNOWN));
-		// H
-		SetNewDEMPointData(H, FDEMData(H.Z, EDEMState::DEM_KNOWN));
-		// I
-		SetNewDEMPointData(I, FDEMData(I.Z, EDEMState::DEM_KNOWN));
+		//// E
+		//SetNewDEMPointData(E, FDEMData(E.Z, EDEMState::DEM_KNOWN), true);
+		//// F
+		//SetNewDEMPointData(F, FDEMData(F.Z, EDEMState::DEM_KNOWN), true);
+		//// G
+		//SetNewDEMPointData(G, FDEMData(G.Z, EDEMState::DEM_KNOWN), true);
+		//// H
+		//SetNewDEMPointData(H, FDEMData(H.Z, EDEMState::DEM_KNOWN), true);
+		//// I
+		//SetNewDEMPointData(I, FDEMData(I.Z, EDEMState::DEM_KNOWN), true);
 
 		if (Iteration == MaxIterations)
 		{
@@ -481,28 +628,28 @@ struct FDEM
 			int32 VertexIndex = OUTVertexBuffer.Num();
 
 			// triangle A, E, H
-			VertexIndex = AddTriangleToBuffers((*DefiningPoints)[0], E, H, VertexIndex, OUTVertexBuffer, OUTTriangleBuffer);
+			VertexIndex = AddTriangleToBuffers((*DefiningPoints)[0], H, E, VertexIndex, OUTVertexBuffer, OUTTriangleBuffer);
 
 			// triangle E, I, H
-			VertexIndex = AddTriangleToBuffers(E, I, H, VertexIndex, OUTVertexBuffer, OUTTriangleBuffer);
+			VertexIndex = AddTriangleToBuffers(H, I, E, VertexIndex, OUTVertexBuffer, OUTTriangleBuffer);
 
 			// triangle E, B, I
-			VertexIndex = AddTriangleToBuffers(E, (*DefiningPoints)[1], I, VertexIndex, OUTVertexBuffer, OUTTriangleBuffer);
+			VertexIndex = AddTriangleToBuffers(E, I, (*DefiningPoints)[1], VertexIndex, OUTVertexBuffer, OUTTriangleBuffer);
 
 			// triangle B, F, I
-			VertexIndex = AddTriangleToBuffers((*DefiningPoints)[1], F, I, VertexIndex, OUTVertexBuffer, OUTTriangleBuffer);
+			VertexIndex = AddTriangleToBuffers(I, F, (*DefiningPoints)[1], VertexIndex, OUTVertexBuffer, OUTTriangleBuffer);
 
 			// triangle H, I, D
-			VertexIndex = AddTriangleToBuffers(H, I, (*DefiningPoints)[3], VertexIndex, OUTVertexBuffer, OUTTriangleBuffer);
+			VertexIndex = AddTriangleToBuffers(H, (*DefiningPoints)[3], I, VertexIndex, OUTVertexBuffer, OUTTriangleBuffer);
 
 			// triangle I, G, D
-			VertexIndex = AddTriangleToBuffers(I, G, (*DefiningPoints)[3], VertexIndex, OUTVertexBuffer, OUTTriangleBuffer);
+			VertexIndex = AddTriangleToBuffers(I, (*DefiningPoints)[3], G, VertexIndex, OUTVertexBuffer, OUTTriangleBuffer);
 
 			// triangle I, F, G
-			VertexIndex = AddTriangleToBuffers(I, F, G, VertexIndex, OUTVertexBuffer, OUTTriangleBuffer);
+			VertexIndex = AddTriangleToBuffers(I, G, F, VertexIndex, OUTVertexBuffer, OUTTriangleBuffer);
 
 			// triangle F, C, G
-			VertexIndex = AddTriangleToBuffers(F, (*DefiningPoints)[2], G, VertexIndex, OUTVertexBuffer, OUTTriangleBuffer);
+			VertexIndex = AddTriangleToBuffers(F, G, (*DefiningPoints)[2], VertexIndex, OUTVertexBuffer, OUTTriangleBuffer);
 
 			return;
 		}
@@ -609,6 +756,7 @@ struct FDEM
 		{
 			// TODO check if 0 is our first Iteration (so that we don't start at 1 and wonder why d_max is not set / still 0.f)
 			d_max = FVector2D::Distance(Vec2Vec2D((*DefiningPoints)[3]), Vec2Vec2D((*DefiningPoints)[1]));
+			//UE_LOG(LogTemp, Warning, TEXT("d_max is %f"), d_max);
 		}
 
 		/* add ascending points to hashmap */

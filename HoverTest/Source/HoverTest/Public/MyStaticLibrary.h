@@ -176,11 +176,11 @@ struct FTerrainSettings
 
 	// the edge length of a quadratic tile in cm
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	int32 TileEdgeSize = 10000;
+	int32 TileEdgeSize = 65536;
 
 	// number of iterations for the triangle edge algorithms
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	int32 TriangleEdgeIterations = 20;
+	int32 TriangleEdgeIterations = 6;
 
 	// shall async collision cooking be used
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
@@ -391,18 +391,83 @@ public:
 	//Float as String With Precision! || Code Taken from https://wiki.unrealengine.com/Float_as_String_With_Precision Author: Rama
 	static FORCEINLINE FString GetFloatAsStringWithPrecision(float TheFloat, int32 Precision, bool IncludeLeadingZero = true)
 	{
-		//Round to integral if have something like 1.9999 within precision
-		float Rounded = roundf(TheFloat);
-		if (FMath::Abs(TheFloat - Rounded) < FMath::Pow(10, -1 * Precision))
+		////Round to integral if have something like 1.9999 within precision
+		//float Rounded = roundf(TheFloat);
+		//if (FMath::Abs(TheFloat - Rounded) < FMath::Pow(10, -1 * Precision))
+		//{
+		//	TheFloat = Rounded;
+		//}
+		//FNumberFormattingOptions NumberFormat;					//Text.h
+		//NumberFormat.MinimumIntegralDigits = (IncludeLeadingZero) ? 1 : 0;
+		//NumberFormat.MaximumIntegralDigits = 10000;
+		//NumberFormat.MinimumFractionalDigits = Precision;
+		//NumberFormat.MaximumFractionalDigits = Precision;
+		//return FText::AsNumber(TheFloat, &NumberFormat).ToString();
+
+		// own code follows
+		float Buffer = TheFloat * FMath::Pow(10, Precision);
+		Buffer = FMath::FloorToFloat(Buffer);
+		return FString::SanitizeFloat((Buffer / FMath::Pow(10, Precision)), Precision);
+	}
+
+	static void SaveBuffersToFile(const TArray<FRuntimeMeshVertexSimple>& VertexBuffer, const TArray<int32>& TriangleBuffer)
+	{
+		FString SaveDirectory = "D:/Users/Julien/Documents/Unreal Engine Dumps";
+		FString VertexFileName = "VertexBuffer.txt";
+		FString TriangleFileName = "TriangleBuffer.txt";
+		FString VertexContent = "";
+		FString TriangleContent = "";
+		int32 TriangleIndex = 0;
+
+		// Vertex Buffer
+		VertexContent.Append("-------------- Begin of VertexBuffer --------------\n");
+		for (int32 VertexIndex = 0; VertexIndex < VertexBuffer.Num(); ++VertexIndex)
 		{
-			TheFloat = Rounded;
+			VertexContent.Append(FString::FromInt(VertexIndex) + ": " + VertexBuffer[VertexIndex].Position.ToString() + "\n");
 		}
-		FNumberFormattingOptions NumberFormat;					//Text.h
-		NumberFormat.MinimumIntegralDigits = (IncludeLeadingZero) ? 1 : 0;
-		NumberFormat.MaximumIntegralDigits = 10000;
-		NumberFormat.MinimumFractionalDigits = Precision;
-		NumberFormat.MaximumFractionalDigits = Precision;
-		return FText::AsNumber(TheFloat, &NumberFormat).ToString();
+		VertexContent.Append("-------------- End of VertexBuffer --------------\n");
+
+		TriangleContent.Append("-------------- Begin of TriangleBuffer --------------\n");
+		// Triangle Buffer
+		for (const int32 TrianglePoint : TriangleBuffer)
+		{
+			if (TriangleIndex < 2)
+			{
+				TriangleContent.Append(FString::FromInt(TrianglePoint) + ", ");
+				++TriangleIndex;
+			}
+			else
+			{
+				TriangleContent.Append(FString::FromInt(TrianglePoint) + "\n----------------\n");
+				TriangleIndex = 0;
+			}
+		}
+		TriangleContent.Append("-------------- End of TriangleBuffer --------------\n");
+
+		bool AllowOverwriting = true;
+		IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
+
+		// CreateDirectoryTree returns true if the destination
+		// directory existed prior to call or has been created
+		// during the call.
+		if (PlatformFile.CreateDirectoryTree(*SaveDirectory))
+		{
+			FString VertexAbsolutePath = SaveDirectory + "/" + VertexFileName;
+			FString TriangleAbsolutePath = SaveDirectory + "/" + TriangleFileName;
+
+			if (AllowOverwriting || !PlatformFile.FileExists(*VertexAbsolutePath))
+			{
+				FFileHelper::SaveStringToFile(VertexContent, *VertexAbsolutePath);
+			}
+
+			if (AllowOverwriting || !PlatformFile.FileExists(*TriangleAbsolutePath))
+			{
+				FFileHelper::SaveStringToFile(TriangleContent, *TriangleAbsolutePath);
+			}
+		}
+
+		return;
+
 	}
 
 

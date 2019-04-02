@@ -49,6 +49,9 @@ uint32 TerrainGeneratorWorker::Run()
 			DEM.MidpointDisplacementBottomUp(&DEMConstraints);
 			DEM.TriangleEdge(&InitialValues, 0, TerrainSettings.TriangleEdgeIterations, TerrainJob.MeshData[0].VertexBuffer, TerrainJob.MeshData[0].TriangleBuffer);
 
+			UMyStaticLibrary::SaveBuffersToFile(TerrainJob.MeshData[0].VertexBuffer, TerrainJob.MeshData[0].TriangleBuffer);
+			DEM.SaveDEMToFile();
+
 			TerrainManager->FinishedJobQueue.Enqueue(TerrainJob);
 		}
 		else
