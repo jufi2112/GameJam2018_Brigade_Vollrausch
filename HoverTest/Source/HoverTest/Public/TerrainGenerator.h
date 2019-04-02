@@ -347,7 +347,7 @@ struct FDEM
 			FVector(0.f, 0.f, 1.f),						// Vertex normal
 			FRuntimeMeshTangent(0.f, -1.f, 0.f),		// Vertex tangent
 			FColor::White,								
-			FVector2D(Vertex.X/1000.f, Vertex.Y/1000.f)	// Vertex texture coordinates
+			FVector2D(Vertex.X/100.f, Vertex.Y/100.f)	// Vertex texture coordinates
 		);
 	}
 
