@@ -28,7 +28,6 @@ struct FDEMData
 	UPROPERTY()
 	EDEMState State;
 	float Elevation;
-	float ScalingFactor = 1.f;
 
 	FDEMData(float elevation)
 	{
@@ -48,10 +47,6 @@ struct FDEMData
 		State = EDEMState::DEM_UNKNOWN;
 	}
 
-	void SetElevation(float NewElevation)
-	{
-		Elevation = NewElevation * ScalingFactor;
-	}
 };
 
 /**
@@ -103,10 +98,19 @@ struct FDEM
 	float d_max = 0.f;
 
 	// fractal dimension
-	float H = 50.f;
+	float H = -0.5f;
 
 	// scaling factor
-	float k = 55.f;
+	float k = 100.f;
+
+	float rt = -45.f;
+
+	float rs = 25.5f;
+
+	float n = -1.f;
+
+	// hügeligkeit
+	float Hilly = 600.f;
 
 
 
@@ -317,7 +321,7 @@ struct FDEM
 	 */
 	float InterpolateFloat(const float Value1, const float Value2) const
 	{
-		return (FMath::Abs(Value1 - Value2) / 2.f);
+		return ((Value1 + Value2) / 2.f);
 	}
 
 	/**
@@ -334,9 +338,14 @@ struct FDEM
 		return d(gen);
 	}
 
+	float GetRandomDisplacement(const int32 Iteration) const
+	{
+		return ((FMath::RandRange(-1.f, 1.f) + rt) * rs * FMath::Pow(2, (-Iteration * n * H)));
+	}
+
 	float CalculateDeviation(const float Iteration) const
 	{
-		return (k * FMath::Pow(2, -(Iteration * H)));
+		return (k * FMath::Pow(2, (-((Iteration) * H))));
 	}
 
 	// Creates a FRuntimeMeshVertexSimple from the given Vertex
@@ -347,7 +356,7 @@ struct FDEM
 			FVector(0.f, 0.f, 1.f),						// Vertex normal
 			FRuntimeMeshTangent(0.f, -1.f, 0.f),		// Vertex tangent
 			FColor::White,								
-			FVector2D(Vertex.X/100.f, Vertex.Y/100.f)	// Vertex texture coordinates
+			FVector2D(Vertex.X/500.f, Vertex.Y/500.f)	// Vertex texture coordinates
 		);
 	}
 
@@ -451,10 +460,10 @@ struct FDEM
 	 *			A *------*------* B
 	 *					 E
 	 *
-	 *	newly created quads are:	Quad1 = {A, E, I, H}
-	 *								Quad2 = {E, B, F, I}
-	 *								Quad3 = {I, F, C, G}
-	 *								Quad4 = {H, I, G, D}
+	 * newly created quads are:	Quad1 = {A, E, I, H}
+	 *							Quad2 = {E, B, F, I}
+	 *							Quad3 = {I, F, C, G}
+	 *							Quad4 = {H, I, G, D}
 	 *
 	 * @param Iteration - the current iteration depth the recursion is in
 	 * @param MaxIterations - number of iterations after which the recursion stops
@@ -472,6 +481,40 @@ struct FDEM
 			return;
 		}
 
+		if (Iteration == 0)
+		{
+			// check if defining points are constraints, if not, we set them to 0.f elevation and state known, since we don't have ascendents to extrapolate their elevation
+			EDEMState State;
+			if (GetPointState((*DefiningPoints)[0], State))
+			{
+				if (State == EDEMState::DEM_UNKNOWN)
+				{
+					SetNewDEMPointData((*DefiningPoints)[0], FDEMData(0.f, EDEMState::DEM_KNOWN));
+				}
+			}
+			if (GetPointState((*DefiningPoints)[1], State))
+			{
+				if (State == EDEMState::DEM_UNKNOWN)
+				{
+					SetNewDEMPointData((*DefiningPoints)[1], FDEMData(0.f, EDEMState::DEM_KNOWN));
+				}
+			}
+			if (GetPointState((*DefiningPoints)[2], State))
+			{
+				if (State == EDEMState::DEM_UNKNOWN)
+				{
+					SetNewDEMPointData((*DefiningPoints)[2], FDEMData(0.f, EDEMState::DEM_KNOWN));
+				}
+			}
+			if (GetPointState((*DefiningPoints)[3], State))
+			{
+				if (State == EDEMState::DEM_UNKNOWN)
+				{
+					SetNewDEMPointData((*DefiningPoints)[3], FDEMData(0.f, EDEMState::DEM_KNOWN));
+				}
+			}
+		}
+
 		float HalfWidth  = (((*DefiningPoints)[1].X - (*DefiningPoints)[0].X) / 2.f) + (*DefiningPoints)[0].X;
 		float HalfHeight = (((*DefiningPoints)[3].Y - (*DefiningPoints)[0].Y) / 2.f) + (*DefiningPoints)[0].Y;
 
@@ -487,6 +530,7 @@ struct FDEM
 		/* calculate elevation of newly created points */
 
 		float Deviation = CalculateDeviation(Iteration);
+		UE_LOG(LogTemp, Error, TEXT("Deviation: %f"), Deviation);
 
 		// E
 		EDEMState State;
@@ -497,7 +541,11 @@ struct FDEM
 				// ascendents are A & B
 
 				float PointElevation = InterpolateFloat((*DefiningPoints)[0].Z, (*DefiningPoints)[1].Z);
-				E.Z = GetNormalDistribution(PointElevation, Deviation);
+				E.Z = PointElevation + GetNormalDistribution(Hilly, Deviation);
+				//E.Z = PointElevation + GetNormalDistribution(Hilly, Deviation);
+				/*float Displacement = GetRandomDisplacement(Iteration);
+				UE_LOG(LogTemp, Warning, TEXT("Displacement: %f"), Displacement);
+				E.Z = PointElevation + Displacement;*/
 
 				// add newly created point to DEM
 				SetNewDEMPointData(E, FDEMData(E.Z, EDEMState::DEM_KNOWN));
@@ -522,7 +570,10 @@ struct FDEM
 			{
 				// ascendents are B & C
 				float PointElevation = InterpolateFloat((*DefiningPoints)[1].Z, (*DefiningPoints)[2].Z);
-				F.Z = GetNormalDistribution(PointElevation, Deviation);
+				F.Z = PointElevation + GetNormalDistribution(Hilly, Deviation);
+				/*float Displacement = GetRandomDisplacement(Iteration);
+				UE_LOG(LogTemp, Warning, TEXT("Displacement: %f"), Displacement);
+				F.Z = PointElevation + Displacement;*/
 
 				// add newly created point to DEM
 				SetNewDEMPointData(F, FDEMData(F.Z, EDEMState::DEM_KNOWN));
@@ -545,7 +596,10 @@ struct FDEM
 			{
 				// ascendents are C & D
 				float PointElevation = InterpolateFloat((*DefiningPoints)[2].Z, (*DefiningPoints)[3].Z);
-				G.Z = GetNormalDistribution(PointElevation, Deviation);
+				G.Z = PointElevation + GetNormalDistribution(Hilly, Deviation);
+				/*float Displacement = GetRandomDisplacement(Iteration);
+				UE_LOG(LogTemp, Warning, TEXT("Displacement: %f"), Displacement);
+				G.Z = PointElevation + Displacement;*/
 
 				// add newly created point to DEM
 				SetNewDEMPointData(G, FDEMData(G.Z, EDEMState::DEM_KNOWN));
@@ -568,7 +622,10 @@ struct FDEM
 			{
 				// ascendents are D & A
 				float PointElevation = InterpolateFloat((*DefiningPoints)[3].Z, (*DefiningPoints)[0].Z);
-				H.Z = GetNormalDistribution(PointElevation, Deviation);
+				H.Z = PointElevation + GetNormalDistribution(Hilly, Deviation);
+				/*float Displacement = GetRandomDisplacement(Iteration);
+				UE_LOG(LogTemp, Warning, TEXT("Displacement: %f"), Displacement);
+				H.Z = PointElevation + Displacement;*/
 
 				// add newly created point to DEM
 				SetNewDEMPointData(H, FDEMData(H.Z, EDEMState::DEM_KNOWN));
@@ -590,8 +647,11 @@ struct FDEM
 			if (State == EDEMState::DEM_UNKNOWN)
 			{
 				// ascendents are (A & C) && (B & D)
-				float PointElevation = (InterpolateFloat((*DefiningPoints)[0].Z, (*DefiningPoints)[2].Z) + InterpolateFloat((*DefiningPoints)[1].Z, (*DefiningPoints)[3].Z)) / 2;
-				I.Z = GetNormalDistribution(PointElevation, Deviation);
+				float PointElevation = (InterpolateFloat((*DefiningPoints)[0].Z, (*DefiningPoints)[2].Z) + InterpolateFloat((*DefiningPoints)[1].Z, (*DefiningPoints)[3].Z)) / 2.f;
+				I.Z = PointElevation + GetNormalDistribution(Hilly, Deviation);
+				/*float Displacement = GetRandomDisplacement(Iteration);
+				UE_LOG(LogTemp, Warning, TEXT("Displacement: %f"), Displacement);
+				I.Z = PointElevation + Displacement;*/
 
 				// add newly created point to DEM
 				SetNewDEMPointData(I, FDEMData(I.Z, EDEMState::DEM_KNOWN));

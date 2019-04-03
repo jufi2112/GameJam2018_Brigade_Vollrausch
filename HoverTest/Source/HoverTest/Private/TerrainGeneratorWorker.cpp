@@ -35,13 +35,13 @@ uint32 TerrainGeneratorWorker::Run()
 			/* vertex data hardcoded for the moment */
 			TArray<FVector> InitialValues;
 			InitialValues.Add(FVector(0.f, 0.f, 0.f));
-			InitialValues.Add(FVector(TerrainSettings.TileEdgeSize, 0.f, 0.f));
+			InitialValues.Add(FVector(TerrainSettings.TileEdgeSize, 0.f, 25000.f));
 			InitialValues.Add(FVector(TerrainSettings.TileEdgeSize, TerrainSettings.TileEdgeSize, 0.f));
-			InitialValues.Add(FVector(0.f, TerrainSettings.TileEdgeSize, 0.f));
+			InitialValues.Add(FVector(0.f, TerrainSettings.TileEdgeSize, 30000.f));
 
 			TArray<FVector> DEMConstraints;
 			DEMConstraints.Append(InitialValues);
-			DEMConstraints.Add(FVector(TerrainSettings.TileEdgeSize / 2.f, TerrainSettings.TileEdgeSize / 2.f, 20000.f));
+			DEMConstraints.Add(FVector(TerrainSettings.TileEdgeSize / 2.f, TerrainSettings.TileEdgeSize / 2.f, 60000.f));
 
 			TerrainJob.MeshData.Add(FMeshData());
 
@@ -49,8 +49,9 @@ uint32 TerrainGeneratorWorker::Run()
 			DEM.MidpointDisplacementBottomUp(&DEMConstraints);
 			DEM.TriangleEdge(&InitialValues, 0, TerrainSettings.TriangleEdgeIterations, TerrainJob.MeshData[0].VertexBuffer, TerrainJob.MeshData[0].TriangleBuffer);
 
-			UMyStaticLibrary::SaveBuffersToFile(TerrainJob.MeshData[0].VertexBuffer, TerrainJob.MeshData[0].TriangleBuffer);
-			DEM.SaveDEMToFile();
+			//UMyStaticLibrary::SaveBuffersToFile(TerrainJob.MeshData[0].VertexBuffer, TerrainJob.MeshData[0].TriangleBuffer);
+			//DEM.SaveDEMToFile();
+
 
 			TerrainManager->FinishedJobQueue.Enqueue(TerrainJob);
 		}
