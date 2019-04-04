@@ -94,31 +94,62 @@ struct FDEM
 	// tunes the interpolation curve in the midpoint displacement bottom-up process
 	float I_bu = -0.4f;
 
-	// the DEM diagonal, used in Delta_BU calculation
+	// tunes the interpolation curve in the midpoint displacement process
+	float I = -0.4f;
+
+	/** 
+	 * the DEM diagonal, used in Delta_BU and Delta calculation
+	 * calculated during SimulateTriangleEdge
+	 */ 
 	float d_max = 0.f;
 
 	// fractal dimension
 	float H = -0.5f;
 
-	// scaling factor
+	/**
+	 * scaling factor, used in Deviation calculation
+	 * @DEPRECATED
+	 */
 	float k = 100.f;
 
+	// translated the random number in the displacement calculation
 	float rt = -45.f;
 
+	// scaling factor for displacement calculation
 	float rs = 25.5f;
 
+	// spatial dimension used in displacement calculation
 	float n = -1.f;
 
-	// hügeligkeit
+	/** 
+	 * hügeligkeit, used as mean for normal distribution
+	 * @DEPRECATED
+	 */
 	float Hilly = 600.f;
 
 
-
+	/**
+	 * ! Please use other constructor so that terrain setting variables can be used !
+	 * @DEPRECATED
+	 */
 	FDEM()
 	{
 		DEM.Empty();
 		AscendingPoints.Empty();
 		ChildrenPoints.Empty();
+	}
+
+	FDEM(const float H_FractalDimension, const float I_InterpolationCurveTuning, const float I_bu_InterpolationCurveTuning, const float rt_RandomNumberTranslation, const float rs_ScaleFactorRandomNumber, const float n_SpatialDomainRandomNumber)
+	{
+		DEM.Empty();
+		AscendingPoints.Empty();
+		ChildrenPoints.Empty();
+		H = H_FractalDimension;
+		I = I_InterpolationCurveTuning;
+		I_bu = I_bu_InterpolationCurveTuning;
+		rt = rt_RandomNumberTranslation;
+		rs = rs_ScaleFactorRandomNumber;
+		n = n_SpatialDomainRandomNumber;
 	}
 
 	void PrintDEMPointsToFile(FString FileName)
@@ -305,6 +336,22 @@ struct FDEM
 		return (e * (1 - Sigma(I_bu) * (1 - FMath::Pow((1 - (d / d_max)), FMath::Abs(I_bu)))));
 	}
 
+	/**
+	 * non-linear interpolation as suggested in "Terrain Modeling: A Constrained Fractal Model" by Farès Belhadj in 2007
+	 * @param e Elevation of the ascendant cell
+	 * @param d Euclidean distance from ascendant cell to child cell
+	 * @return Non-linear interpolated elevation
+	 */
+	float Delta(const float e, const float d) const
+	{
+		if (d_max == 0.f)
+		{
+			UE_LOG(LogTemp, Error, TEXT("Division By Zero in Delta function, returned 0.f instead!"));
+			return 0.f;
+		}
+		return (e * (1 - Sigma(I) * (1 - FMath::Pow((1 - (d / d_max)), FMath::Abs(I)))));
+	}
+
 	// removes all values associated with the given point from the map
 	void RemoveValuesFromChildrenPoints(const FVector2D Point)
 	{
@@ -325,6 +372,7 @@ struct FDEM
 	}
 
 	/**
+	 * @DEPRECATED
 	 * returns a normal distribution, code taken from https://forums.unrealengine.com/development-discussion/c-gameplay-programming/9284-normal-distribution comment by BNash
 	 * @param Mean The Mean value of the normal distribution
 	 * @param Deviation The standard deviation of the normal distribution
@@ -338,6 +386,9 @@ struct FDEM
 		return d(gen);
 	}
 
+	/**
+	 * calculates a signed random displacement as proposed in "Terrain Modeling: A Constrained Fractal Model" by Farès Belhadj in 2007
+	 */
 	float GetRandomDisplacement(const int32 Iteration) const
 	{
 		return ((FMath::RandRange(-1.f, 1.f) + rt) * rs * FMath::Pow(2, (-Iteration * n * H)));
@@ -347,6 +398,113 @@ struct FDEM
 	{
 		return (k * FMath::Pow(2, (-((Iteration) * H))));
 	}
+
+	/**
+	 * calculates the child points elevation based on interpolation of the ascendant points and a random displacement
+	 * This function only considers two ascending points
+	 * @param CurrentIteration The current iteration of the calling algorithm
+	 * @param ChildPoint The point for which the elevation should be calculated
+	 * @param AscendantOne The first ascendant of the child point
+	 * @param AscendantTwo The second ascendant of the child point
+	 * @return Interpolated elevation of the child point, displaced by a random value
+	 */
+	float CalculatePointElevation(const int32 CurrentIteration, const FVector ChildPoint, const FVector AscendantOne, const FVector AscendantTwo)
+	{
+		float PointElevation = InterpolateFloat
+		(
+			Delta
+			(
+				AscendantOne.Z,
+				FVector2D::Distance
+				(
+					Vec2Vec2D(AscendantOne),
+					Vec2Vec2D(ChildPoint)
+				)
+			),
+			Delta
+			(
+				AscendantTwo.Z,
+				FVector2D::Distance
+				(
+					Vec2Vec2D(AscendantTwo),
+					Vec2Vec2D(ChildPoint)
+				)
+			)
+		);
+
+		PointElevation += (FVector2D::Distance(Vec2Vec2D(AscendantOne), Vec2Vec2D(ChildPoint)) * GetRandomDisplacement(CurrentIteration));
+		PointElevation += (FVector2D::Distance(Vec2Vec2D(AscendantTwo), Vec2Vec2D(ChildPoint)) * GetRandomDisplacement(CurrentIteration));
+		return PointElevation;
+	}
+	
+	/**
+	* calculates the child points elevation based on interpolation of the ascendant points and a random displacement
+	* This function considers four ascending points
+	* Be aware that AscendantOne & AscendantTwo define one interpolation line and AscendantThree & AscendantFour define another interpolation line
+	* @param CurrentIteration The current iteration of the calling algorithm
+	* @param ChildPoint The point for which the elevation should be calculated
+	* @param AscendantOne The first ascendant of the child point
+	* @param AscendantTwo The second ascendant of the child point
+	* @param AscendantThree The third ascendant of the child point
+	* @param AscendantFour The fourth ascendant of the child point
+	* @return Interpolated elevation of the child point, displaced by a random value
+	*/
+	float CalculatePointElevation(const int32 CurrentIteration, const FVector ChildPoint, const FVector AscendantOne, const FVector AscendantTwo, const FVector AscendantThree, const FVector AscendantFour)
+	{
+		float PointElevation = InterpolateFloat
+		(
+			InterpolateFloat
+			(
+				Delta
+				(
+					AscendantOne.Z,
+					FVector2D::Distance
+					(
+						Vec2Vec2D(AscendantOne),
+						Vec2Vec2D(ChildPoint)
+					)
+				),
+				Delta
+				(
+					AscendantTwo.Z,
+					FVector2D::Distance
+					(
+						Vec2Vec2D(AscendantTwo),
+						Vec2Vec2D(ChildPoint)
+					)
+				)
+			),
+			InterpolateFloat
+			(
+				Delta
+				(
+					AscendantThree.Z,
+					FVector2D::Distance
+					(
+						Vec2Vec2D(AscendantThree),
+						Vec2Vec2D(ChildPoint)
+					)
+				),
+				Delta
+				(
+					AscendantFour.Z,
+					FVector2D::Distance
+					(
+						Vec2Vec2D(AscendantFour),
+						Vec2Vec2D(ChildPoint)
+					)
+				)
+			)
+		);
+
+		PointElevation += (FVector2D::Distance(Vec2Vec2D(AscendantOne), Vec2Vec2D(ChildPoint)) * GetRandomDisplacement(CurrentIteration));
+		PointElevation += (FVector2D::Distance(Vec2Vec2D(AscendantTwo), Vec2Vec2D(ChildPoint)) * GetRandomDisplacement(CurrentIteration));
+		PointElevation += (FVector2D::Distance(Vec2Vec2D(AscendantThree), Vec2Vec2D(ChildPoint)) * GetRandomDisplacement(CurrentIteration));
+		PointElevation += (FVector2D::Distance(Vec2Vec2D(AscendantFour), Vec2Vec2D(ChildPoint)) * GetRandomDisplacement(CurrentIteration));
+
+		return PointElevation;
+	}
+
 
 	// Creates a FRuntimeMeshVertexSimple from the given Vertex
 	FRuntimeMeshVertexSimple CreateRuntimeMeshVertexSimple(const FVector Vertex)
@@ -529,8 +687,8 @@ struct FDEM
 
 		/* calculate elevation of newly created points */
 
-		float Deviation = CalculateDeviation(Iteration);
-		UE_LOG(LogTemp, Error, TEXT("Deviation: %f"), Deviation);
+		//float Deviation = CalculateDeviation(Iteration);
+		//UE_LOG(LogTemp, Error, TEXT("Deviation: %f"), Deviation);
 
 		// E
 		EDEMState State;
@@ -540,12 +698,13 @@ struct FDEM
 			{
 				// ascendents are A & B
 
-				float PointElevation = InterpolateFloat((*DefiningPoints)[0].Z, (*DefiningPoints)[1].Z);
-				E.Z = PointElevation + GetNormalDistribution(Hilly, Deviation);
+				//float PointElevation = InterpolateFloat((*DefiningPoints)[0].Z, (*DefiningPoints)[1].Z);
+				//E.Z = PointElevation + GetNormalDistribution(Hilly, Deviation);
 				//E.Z = PointElevation + GetNormalDistribution(Hilly, Deviation);
 				/*float Displacement = GetRandomDisplacement(Iteration);
 				UE_LOG(LogTemp, Warning, TEXT("Displacement: %f"), Displacement);
 				E.Z = PointElevation + Displacement;*/
+				E.Z = CalculatePointElevation(Iteration, E, (*DefiningPoints)[0], (*DefiningPoints)[1]);
 
 				// add newly created point to DEM
 				SetNewDEMPointData(E, FDEMData(E.Z, EDEMState::DEM_KNOWN));
@@ -569,11 +728,12 @@ struct FDEM
 			if (State == EDEMState::DEM_UNKNOWN)
 			{
 				// ascendents are B & C
-				float PointElevation = InterpolateFloat((*DefiningPoints)[1].Z, (*DefiningPoints)[2].Z);
-				F.Z = PointElevation + GetNormalDistribution(Hilly, Deviation);
+				/*float PointElevation = InterpolateFloat((*DefiningPoints)[1].Z, (*DefiningPoints)[2].Z);
+				F.Z = PointElevation + GetNormalDistribution(Hilly, Deviation);*/
 				/*float Displacement = GetRandomDisplacement(Iteration);
 				UE_LOG(LogTemp, Warning, TEXT("Displacement: %f"), Displacement);
 				F.Z = PointElevation + Displacement;*/
+				F.Z = CalculatePointElevation(Iteration, F, (*DefiningPoints)[1], (*DefiningPoints)[2]);
 
 				// add newly created point to DEM
 				SetNewDEMPointData(F, FDEMData(F.Z, EDEMState::DEM_KNOWN));
@@ -595,11 +755,12 @@ struct FDEM
 			if (State == EDEMState::DEM_UNKNOWN)
 			{
 				// ascendents are C & D
-				float PointElevation = InterpolateFloat((*DefiningPoints)[2].Z, (*DefiningPoints)[3].Z);
-				G.Z = PointElevation + GetNormalDistribution(Hilly, Deviation);
+				/*float PointElevation = InterpolateFloat((*DefiningPoints)[2].Z, (*DefiningPoints)[3].Z);
+				G.Z = PointElevation + GetNormalDistribution(Hilly, Deviation);*/
 				/*float Displacement = GetRandomDisplacement(Iteration);
 				UE_LOG(LogTemp, Warning, TEXT("Displacement: %f"), Displacement);
 				G.Z = PointElevation + Displacement;*/
+				G.Z = CalculatePointElevation(Iteration, G, (*DefiningPoints)[2], (*DefiningPoints)[3]);
 
 				// add newly created point to DEM
 				SetNewDEMPointData(G, FDEMData(G.Z, EDEMState::DEM_KNOWN));
@@ -621,11 +782,12 @@ struct FDEM
 			if (State == EDEMState::DEM_UNKNOWN)
 			{
 				// ascendents are D & A
-				float PointElevation = InterpolateFloat((*DefiningPoints)[3].Z, (*DefiningPoints)[0].Z);
-				H.Z = PointElevation + GetNormalDistribution(Hilly, Deviation);
+				/*float PointElevation = InterpolateFloat((*DefiningPoints)[3].Z, (*DefiningPoints)[0].Z);
+				H.Z = PointElevation + GetNormalDistribution(Hilly, Deviation);*/
 				/*float Displacement = GetRandomDisplacement(Iteration);
 				UE_LOG(LogTemp, Warning, TEXT("Displacement: %f"), Displacement);
 				H.Z = PointElevation + Displacement;*/
+				H.Z = CalculatePointElevation(Iteration, H, (*DefiningPoints)[3], (*DefiningPoints)[0]);
 
 				// add newly created point to DEM
 				SetNewDEMPointData(H, FDEMData(H.Z, EDEMState::DEM_KNOWN));
@@ -647,11 +809,12 @@ struct FDEM
 			if (State == EDEMState::DEM_UNKNOWN)
 			{
 				// ascendents are (A & C) && (B & D)
-				float PointElevation = (InterpolateFloat((*DefiningPoints)[0].Z, (*DefiningPoints)[2].Z) + InterpolateFloat((*DefiningPoints)[1].Z, (*DefiningPoints)[3].Z)) / 2.f;
-				I.Z = PointElevation + GetNormalDistribution(Hilly, Deviation);
+				/*float PointElevation = (InterpolateFloat((*DefiningPoints)[0].Z, (*DefiningPoints)[2].Z) + InterpolateFloat((*DefiningPoints)[1].Z, (*DefiningPoints)[3].Z)) / 2.f;
+				I.Z = PointElevation + GetNormalDistribution(Hilly, Deviation);*/
 				/*float Displacement = GetRandomDisplacement(Iteration);
 				UE_LOG(LogTemp, Warning, TEXT("Displacement: %f"), Displacement);
 				I.Z = PointElevation + Displacement;*/
+				I.Z = CalculatePointElevation(Iteration, I, (*DefiningPoints)[0], (*DefiningPoints)[2], (*DefiningPoints)[1], (*DefiningPoints)[3]);
 
 				// add newly created point to DEM
 				SetNewDEMPointData(I, FDEMData(I.Z, EDEMState::DEM_KNOWN));

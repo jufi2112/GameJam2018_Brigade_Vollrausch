@@ -31,17 +31,17 @@ uint32 TerrainGeneratorWorker::Run()
 		{
 			//UMyStaticLibrary::CreateComplexMeshData(TerrainSettings, TerrainJob.MeshData);
 			//UE_LOG(LogTemp, Error, TEXT("No terrain generation functions implemented yet!"));
-			FDEM DEM;
+			FDEM DEM = FDEM(TerrainSettings.FractalNoiseTerrainSettings.H, TerrainSettings.FractalNoiseTerrainSettings.I, TerrainSettings.FractalNoiseTerrainSettings.I_bu, TerrainSettings.FractalNoiseTerrainSettings.rt, TerrainSettings.FractalNoiseTerrainSettings.rs, TerrainSettings.FractalNoiseTerrainSettings.n);
 			/* vertex data hardcoded for the moment */
 			TArray<FVector> InitialValues;
-			InitialValues.Add(FVector(0.f, 0.f, 0.f));
-			InitialValues.Add(FVector(TerrainSettings.TileEdgeSize, 0.f, 25000.f));
-			InitialValues.Add(FVector(TerrainSettings.TileEdgeSize, TerrainSettings.TileEdgeSize, 0.f));
-			InitialValues.Add(FVector(0.f, TerrainSettings.TileEdgeSize, 30000.f));
+			InitialValues.Add(FVector(0.f, 0.f, TerrainSettings.Point1Elevation));
+			InitialValues.Add(FVector(TerrainSettings.TileEdgeSize, 0.f, TerrainSettings.Point2Elevation));
+			InitialValues.Add(FVector(TerrainSettings.TileEdgeSize, TerrainSettings.TileEdgeSize, TerrainSettings.Point3Elevation));
+			InitialValues.Add(FVector(0.f, TerrainSettings.TileEdgeSize, TerrainSettings.Point4Elevation));
 
 			TArray<FVector> DEMConstraints;
 			DEMConstraints.Append(InitialValues);
-			DEMConstraints.Add(FVector(TerrainSettings.TileEdgeSize / 2.f, TerrainSettings.TileEdgeSize / 2.f, 60000.f));
+			DEMConstraints.Add(FVector(TerrainSettings.TileEdgeSize / 2.f, TerrainSettings.TileEdgeSize / 2.f, TerrainSettings.Point5Elevation));
 
 			TerrainJob.MeshData.Add(FMeshData());
 
@@ -49,8 +49,8 @@ uint32 TerrainGeneratorWorker::Run()
 			DEM.MidpointDisplacementBottomUp(&DEMConstraints);
 			DEM.TriangleEdge(&InitialValues, 0, TerrainSettings.TriangleEdgeIterations, TerrainJob.MeshData[0].VertexBuffer, TerrainJob.MeshData[0].TriangleBuffer);
 
-			//UMyStaticLibrary::SaveBuffersToFile(TerrainJob.MeshData[0].VertexBuffer, TerrainJob.MeshData[0].TriangleBuffer);
-			//DEM.SaveDEMToFile();
+			/*UMyStaticLibrary::SaveBuffersToFile(TerrainJob.MeshData[0].VertexBuffer, TerrainJob.MeshData[0].TriangleBuffer);
+			DEM.SaveDEMToFile();*/
 
 
 			TerrainManager->FinishedJobQueue.Enqueue(TerrainJob);

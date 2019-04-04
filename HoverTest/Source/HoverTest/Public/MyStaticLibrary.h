@@ -11,8 +11,8 @@
 class ATerrainTile;
 
 /**
-* struct that defines an integer vector in 2D space, since Unreal decides to not come up with such a thing by default
-*/
+ * struct that defines an integer vector in 2D space, since Unreal decides to not come up with such a thing by default
+ */
 USTRUCT(BlueprintType)
 struct FIntVector2D
 {
@@ -154,23 +154,109 @@ struct FIntVector2D
 //};
 
 /**
-* struct for terrain settings
-*/
+ * struct for fractal noise terrain generation settings
+ * to be used as subcategory in FTerrainSettings
+ * all parameters are used as suggested in "Terrain Modeling: A Constrained Fractal Model" by Farès Belhadj in 2007
+ */
+USTRUCT(BlueprintType)
+struct FFractalNoiseTerrainSettings
+{
+	GENERATED_USTRUCT_BODY()
+
+	/**
+	 * used to translate random value interval [-1, 1] in random displacement calculation
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float rt = -0.9f;
+
+	/**
+	 * scale factor to scale random value in random displacement calculation
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float rs = 0.55f;
+
+	/**
+	 * space dimension used in random displacement calculation
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float n = 3.f;
+
+	/**
+	 * approximation of Hurst's parameter
+	 * used to control fractal dimension in random displacement calculation
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float H = 0.5f;
+
+	/**
+	 * used to tune the non-linear interpolation curve in the midpoint displacement process
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float I = -2.f;
+
+	/**
+	 * used to tune the non-linear interpolation curve in the midpoint displacement bottom-up process
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float I_bu = 5.f;
+};
+
+/**
+ * struct for terrain settings
+ */
 USTRUCT(BlueprintType)
 struct FTerrainSettings
 {
 	GENERATED_USTRUCT_BODY()
 
-	// TODO replace tile size definitions with absolute size and triangle edge algorithm iteration count
-	// size of a terrain tile in X direction in tile units
+	/**
+	 * to be removed
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float Point1Elevation = 0.f;
+
+	/**
+	* to be removed
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float Point2Elevation = 0.f;
+
+	/**
+	* to be removed
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float Point3Elevation = 0.f;
+
+	/**
+	* to be removed
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float Point4Elevation = 0.f;
+
+	/**
+	* to be removed
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float Point5Elevation = 0.f;
+
+	/**
+	 * size of a terrain tile in X direction in tile units
+	 * @DEPRECATED
+	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	int32 TileSizeXUnits = 0;
 
-	// size of a terrain tile in Y direction in tile units
+	/**
+	 * size of a terrain tile in Y direction in tile units
+	 * @DEPRECATED
+	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	int32 TileSizeYUnits = 0;
 
-	// size of a terrain tile unit
+	/**
+	 * size of a terrain tile unit
+	 * @DEPRECATED
+	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	int32 UnitTileSize = 0;
 
@@ -186,11 +272,16 @@ struct FTerrainSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	bool bUseAsyncCollisionCooking = true;
 
-	/** array of materials that should be applied to the terrain
-	* index 0 is default terrain material
-	* index 1 is default track material
-	* corresponds to the mesh index in FTerrainJob
-	*/
+	// fractal noise terrain generation settings
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FFractalNoiseTerrainSettings FractalNoiseTerrainSettings;
+
+	/** 
+	 * array of materials that should be applied to the terrain
+	 * index 0 is default terrain material
+	 * index 1 is default track material
+	 * corresponds to the mesh index in FTerrainJob
+	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TArray<UMaterialInterface*> Materials;
 	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
@@ -201,9 +292,9 @@ struct FTerrainSettings
 	//UMaterialInterface* TrackMaterial = nullptr;
 
 	/**
-	* specifies the number of tiles that should be created around a tracked actor
-	* since it is the radius, a value of n will result in (2*n + 1) * (2*n + 1) tiles created around each tracked actor
-	*/
+	 * specifies the number of tiles that should be created around a tracked actor
+	 * since it is the radius, a value of n will result in (2*n + 1) * (2*n + 1) tiles created around each tracked actor
+	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	int32 TilesToBeCreatedAroundActorRadius = 3;
 
@@ -223,8 +314,8 @@ struct FTerrainSettings
 };
 
 /**
-* struct for vertex and triangle buffer
-*/
+ * struct for vertex and triangle buffer
+ */
 USTRUCT()
 struct FMeshData
 {
@@ -240,8 +331,8 @@ struct FMeshData
 };
 
 /**
-* struct for a job in which terrain is generated
-*/
+ * struct for a job in which terrain is generated
+ */
 USTRUCT(BlueprintType)
 struct FTerrainJob
 {
@@ -269,19 +360,19 @@ struct FTerrainJob
 };
 
 /**
-* TILE_FREE:			Tile was created, initialized, used, freed and is now waiting for usage again
-*						Runtime mesh sections do not exist
-*
-* TILE_INITIALIZED:	Tile was created and initialized (i.e. RMC were created)
-*						The runtime mesh component's mesh sections are not yet created
-*
-* TILE_FINISHED:		The runtime mesh component's mesh sections were created and are available
-*
-* TILE_UNDEFINED:		default value, state of every tile directly after creation until SetupTile is called
-*
-* TILE_TRANSITION:		Tile was freed and now the update position method was called
-*						Runtime mesh sections are not yet created
-*/
+ * TILE_FREE:			Tile was created, initialized, used, freed and is now waiting for usage again
+ *						Runtime mesh sections do not exist
+ *
+ * TILE_INITIALIZED:	Tile was created and initialized (i.e. RMC were created)
+ *						The runtime mesh component's mesh sections are not yet created
+ *
+ * TILE_FINISHED:		The runtime mesh component's mesh sections were created and are available
+ *
+ * TILE_UNDEFINED:		default value, state of every tile directly after creation until SetupTile is called
+ *
+ * TILE_TRANSITION:		Tile was freed and now the update position method was called
+ *						Runtime mesh sections are not yet created
+ */
 UENUM(BlueprintType)
 enum class ETileStatus : uint8
 {
