@@ -31,16 +31,16 @@ public:
 	void SetupTile(FTerrainSettings TerrainSettings, FIntVector2D Sector);
 
 	/**
-	* to be called when the position of a tile is changed
-	* hides the actor ingame
-	*/
+	 * to be called when the position of a tile is changed
+	 * hides the actor ingame
+	 */
 	UFUNCTION()
 	void UpdateTilePosition(FTerrainSettings TerrainSettings, FIntVector2D Sector);
 
 	/**
-	* called when mesh data should be updated
-	* unhides the actor
-	*/
+	 * called when mesh data should be updated
+	 * unhides the actor
+	 */
 	UFUNCTION()
 	void UpdateMeshData(FTerrainSettings TerrainSettings, TArray<FMeshData>& MeshData);
 
@@ -54,9 +54,9 @@ public:
 	int32 RemoveAssociatedActor();
 
 	/**
-	* manages freeing the tile
-	* hides the tile ingame
-	*/
+	 * manages freeing the tile
+	 * hides the tile ingame
+	 */
 	UFUNCTION(BlueprintCallable)
 	void FreeTile();
 
@@ -66,6 +66,51 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	ETileStatus GetTileStatus() const;
+
+	UFUNCTION()
+	void SetVerticesLeftBorder(const TArray<FVector>& Vertices);
+
+	UFUNCTION()
+	void SetVerticesRightBorder(const TArray<FVector>& Vertices);
+
+	UFUNCTION()
+	void SetVerticesTopBorder(const TArray<FVector>& Vertices);
+
+	UFUNCTION()
+	void SetVerticesBottomBorder(const TArray<FVector>& Vertices);
+
+	UFUNCTION()
+	void GetVerticesLeftBorder(TArray<FVector>& OUTVertices) const;
+
+	UFUNCTION()
+	void GetVerticesRightBorder(TArray<FVector>& OUTVertices) const;
+
+	UFUNCTION()
+	void GetVerticesTopBorder(TArray<FVector>& OUTVertices) const;
+
+	UFUNCTION()
+	void GetVerticesBottomBorder(TArray<FVector>& OUTVertices) const;
+
+	UFUNCTION()
+	float GetVerticesLeftBorderNum() const;
+
+	UFUNCTION()
+	float GetVerticesRightBorderNum() const;
+
+	UFUNCTION()
+	float GetVerticesTopBorderNum() const;
+
+	UFUNCTION()
+	float GetVerticesBottomBorderNum() const;
+
+	/**
+	 * to be called after all vertices on border data have been set
+	 */
+	UFUNCTION()
+	void AllVerticesOnBorderSet();
+
+	UFUNCTION()
+	bool GetVerticesOnBorderSet() const;
 
 private:
 
@@ -82,16 +127,16 @@ private:
 	bool bIsInitialized = false;
 
 	/**
-	* the sector the tile is currently located in
-	* a sector has the same size as a tile but has a fixed position, whereas tiles can be moved around (i.e. tiles can be moved to different sectors)
-	*/
+	 * the sector the tile is currently located in
+	 * a sector has the same size as a tile but has a fixed position, whereas tiles can be moved around (i.e. tiles can be moved to different sectors)
+	 */
 	UPROPERTY()
 	FIntVector2D CurrentSector;
 
 	/**
-	* number of actors that are associated with this tile (i.e. actors that this tile is relevant for)
-	* if this number is zero, the tile can be freed
-	*/
+	 * number of actors that are associated with this tile (i.e. actors that this tile is relevant for)
+	 * if this number is zero, the tile can be freed
+	 */
 	UPROPERTY()
 	int32 ActorsAssociatedWithThisTile = 0;
 
@@ -100,4 +145,24 @@ private:
 
 	UPROPERTY()
 	TArray<int32> MeshSectionsCreated;
+
+	// all vertices on the left border of the tile
+	UPROPERTY()
+	TArray<FVector> VerticesLeftBorder;
+
+	// all vertices on the top border of the tile
+	UPROPERTY()
+	TArray<FVector> VerticesTopBorder;
+
+	// all vertices on the right border of the tile
+	UPROPERTY()
+	TArray<FVector> VerticesRightBorder;
+
+	// all vertices on the bottom border of the tile
+	UPROPERTY()
+	TArray<FVector> VerticesBottomBorder;
+
+	// are all vertices on border data set?
+	bool bVerticesOnBorderSet = false;
+
 };

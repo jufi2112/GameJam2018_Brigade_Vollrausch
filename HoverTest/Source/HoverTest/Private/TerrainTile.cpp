@@ -163,10 +163,14 @@ void ATerrainTile::FreeTile()
 
 	TileStatus = ETileStatus::TILE_FREE;
 	SetActorHiddenInGame(true);
-	// TODO check if visibility gets propagated to children
 	ActorsAssociatedWithThisTile = 0;
 	CurrentSector = FIntVector2D();
 	SetActorLocation(FVector(0.f, 0.f, 0.f));
+	bVerticesOnBorderSet = false;
+	VerticesLeftBorder.Empty();
+	VerticesRightBorder.Empty();
+	VerticesTopBorder.Empty();
+	VerticesBottomBorder.Empty();
 	TimeSinceTileFreed = GetWorld()->TimeSeconds;
 }
 
@@ -178,5 +182,79 @@ float ATerrainTile::GetTimeSinceTileFreed() const
 ETileStatus ATerrainTile::GetTileStatus() const
 {
 	return TileStatus;
+}
+
+void ATerrainTile::SetVerticesLeftBorder(const TArray<FVector>& Vertices)
+{
+	VerticesLeftBorder.Empty();
+	VerticesLeftBorder.Append(Vertices);
+}
+
+void ATerrainTile::SetVerticesRightBorder(const TArray<FVector>& Vertices)
+{
+	VerticesRightBorder.Empty();
+	VerticesRightBorder.Append(Vertices);
+}
+
+void ATerrainTile::SetVerticesTopBorder(const TArray<FVector>& Vertices)
+{
+	VerticesTopBorder.Empty();
+	VerticesTopBorder.Append(Vertices);
+}
+
+void ATerrainTile::SetVerticesBottomBorder(const TArray<FVector>& Vertices)
+{
+	VerticesBottomBorder.Empty();
+	VerticesBottomBorder.Append(Vertices);
+}
+
+void ATerrainTile::GetVerticesLeftBorder(TArray<FVector>& OUTVertices) const
+{
+	OUTVertices = VerticesLeftBorder;
+}
+
+void ATerrainTile::GetVerticesRightBorder(TArray<FVector>& OUTVertices) const
+{
+	OUTVertices = VerticesRightBorder;
+}
+
+void ATerrainTile::GetVerticesTopBorder(TArray<FVector>& OUTVertices) const
+{
+	OUTVertices = VerticesTopBorder;
+}
+
+void ATerrainTile::GetVerticesBottomBorder(TArray<FVector>& OUTVertices) const
+{
+	OUTVertices = VerticesBottomBorder;
+}
+
+float ATerrainTile::GetVerticesLeftBorderNum() const
+{
+	return VerticesLeftBorder.Num();
+}
+
+float ATerrainTile::GetVerticesRightBorderNum() const
+{
+	return VerticesRightBorder.Num();
+}
+
+float ATerrainTile::GetVerticesTopBorderNum() const
+{
+	return VerticesTopBorder.Num();
+}
+
+float ATerrainTile::GetVerticesBottomBorderNum() const
+{
+	return VerticesBottomBorder.Num();
+}
+
+void ATerrainTile::AllVerticesOnBorderSet()
+{
+	bVerticesOnBorderSet = true;
+}
+
+bool ATerrainTile::GetVerticesOnBorderSet() const
+{
+	return bVerticesOnBorderSet;
 }
 

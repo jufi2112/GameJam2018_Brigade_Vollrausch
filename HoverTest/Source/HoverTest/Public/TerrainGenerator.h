@@ -88,6 +88,38 @@ struct FDEM
 	//UPROPERTY()
 	TMultiMap<FString, FVector2D> ChildrenPoints;
 
+	/**
+	 * array that contains all vertices on the left border of the tile
+	 */
+	UPROPERTY()
+	TArray<FVector> VerticesLeftBorder;
+
+	/**
+	 * array that contains all vertices on the top border of the tile
+	 */
+	UPROPERTY()
+	TArray<FVector> VerticesTopBorder;
+
+	/**
+	 * array that contains all vertices on the right border of the tile
+	 */
+	UPROPERTY()
+	TArray<FVector> VerticesRightBorder;
+
+	/**
+	 * array that contains all vertices on the bottom border of the tile
+	 */
+	UPROPERTY()
+	TArray<FVector> VerticesBottomBorder;
+
+	/**
+	 * values for each border
+	 */
+	float XLeftBorder = 0.f;
+	float XRightBorder = 0.f;
+	float YTopBorder = 0.f;
+	float YBottomBorder = 0.f;
+
 	// Delimiter used to separate X and Y coordinate values in FString Keys
 	FString Delimiter = FString("=");
 
@@ -152,9 +184,24 @@ struct FDEM
 		n = n_SpatialDomainRandomNumber;
 	}
 
-	void PrintDEMPointsToFile(FString FileName)
+	void GetVerticesLeftBorder(TArray<FVector>& OUTVertices) const
 	{
+		OUTVertices.Append(VerticesLeftBorder);
+	}
 
+	void GetVerticesTopBorder(TArray<FVector>& OUTVertices) const
+	{
+		OUTVertices.Append(VerticesTopBorder);
+	}
+
+	void GetVerticesRightBorder(TArray<FVector>& OUTVertices) const
+	{
+		OUTVertices.Append(VerticesRightBorder);
+	}
+
+	void GetVerticesBottomBorder(TArray<FVector>& OUTVertices) const
+	{
+		OUTVertices.Append(VerticesBottomBorder);
 	}
 
 	FVector2D GetPointFromKey(FString TheKey)
@@ -518,6 +565,33 @@ struct FDEM
 		);
 	}
 
+	void CheckForBorderVertex(const FVector Vertex)
+	{
+		// Left border
+		if (FMath::IsNearlyEqual(UMyStaticLibrary::GetFloatWithPrecision(Vertex.X, 2), UMyStaticLibrary::GetFloatWithPrecision(XLeftBorder, 2)))
+		{
+			VerticesLeftBorder.Add(Vertex);
+		}
+
+		// Right border
+		if (FMath::IsNearlyEqual(UMyStaticLibrary::GetFloatWithPrecision(Vertex.X, 2), UMyStaticLibrary::GetFloatWithPrecision(XRightBorder, 2)))
+		{
+			VerticesRightBorder.Add(Vertex);
+		}
+
+		// top border
+		if (FMath::IsNearlyEqual(UMyStaticLibrary::GetFloatWithPrecision(Vertex.Y, 2), UMyStaticLibrary::GetFloatWithPrecision(YTopBorder, 2)))
+		{
+			VerticesTopBorder.Add(Vertex);
+		}
+
+		// bottom border
+		if (FMath::IsNearlyEqual(UMyStaticLibrary::GetFloatWithPrecision(Vertex.Y, 2), UMyStaticLibrary::GetFloatWithPrecision(YBottomBorder, 2)))
+		{
+			VerticesBottomBorder.Add(Vertex);
+		}
+	}
+
 	void SaveDEMToFile()
 	{
 		FString SaveDirectory = "D:/Users/Julien/Documents/Unreal Engine Dumps";
@@ -671,6 +745,17 @@ struct FDEM
 					SetNewDEMPointData((*DefiningPoints)[3], FDEMData(0.f, EDEMState::DEM_KNOWN));
 				}
 			}
+
+			// calculate border values
+			XLeftBorder = (*DefiningPoints)[0].X;
+			XRightBorder = (*DefiningPoints)[2].X;
+			YTopBorder = (*DefiningPoints)[2].Y;
+			YBottomBorder = (*DefiningPoints)[0].Y;
+
+			CheckForBorderVertex((*DefiningPoints)[0]);
+			CheckForBorderVertex((*DefiningPoints)[1]);
+			CheckForBorderVertex((*DefiningPoints)[2]);
+			CheckForBorderVertex((*DefiningPoints)[3]);
 		}
 
 		float HalfWidth  = (((*DefiningPoints)[1].X - (*DefiningPoints)[0].X) / 2.f) + (*DefiningPoints)[0].X;
@@ -705,6 +790,7 @@ struct FDEM
 				UE_LOG(LogTemp, Warning, TEXT("Displacement: %f"), Displacement);
 				E.Z = PointElevation + Displacement;*/
 				E.Z = CalculatePointElevation(Iteration, E, (*DefiningPoints)[0], (*DefiningPoints)[1]);
+				CheckForBorderVertex(E);
 
 				// add newly created point to DEM
 				SetNewDEMPointData(E, FDEMData(E.Z, EDEMState::DEM_KNOWN));
@@ -734,6 +820,7 @@ struct FDEM
 				UE_LOG(LogTemp, Warning, TEXT("Displacement: %f"), Displacement);
 				F.Z = PointElevation + Displacement;*/
 				F.Z = CalculatePointElevation(Iteration, F, (*DefiningPoints)[1], (*DefiningPoints)[2]);
+				CheckForBorderVertex(F);
 
 				// add newly created point to DEM
 				SetNewDEMPointData(F, FDEMData(F.Z, EDEMState::DEM_KNOWN));
@@ -761,6 +848,7 @@ struct FDEM
 				UE_LOG(LogTemp, Warning, TEXT("Displacement: %f"), Displacement);
 				G.Z = PointElevation + Displacement;*/
 				G.Z = CalculatePointElevation(Iteration, G, (*DefiningPoints)[2], (*DefiningPoints)[3]);
+				CheckForBorderVertex(G);
 
 				// add newly created point to DEM
 				SetNewDEMPointData(G, FDEMData(G.Z, EDEMState::DEM_KNOWN));
@@ -788,6 +876,7 @@ struct FDEM
 				UE_LOG(LogTemp, Warning, TEXT("Displacement: %f"), Displacement);
 				H.Z = PointElevation + Displacement;*/
 				H.Z = CalculatePointElevation(Iteration, H, (*DefiningPoints)[3], (*DefiningPoints)[0]);
+				CheckForBorderVertex(H);
 
 				// add newly created point to DEM
 				SetNewDEMPointData(H, FDEMData(H.Z, EDEMState::DEM_KNOWN));
@@ -815,6 +904,7 @@ struct FDEM
 				UE_LOG(LogTemp, Warning, TEXT("Displacement: %f"), Displacement);
 				I.Z = PointElevation + Displacement;*/
 				I.Z = CalculatePointElevation(Iteration, I, (*DefiningPoints)[0], (*DefiningPoints)[2], (*DefiningPoints)[1], (*DefiningPoints)[3]);
+				CheckForBorderVertex(I);
 
 				// add newly created point to DEM
 				SetNewDEMPointData(I, FDEMData(I.Z, EDEMState::DEM_KNOWN));
@@ -1117,7 +1207,7 @@ struct FDEM
 					if (!GetPointElevation(Child, ChildElevation))
 					{
 						// could not retrieve child point information from DEM data
-						UE_LOG(LogTemp, Error, TEXT("Could not retrieve child point elevation data from DEM. Child point was: %s"), *Child.ToString());
+						UE_LOG(LogTemp, Error, TEXT("Could not retrieve child point elevation data from DEM in Midpoint Displacement Bottom-Up. Child point was: %s"), *Child.ToString());
 						continue;
 					}
 					e = e + Delta_BU(ChildElevation, FVector2D::Distance(A, Child));
@@ -1151,8 +1241,4 @@ class HOVERTEST_API UTerrainGenerator : public UObject
 	
 private:
 
-	/**
-	 * implementation of the MDBU algorithm from "Terrain Modeling: A Constrained Fractal Model" by Farès Belhadj
-	 */
-	//void MidpointDisplacementBottomUp()
 };

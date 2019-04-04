@@ -3,6 +3,7 @@
 #include "TerrainGeneratorWorker.h"
 #include "TerrainManager.h"
 #include "TerrainGenerator.h"
+#include "TerrainTile.h"
 
 TerrainGeneratorWorker::TerrainGeneratorWorker(ATerrainManager* Manager, FTerrainSettings Settings, TQueue<FTerrainJob, EQueueMode::Spsc>* Queue)
 {
@@ -48,6 +49,12 @@ uint32 TerrainGeneratorWorker::Run()
 			DEM.SimulateTriangleEdge(&InitialValues, 0, TerrainSettings.TriangleEdgeIterations);
 			DEM.MidpointDisplacementBottomUp(&DEMConstraints);
 			DEM.TriangleEdge(&InitialValues, 0, TerrainSettings.TriangleEdgeIterations, TerrainJob.MeshData[0].VertexBuffer, TerrainJob.MeshData[0].TriangleBuffer);
+
+			TerrainJob.TerrainTile->SetVerticesLeftBorder(DEM.VerticesLeftBorder);
+			TerrainJob.TerrainTile->SetVerticesRightBorder(DEM.VerticesRightBorder);
+			TerrainJob.TerrainTile->SetVerticesTopBorder(DEM.VerticesTopBorder);
+			TerrainJob.TerrainTile->SetVerticesBottomBorder(DEM.VerticesBottomBorder);
+			TerrainJob.TerrainTile->AllVerticesOnBorderSet();
 
 			/*UMyStaticLibrary::SaveBuffersToFile(TerrainJob.MeshData[0].VertexBuffer, TerrainJob.MeshData[0].TriangleBuffer);
 			DEM.SaveDEMToFile();*/

@@ -501,6 +501,13 @@ public:
 		return FString::SanitizeFloat((Buffer / FMath::Pow(10, Precision)), Precision);
 	}
 
+	static FORCEINLINE float GetFloatWithPrecision(const float TheFloat, const int32 Precision)
+	{
+		float Buffer = TheFloat * FMath::Pow(10, Precision);
+		Buffer = FMath::FloorToFloat(Buffer);
+		return (Buffer / FMath::Pow(10, Precision));
+	}
+
 	static void SaveBuffersToFile(const TArray<FRuntimeMeshVertexSimple>& VertexBuffer, const TArray<int32>& TriangleBuffer)
 	{
 		FString SaveDirectory = "D:/Users/Julien/Documents/Unreal Engine Dumps";
