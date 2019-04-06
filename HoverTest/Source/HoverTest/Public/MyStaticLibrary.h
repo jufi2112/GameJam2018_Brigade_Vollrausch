@@ -199,6 +199,10 @@ struct FFractalNoiseTerrainSettings
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float I_bu = 5.f;
+
+	// number of iterations for the triangle edge algorithms
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int32 TriangleEdgeIterations = 4;
 };
 
 /**
@@ -263,10 +267,6 @@ struct FTerrainSettings
 	// the edge length of a quadratic tile in cm
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	int32 TileEdgeSize = 65536;
-
-	// number of iterations for the triangle edge algorithms
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	int32 TriangleEdgeIterations = 6;
 
 	// shall async collision cooking be used
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)

@@ -46,9 +46,9 @@ uint32 TerrainGeneratorWorker::Run()
 
 			TerrainJob.MeshData.Add(FMeshData());
 
-			DEM.SimulateTriangleEdge(&InitialValues, 0, TerrainSettings.TriangleEdgeIterations);
+			DEM.SimulateTriangleEdge(&InitialValues, 0, TerrainSettings.FractalNoiseTerrainSettings.TriangleEdgeIterations);
 			DEM.MidpointDisplacementBottomUp(&DEMConstraints);
-			DEM.TriangleEdge(&InitialValues, 0, TerrainSettings.TriangleEdgeIterations, TerrainJob.MeshData[0].VertexBuffer, TerrainJob.MeshData[0].TriangleBuffer);
+			DEM.TriangleEdge(&InitialValues, 0, TerrainSettings.FractalNoiseTerrainSettings.TriangleEdgeIterations, TerrainJob.MeshData[0].VertexBuffer, TerrainJob.MeshData[0].TriangleBuffer);
 
 			TerrainJob.TerrainTile->SetVerticesLeftBorder(DEM.VerticesLeftBorder);
 			TerrainJob.TerrainTile->SetVerticesRightBorder(DEM.VerticesRightBorder);
