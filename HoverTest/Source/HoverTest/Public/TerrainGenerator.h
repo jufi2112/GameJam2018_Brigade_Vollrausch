@@ -120,6 +120,18 @@ struct FDEM
 	float YTopBorder = 0.f;
 	float YBottomBorder = 0.f;
 
+	/**
+	 * the four corner points of the DEM
+	 */
+	UPROPERTY()
+	FVector BottomLeftCorner;
+	UPROPERTY()
+	FVector BottomRightCorner;
+	UPROPERTY()
+	FVector TopLeftCorner;
+	UPROPERTY()
+	FVector TopRightCorner;
+
 	// Delimiter used to separate X and Y coordinate values in FString Keys
 	FString Delimiter = FString("=");
 
@@ -145,13 +157,13 @@ struct FDEM
 	float k = 100.f;
 
 	// translated the random number in the displacement calculation
-	float rt = -45.f;
+	float rt = 0.2f;
 
 	// scaling factor for displacement calculation
-	float rs = 25.5f;
+	float rs = 1.f;
 
 	// spatial dimension used in displacement calculation
-	float n = -1.f;
+	float n = 3.f;
 
 	/** 
 	 * hügeligkeit, used as mean for normal distribution
@@ -544,10 +556,10 @@ struct FDEM
 			)
 		);
 
-		PointElevation += (FVector2D::Distance(Vec2Vec2D(AscendantOne), Vec2Vec2D(ChildPoint)) * GetRandomDisplacement(CurrentIteration));
-		PointElevation += (FVector2D::Distance(Vec2Vec2D(AscendantTwo), Vec2Vec2D(ChildPoint)) * GetRandomDisplacement(CurrentIteration));
-		PointElevation += (FVector2D::Distance(Vec2Vec2D(AscendantThree), Vec2Vec2D(ChildPoint)) * GetRandomDisplacement(CurrentIteration));
-		PointElevation += (FVector2D::Distance(Vec2Vec2D(AscendantFour), Vec2Vec2D(ChildPoint)) * GetRandomDisplacement(CurrentIteration));
+		PointElevation += (FVector2D::Distance(Vec2Vec2D(AscendantOne), Vec2Vec2D(ChildPoint)) * GetRandomDisplacement(CurrentIteration+1));
+		PointElevation += (FVector2D::Distance(Vec2Vec2D(AscendantTwo), Vec2Vec2D(ChildPoint)) * GetRandomDisplacement(CurrentIteration+1));
+		PointElevation += (FVector2D::Distance(Vec2Vec2D(AscendantThree), Vec2Vec2D(ChildPoint)) * GetRandomDisplacement(CurrentIteration+1));
+		PointElevation += (FVector2D::Distance(Vec2Vec2D(AscendantFour), Vec2Vec2D(ChildPoint)) * GetRandomDisplacement(CurrentIteration+1));
 
 		return PointElevation;
 	}
@@ -565,30 +577,35 @@ struct FDEM
 		);
 	}
 
+	/**
+	 * checks if the given vertex is located on a border and adds the vertex to the respective array if so
+	 * the vertex X and Y values get modified so that they can directly be used as constraints for other DEMs 
+	 * that means for example: the X value of a vertex located at the right border will be zeroed, while the X coordinate of a vertex on the left border will become XRightBorder
+	 */
 	void CheckForBorderVertex(const FVector Vertex)
 	{
 		// Left border
 		if (FMath::IsNearlyEqual(UMyStaticLibrary::GetFloatWithPrecision(Vertex.X, 2), UMyStaticLibrary::GetFloatWithPrecision(XLeftBorder, 2)))
 		{
-			VerticesLeftBorder.Add(Vertex);
+			VerticesLeftBorder.Add(FVector(XRightBorder, Vertex.Y, Vertex.Z));
 		}
 
 		// Right border
 		if (FMath::IsNearlyEqual(UMyStaticLibrary::GetFloatWithPrecision(Vertex.X, 2), UMyStaticLibrary::GetFloatWithPrecision(XRightBorder, 2)))
 		{
-			VerticesRightBorder.Add(Vertex);
+			VerticesRightBorder.Add(FVector(XLeftBorder, Vertex.Y, Vertex.Z));
 		}
 
 		// top border
 		if (FMath::IsNearlyEqual(UMyStaticLibrary::GetFloatWithPrecision(Vertex.Y, 2), UMyStaticLibrary::GetFloatWithPrecision(YTopBorder, 2)))
 		{
-			VerticesTopBorder.Add(Vertex);
+			VerticesTopBorder.Add(FVector(Vertex.X, YBottomBorder, Vertex.Z));
 		}
 
 		// bottom border
 		if (FMath::IsNearlyEqual(UMyStaticLibrary::GetFloatWithPrecision(Vertex.Y, 2), UMyStaticLibrary::GetFloatWithPrecision(YBottomBorder, 2)))
 		{
-			VerticesBottomBorder.Add(Vertex);
+			VerticesBottomBorder.Add(FVector(Vertex.X, YTopBorder, Vertex.Z));
 		}
 	}
 
@@ -1070,6 +1087,11 @@ struct FDEM
 			// TODO check if 0 is our first Iteration (so that we don't start at 1 and wonder why d_max is not set / still 0.f)
 			d_max = FVector2D::Distance(Vec2Vec2D((*DefiningPoints)[3]), Vec2Vec2D((*DefiningPoints)[1]));
 			//UE_LOG(LogTemp, Warning, TEXT("d_max is %f"), d_max);
+
+			BottomLeftCorner = (*DefiningPoints)[0];
+			BottomRightCorner = (*DefiningPoints)[1];
+			TopRightCorner = (*DefiningPoints)[2];
+			TopLeftCorner = (*DefiningPoints)[3];
 		}
 
 		/* add ascending points to hashmap */

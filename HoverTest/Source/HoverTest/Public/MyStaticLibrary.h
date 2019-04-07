@@ -167,13 +167,13 @@ struct FFractalNoiseTerrainSettings
 	 * used to translate random value interval [-1, 1] in random displacement calculation
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float rt = -0.9f;
+	float rt = 0.2f;
 
 	/**
 	 * scale factor to scale random value in random displacement calculation
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float rs = 0.55f;
+	float rs = -0.5f;
 
 	/**
 	 * space dimension used in random displacement calculation
@@ -202,7 +202,7 @@ struct FFractalNoiseTerrainSettings
 
 	// number of iterations for the triangle edge algorithms
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	int32 TriangleEdgeIterations = 4;
+	int32 TriangleEdgeIterations = 5;
 };
 
 /**
@@ -266,7 +266,7 @@ struct FTerrainSettings
 
 	// the edge length of a quadratic tile in cm
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	int32 TileEdgeSize = 65536;
+	int32 TileEdgeSize = 131072;
 
 	// shall async collision cooking be used
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
@@ -303,8 +303,8 @@ struct FTerrainSettings
 	float SecondsUntilFreeTileGetsDeleted = 30.f;
 
 	// number of threads that should be used for terrain generation
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	int32 NumberOfThreadsToUse = 4;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	int32 NumberOfThreadsToUse = 1;
 
 	// how many meshes should be updated per frame
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)

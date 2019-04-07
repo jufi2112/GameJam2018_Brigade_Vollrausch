@@ -60,6 +60,21 @@ protected:
 	TArray<FRunnableThread*> Threads;
 
 
+private:
+
+	/**
+	 * calculates all neighboring sectors for the given sector
+	 */
+	UFUNCTION()
+	void GetAdjacentSectors(const FIntVector2D Sector, TArray<FIntVector2D>& OUTAdjacentSectors);
+
+	/**
+	 * calculates all neighboring sectors for the given sectors that are relevant for border constraint calculation
+	 */
+	UFUNCTION()
+	void GetRelevantAdjacentSectors(const FIntVector2D Sector, TArray<FIntVector2D>& OUTAdjacentSectors);
+
+
 
 
 
@@ -100,7 +115,6 @@ public:
 	/**
 	* function called from a TerrainTrackerComponent when its actor changes sector
 	* the function handles moving of associated tiles
-	* TODO to be implemented
 	*/
 	UFUNCTION(BlueprintCallable)
 	void HandleTrackedActorChangedSector(AActor* TrackedActor, FIntVector2D PreviousSector, FIntVector2D NewSector);
@@ -109,6 +123,12 @@ public:
 	TQueue<FTerrainJob, EQueueMode::Mpsc> FinishedJobQueue;
 
 	/**
-	* TODO
-	*/
+	 * calculates all tiles adjacent to the given sector (all neighboring tiles)
+	 * only tiles in use are searched
+	 * @param Sector The sector for which adjacent tiles should be searched
+	 * @param OUTAdjacentTiles Out parameter containing all tiles adjacent to the given sector
+	 * @param OnlyReturnRelevantTiles If only relevant tiles should be returned. Relevant tiles are only top, bottom, left and right of the given sector.
+	 */
+	UFUNCTION(BlueprintCallable)
+	void GetAdjacentTiles(const FIntVector2D Sector, TArray<ATerrainTile*>& OUTAdjacentTiles, const bool OnlyReturnRelevantTiles = false);
 };

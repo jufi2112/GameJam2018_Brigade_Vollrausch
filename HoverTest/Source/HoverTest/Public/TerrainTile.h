@@ -112,6 +112,30 @@ public:
 	UFUNCTION()
 	bool GetVerticesOnBorderSet() const;
 
+	UFUNCTION()
+	FVector GetBottomLeftCorner() const;
+
+	UFUNCTION()
+	FVector GetBottomRightCorner() const;
+
+	UFUNCTION()
+	FVector GetTopRightCorner() const;
+
+	UFUNCTION()
+	FVector GetTopLeftCorner() const;
+
+	UFUNCTION()
+	void SetBottomLeftCorner(const FVector Vertex);
+
+	UFUNCTION()
+	void SetBottomRightCorner(const FVector Vertex);
+
+	UFUNCTION()
+	void SetTopRightCorner(const FVector Vertex);
+
+	UFUNCTION()
+	void SetTopLeftCorner(const FVector Vertex);
+
 private:
 
 	// component that is responsible for rendering the terrain
@@ -165,4 +189,19 @@ private:
 	// are all vertices on border data set?
 	bool bVerticesOnBorderSet = false;
 
+	// corner vertices of the terrain mesh
+	UPROPERTY()
+	FVector BottomLeftCorner;
+
+	// corner vertices of the terrain mesh
+	UPROPERTY()
+	FVector BottomRightCorner;
+
+	// corner vertices of the terrain mesh
+	UPROPERTY()
+	FVector TopRightCorner;
+
+	// corner vertices of the terrain mesh
+	UPROPERTY()
+	FVector TopLeftCorner;
 };

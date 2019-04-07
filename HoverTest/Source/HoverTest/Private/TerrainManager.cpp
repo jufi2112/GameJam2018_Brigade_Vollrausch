@@ -69,6 +69,31 @@ TArray<FIntVector2D> ATerrainManager::CalculateSectorsNeededAroundGivenSector(FI
 	return Sectors;
 }
 
+void ATerrainManager::GetAdjacentSectors(const FIntVector2D Sector, TArray<FIntVector2D>& OUTAdjacentSectors)
+{
+	for (int32 i = -1; i <= 1; ++i)
+	{
+		for (int32 j = -1; j <= 1; ++j)
+		{
+			if (i == 0 && j == 0) { continue; }
+			OUTAdjacentSectors.Add(FIntVector2D(Sector.X + i, Sector.Y + j));
+		}
+	}
+}
+
+void ATerrainManager::GetRelevantAdjacentSectors(const FIntVector2D Sector, TArray<FIntVector2D>& OUTAdjacentSectors)
+{
+	// sector above
+	OUTAdjacentSectors.Add(FIntVector2D(Sector.X, Sector.Y + 1));
+	// sector below
+	OUTAdjacentSectors.Add(FIntVector2D(Sector.X, Sector.Y - 1));
+	// left sector
+	OUTAdjacentSectors.Add(FIntVector2D(Sector.X - 1, Sector.Y));
+	// right sector
+	OUTAdjacentSectors.Add(FIntVector2D(Sector.X + 1, Sector.Y));
+	return;
+}
+
 // Called every frame
 void ATerrainManager::Tick(float DeltaTime)
 {
@@ -365,5 +390,27 @@ void ATerrainManager::HandleTrackedActorChangedSector(AActor * TrackedActor, FIn
 		TilesInUse.Add(Tile);
 	}
 }
+
+void ATerrainManager::GetAdjacentTiles(const FIntVector2D Sector, TArray<ATerrainTile*>& OUTAdjacentTiles, const bool OnlyReturnRelevantTiles)
+{
+	TArray<FIntVector2D> AdjacentSectors;
+	if (OnlyReturnRelevantTiles)
+	{
+		GetRelevantAdjacentSectors(Sector, AdjacentSectors);
+	}
+	else
+	{
+		GetAdjacentSectors(Sector, AdjacentSectors);
+	}
+
+	for (ATerrainTile* Tile : TilesInUse)
+	{
+		if (AdjacentSectors.Contains(Tile->GetCurrentSector()))
+		{
+			OUTAdjacentTiles.Add(Tile);
+		}
+	}
+}
+
 
 

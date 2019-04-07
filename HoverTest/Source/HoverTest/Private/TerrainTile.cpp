@@ -158,6 +158,8 @@ void ATerrainTile::FreeTile()
 		/*TerrainMesh->ClearMeshSection(0);
 		TrackMesh->ClearMeshSection(0);*/
 	}
+	// TODO reset stuff like all vertices on border set and so on, maybe this fixes the bug
+
 	// better safe than sorry
 	MeshSectionsCreated.Empty();
 
@@ -256,5 +258,45 @@ void ATerrainTile::AllVerticesOnBorderSet()
 bool ATerrainTile::GetVerticesOnBorderSet() const
 {
 	return bVerticesOnBorderSet;
+}
+
+FVector ATerrainTile::GetBottomLeftCorner() const
+{
+	return BottomLeftCorner;
+}
+
+FVector ATerrainTile::GetBottomRightCorner() const
+{
+	return BottomRightCorner;
+}
+
+FVector ATerrainTile::GetTopRightCorner() const
+{
+	return TopRightCorner;
+}
+
+FVector ATerrainTile::GetTopLeftCorner() const
+{
+	return TopLeftCorner;
+}
+
+void ATerrainTile::SetBottomLeftCorner(const FVector Vertex)
+{
+	BottomLeftCorner = Vertex;
+}
+
+void ATerrainTile::SetBottomRightCorner(const FVector Vertex)
+{
+	BottomRightCorner = Vertex;
+}
+
+void ATerrainTile::SetTopRightCorner(const FVector Vertex)
+{
+	TopRightCorner = Vertex;
+}
+
+void ATerrainTile::SetTopLeftCorner(const FVector Vertex)
+{
+	TopLeftCorner = Vertex;
 }
 
