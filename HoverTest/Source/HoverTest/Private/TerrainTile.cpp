@@ -158,7 +158,6 @@ void ATerrainTile::FreeTile()
 		/*TerrainMesh->ClearMeshSection(0);
 		TrackMesh->ClearMeshSection(0);*/
 	}
-	// TODO reset stuff like all vertices on border set and so on, maybe this fixes the bug
 
 	// better safe than sorry
 	MeshSectionsCreated.Empty();
@@ -173,6 +172,10 @@ void ATerrainTile::FreeTile()
 	VerticesRightBorder.Empty();
 	VerticesTopBorder.Empty();
 	VerticesBottomBorder.Empty();
+	BottomLeftCorner = FVector();
+	BottomRightCorner = FVector();
+	TopRightCorner = FVector();
+	TopLeftCorner = FVector();
 	TimeSinceTileFreed = GetWorld()->TimeSeconds;
 }
 

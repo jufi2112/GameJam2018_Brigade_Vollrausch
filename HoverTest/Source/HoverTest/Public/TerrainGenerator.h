@@ -1,5 +1,5 @@
 // Fill out your copyright notice in the Description page of Project Settings.
-// TODO access violation at line 144
+
 
 #pragma once
 
@@ -246,7 +246,6 @@ struct FDEM
 	// for a given point, find all ascending points
 	void GetAscendingPoints(const FVector2D OriginalPoint, TArray<FVector2D>& OUTAscendents) const
 	{
-		// TODO access violation here
 		const FVector2DArray* Ascendents = AscendingPoints.Find(GetKeyForPoint(OriginalPoint));
 		if (!Ascendents)
 		{

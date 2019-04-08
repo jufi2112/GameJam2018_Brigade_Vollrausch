@@ -51,80 +51,92 @@ uint32 TerrainGeneratorWorker::Run()
 			DefiningPoints[2] = FVector(TerrainSettings.TileEdgeSize, TerrainSettings.TileEdgeSize, 0.f);
 			DefiningPoints[3] = FVector(0.f, TerrainSettings.TileEdgeSize, 0.f);
 
+			UE_LOG(LogTemp, Error, TEXT("Start of log for tile %s in Sector %s"), *TerrainJob.TerrainTile->GetName(), *TerrainJob.TerrainTile->GetCurrentSector().ToString());
+
 			// get adjacent tiles
 			TArray<ATerrainTile*> AdjacentTiles;
 			TerrainManager->GetAdjacentTiles(TerrainJob.TerrainTile->GetCurrentSector(), AdjacentTiles, true);
+
+			UE_LOG(LogTemp, Warning, TEXT("Found %i relevant adjacent tiles"), AdjacentTiles.Num());
+
 			for (ATerrainTile* Tile : AdjacentTiles)
 			{
 				if (!Tile->GetVerticesOnBorderSet()) { continue; }
-				TArray<FVector> Verts;
-				// top tile?
-				if (Tile->GetCurrentSector() == (TerrainJob.TerrainTile->GetCurrentSector() + FIntVector2D(0, 1)))
+				else
 				{
-					Tile->GetVerticesBottomBorder(Verts);
-					Constraints.Append(Verts);
-					if (!bTopRightCorner)
+					TArray<FVector> Verts;
+					// top tile?
+					if (Tile->GetCurrentSector() == (TerrainJob.TerrainTile->GetCurrentSector() + FIntVector2D(0, 1)))
 					{
-						DefiningPoints[2].Z = Tile->GetBottomRightCorner().Z;
-						bTopRightCorner = true;
+						Tile->GetVerticesBottomBorder(Verts);
+						Constraints.Append(Verts);
+						if (!bTopRightCorner)
+						{
+							DefiningPoints[2].Z = Tile->GetBottomRightCorner().Z;
+							bTopRightCorner = true;
+						}
+						if (!bTopLeftCorner)
+						{
+							DefiningPoints[3].Z = Tile->GetBottomLeftCorner().Z;
+							bTopLeftCorner = true;
+						}
+						UE_LOG(LogTemp, Error, TEXT("Found a top tile (tile %s) with %i constraints"), *Tile->GetCurrentSector().ToString(), Verts.Num());
+						continue;
 					}
-					if (!bTopLeftCorner)
+					// bottom tile?
+					if (Tile->GetCurrentSector() == (TerrainJob.TerrainTile->GetCurrentSector() - FIntVector2D(0, 1)))
 					{
-						DefiningPoints[3].Z = Tile->GetBottomLeftCorner().Z;
-						bTopLeftCorner = true;
+						Tile->GetVerticesTopBorder(Verts);
+						Constraints.Append(Verts);
+						if (!bBottomLeftCorner)
+						{
+							DefiningPoints[0].Z = Tile->GetTopLeftCorner().Z;
+							bBottomLeftCorner = true;
+						}
+						if (!bBottomRightCorner)
+						{
+							DefiningPoints[1].Z = Tile->GetTopRightCorner().Z;
+							bBottomRightCorner = true;
+						}
+						UE_LOG(LogTemp, Error, TEXT("Found a bottom tile (tile %s) with %i constraints"), *Tile->GetCurrentSector().ToString(), Verts.Num());
+						continue;
 					}
-					continue;
-				}
-				// bottom tile?
-				if (Tile->GetCurrentSector() == (TerrainJob.TerrainTile->GetCurrentSector() - FIntVector2D(0, 1)))
-				{
-					Tile->GetVerticesTopBorder(Verts);
-					Constraints.Append(Verts);
-					if (!bBottomLeftCorner)
+					// right tile?
+					if (Tile->GetCurrentSector() == (TerrainJob.TerrainTile->GetCurrentSector() + FIntVector2D(1, 0)))
 					{
-						DefiningPoints[0].Z = Tile->GetTopLeftCorner().Z;
-						bBottomLeftCorner = true;
+						Tile->GetVerticesLeftBorder(Verts);
+						Constraints.Append(Verts);
+						if (!bBottomRightCorner)
+						{
+							DefiningPoints[1].Z = Tile->GetBottomLeftCorner().Z;
+							bBottomRightCorner = true;
+						}
+						if (!bTopRightCorner)
+						{
+							DefiningPoints[2].Z = Tile->GetTopLeftCorner().Z;
+							bTopRightCorner = true;
+						}
+						UE_LOG(LogTemp, Error, TEXT("Found a right tile (tile %s) with %i constraints"), *Tile->GetCurrentSector().ToString(), Verts.Num());
+						continue;
 					}
-					if (!bBottomRightCorner)
+					// left tile?
+					if (Tile->GetCurrentSector() == (TerrainJob.TerrainTile->GetCurrentSector() - FIntVector2D(1, 0)))
 					{
-						DefiningPoints[1].Z = Tile->GetTopRightCorner().Z;
-						bBottomRightCorner = true;
+						Tile->GetVerticesRightBorder(Verts);
+						Constraints.Append(Verts);
+						if (!bBottomLeftCorner)
+						{
+							DefiningPoints[0].Z = Tile->GetBottomRightCorner().Z;
+							bBottomLeftCorner = true;
+						}
+						if (!bTopLeftCorner)
+						{
+							DefiningPoints[3].Z = Tile->GetTopRightCorner().Z;
+							bTopLeftCorner = true;
+						}
+						UE_LOG(LogTemp, Error, TEXT("Found a left tile (tile %s) with %i constraints"), *Tile->GetCurrentSector().ToString(), Verts.Num());
+						continue;
 					}
-					continue;
-				}
-				// right tile?
-				if (Tile->GetCurrentSector() == (TerrainJob.TerrainTile->GetCurrentSector() + FIntVector2D(1, 0)))
-				{
-					Tile->GetVerticesLeftBorder(Verts);
-					Constraints.Append(Verts);
-					if (!bBottomRightCorner)
-					{
-						DefiningPoints[1].Z = Tile->GetBottomLeftCorner().Z;
-						bBottomRightCorner = true;
-					}
-					if (!bTopRightCorner)
-					{
-						DefiningPoints[2].Z = Tile->GetTopLeftCorner().Z;
-						bTopRightCorner = true;
-					}
-					continue;
-				}
-				// left tile?
-				if (Tile->GetCurrentSector() == (TerrainJob.TerrainTile->GetCurrentSector() - FIntVector2D(1, 0)))
-				{
-					Tile->GetVerticesRightBorder(Verts);
-					Constraints.Append(Verts);
-					if (!bBottomLeftCorner)
-					{
-						DefiningPoints[0].Z = Tile->GetBottomRightCorner().Z;
-						bBottomLeftCorner = true;
-					}
-					if (!bTopLeftCorner)
-					{
-						DefiningPoints[3].Z = Tile->GetTopRightCorner().Z;
-						bTopLeftCorner = true;
-					}
-					continue;
 				}
 			}
 
@@ -150,6 +162,10 @@ uint32 TerrainGeneratorWorker::Run()
 				bTopLeftCorner = true;
 			}
 
+			UE_LOG(LogTemp, Warning, TEXT("Got %i constraints for Tile in Sector: %s with name %s"), Constraints.Num(), *TerrainJob.TerrainTile->GetCurrentSector().ToString(), *TerrainJob.TerrainTile->GetName());
+			UE_LOG(LogTemp, Error, TEXT("End of log for tile %s"), *TerrainJob.TerrainTile->GetCurrentSector().ToString());
+
+
 			if (Constraints.Num() == 0)
 			{
 				// add default values for the moment
@@ -159,7 +175,7 @@ uint32 TerrainGeneratorWorker::Run()
 				
 			}
 			
-
+			Constraints.Add(FVector(TerrainSettings.TileEdgeSize / 2.f, 0.f, 80000.f));
 
 
 			TerrainJob.MeshData.Add(FMeshData());
