@@ -32,7 +32,19 @@ uint32 TerrainGeneratorWorker::Run()
 		{
 			//UMyStaticLibrary::CreateComplexMeshData(TerrainSettings, TerrainJob.MeshData);
 			//UE_LOG(LogTemp, Error, TEXT("No terrain generation functions implemented yet!"));
-			FDEM DEM = FDEM(TerrainSettings.FractalNoiseTerrainSettings.H, TerrainSettings.FractalNoiseTerrainSettings.I, TerrainSettings.FractalNoiseTerrainSettings.I_bu, TerrainSettings.FractalNoiseTerrainSettings.rt, TerrainSettings.FractalNoiseTerrainSettings.rs, TerrainSettings.FractalNoiseTerrainSettings.n);
+			FDEM DEM = FDEM
+			(
+				TerrainSettings.FractalNoiseTerrainSettings.H, 
+				TerrainSettings.FractalNoiseTerrainSettings.I, 
+				TerrainSettings.FractalNoiseTerrainSettings.I_bu, 
+				TerrainSettings.FractalNoiseTerrainSettings.rt, 
+				TerrainSettings.FractalNoiseTerrainSettings.rs, 
+				TerrainSettings.FractalNoiseTerrainSettings.n, 
+				TerrainSettings.TerrainMaterialTransitionLowMediumElevation, 
+				TerrainSettings.TerrainMaterialTransitionMediumHighElevation, 
+				TerrainSettings.TransitionElevationVariationLowMedium,
+				TerrainSettings.TransitionElevationVariationMediumHigh
+			);
 
 			if (!TerrainManager) { return 1; }
 
@@ -194,7 +206,7 @@ uint32 TerrainGeneratorWorker::Run()
 
 			DEM.SimulateTriangleEdge(&DefiningPoints, 0, TerrainSettings.FractalNoiseTerrainSettings.TriangleEdgeIterations);
 			DEM.MidpointDisplacementBottomUp(&Constraints);
-			DEM.TriangleEdge(&DefiningPoints, 0, TerrainSettings.FractalNoiseTerrainSettings.TriangleEdgeIterations, TerrainJob.MeshData[0].VertexBuffer, TerrainJob.MeshData[0].TriangleBuffer);
+			DEM.TriangleEdge(&DefiningPoints, 0, TerrainSettings.FractalNoiseTerrainSettings.TriangleEdgeIterations, TerrainJob.MeshData);
 
 			/*UE_LOG(LogTemp, Error, TEXT("DEM constraints array log for tile %s in sector %s"), *TerrainJob.TerrainTile->GetName(), *TerrainJob.TerrainTile->GetCurrentSector().ToString());
 			UE_LOG(LogTemp, Warning, TEXT("#VerticesTopBorder: %i"), DEM.VerticesTopBorder.Num());

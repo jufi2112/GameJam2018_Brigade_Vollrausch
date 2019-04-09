@@ -167,7 +167,7 @@ struct FFractalNoiseTerrainSettings
 	 * used to translate random value interval [-1, 1] in random displacement calculation
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float rt = 0.2f;
+	float rt = 0.0f;
 
 	/**
 	 * scale factor to scale random value in random displacement calculation
@@ -276,10 +276,28 @@ struct FTerrainSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	FFractalNoiseTerrainSettings FractalNoiseTerrainSettings;
 
+	// height in cm at which a transition from low terrain material to medium terrain material should occur
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float TerrainMaterialTransitionLowMediumElevation = 10000.f;
+
+	// height in cm at which a transition from medium terrain material to high terrain material should occur
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float TerrainMaterialTransitionMediumHighElevation = 17000.f;
+
+	// variation of the transition elevation medium high parameter (in cm)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float TransitionElevationVariationMediumHigh = 2000.f;
+
+	// variation of the transition elevation low medium parameter (in cm)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float TransitionElevationVariationLowMedium = 1000.f;
+
 	/** 
 	 * array of materials that should be applied to the terrain
-	 * index 0 is default terrain material
-	 * index 1 is default track material
+	 * index 0 is the default track material
+	 * index 1 is the default terrain material for all elevations <= TerrainMaterialTransitionLowMediumElevation
+	 * index 2 is the default terrain material for all elevations > TerrainMaterialTransitionLowMediumHeight and <= TerrainMaterialTransitionMediumHighHeight
+	 * index 3 is the default terrain material for all elevations > TerrainMaterialTransitionMediumHighHeight
 	 * corresponds to the mesh index in FTerrainJob
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
@@ -357,6 +375,11 @@ struct FTerrainJob
 	*/
 	UPROPERTY()
 	TArray<FMeshData> MeshData;
+
+	FTerrainJob()
+	{
+		MeshData.Init(FMeshData(), 4);
+	}
 };
 
 /**
