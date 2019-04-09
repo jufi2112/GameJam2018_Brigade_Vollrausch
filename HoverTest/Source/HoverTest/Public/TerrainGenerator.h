@@ -583,25 +583,25 @@ struct FDEM
 	 */
 	void CheckForBorderVertex(const FVector Vertex)
 	{
-		// Left border
+		// Left border -> in unreals coordinate system, this will become the top border (when viewing in positive X direction)
 		if (FMath::IsNearlyEqual(UMyStaticLibrary::GetFloatWithPrecision(Vertex.X, 2), UMyStaticLibrary::GetFloatWithPrecision(XLeftBorder, 2)))
 		{
 			VerticesLeftBorder.Add(FVector(XRightBorder, Vertex.Y, Vertex.Z));
 		}
 
-		// Right border
+		// Right border -> in unreals coordinate system, this will become the bottom border (when viewing in positive X direction)
 		if (FMath::IsNearlyEqual(UMyStaticLibrary::GetFloatWithPrecision(Vertex.X, 2), UMyStaticLibrary::GetFloatWithPrecision(XRightBorder, 2)))
 		{
 			VerticesRightBorder.Add(FVector(XLeftBorder, Vertex.Y, Vertex.Z));
 		}
 
-		// top border
+		// top border -> in unreals coordinate system, this will become the right border (when viewing in positive X direction)
 		if (FMath::IsNearlyEqual(UMyStaticLibrary::GetFloatWithPrecision(Vertex.Y, 2), UMyStaticLibrary::GetFloatWithPrecision(YTopBorder, 2)))
 		{
 			VerticesTopBorder.Add(FVector(Vertex.X, YBottomBorder, Vertex.Z));
 		}
 
-		// bottom border
+		// bottom border -> in unreals coordinate system, this will become the left border (when viewing in positive X direction)
 		if (FMath::IsNearlyEqual(UMyStaticLibrary::GetFloatWithPrecision(Vertex.Y, 2), UMyStaticLibrary::GetFloatWithPrecision(YBottomBorder, 2)))
 		{
 			VerticesBottomBorder.Add(FVector(Vertex.X, YTopBorder, Vertex.Z));
@@ -806,7 +806,6 @@ struct FDEM
 				UE_LOG(LogTemp, Warning, TEXT("Displacement: %f"), Displacement);
 				E.Z = PointElevation + Displacement;*/
 				E.Z = CalculatePointElevation(Iteration, E, (*DefiningPoints)[0], (*DefiningPoints)[1]);
-				CheckForBorderVertex(E);
 
 				// add newly created point to DEM
 				SetNewDEMPointData(E, FDEMData(E.Z, EDEMState::DEM_KNOWN));
@@ -817,6 +816,7 @@ struct FDEM
 				// since we directly use E's coordinates in our last iteration (and we also pass them on to the next iteration if we're not at the final iteration) we need to get the points elevation from the DEM data
 				GetPointElevation(E, E.Z);
 			}
+			CheckForBorderVertex(E);
 		}
 		else
 		{
@@ -836,7 +836,6 @@ struct FDEM
 				UE_LOG(LogTemp, Warning, TEXT("Displacement: %f"), Displacement);
 				F.Z = PointElevation + Displacement;*/
 				F.Z = CalculatePointElevation(Iteration, F, (*DefiningPoints)[1], (*DefiningPoints)[2]);
-				CheckForBorderVertex(F);
 
 				// add newly created point to DEM
 				SetNewDEMPointData(F, FDEMData(F.Z, EDEMState::DEM_KNOWN));
@@ -845,6 +844,7 @@ struct FDEM
 			{
 				GetPointElevation(F, F.Z);
 			}
+			CheckForBorderVertex(F);
 		}
 		else
 		{
@@ -864,7 +864,6 @@ struct FDEM
 				UE_LOG(LogTemp, Warning, TEXT("Displacement: %f"), Displacement);
 				G.Z = PointElevation + Displacement;*/
 				G.Z = CalculatePointElevation(Iteration, G, (*DefiningPoints)[2], (*DefiningPoints)[3]);
-				CheckForBorderVertex(G);
 
 				// add newly created point to DEM
 				SetNewDEMPointData(G, FDEMData(G.Z, EDEMState::DEM_KNOWN));
@@ -873,6 +872,7 @@ struct FDEM
 			{
 				GetPointElevation(G, G.Z);
 			}
+			CheckForBorderVertex(G);
 		}
 		else
 		{
@@ -892,7 +892,6 @@ struct FDEM
 				UE_LOG(LogTemp, Warning, TEXT("Displacement: %f"), Displacement);
 				H.Z = PointElevation + Displacement;*/
 				H.Z = CalculatePointElevation(Iteration, H, (*DefiningPoints)[3], (*DefiningPoints)[0]);
-				CheckForBorderVertex(H);
 
 				// add newly created point to DEM
 				SetNewDEMPointData(H, FDEMData(H.Z, EDEMState::DEM_KNOWN));
@@ -901,6 +900,7 @@ struct FDEM
 			{
 				GetPointElevation(H, H.Z);
 			}
+			CheckForBorderVertex(H);
 		}
 		else
 		{
@@ -920,7 +920,6 @@ struct FDEM
 				UE_LOG(LogTemp, Warning, TEXT("Displacement: %f"), Displacement);
 				I.Z = PointElevation + Displacement;*/
 				I.Z = CalculatePointElevation(Iteration, I, (*DefiningPoints)[0], (*DefiningPoints)[2], (*DefiningPoints)[1], (*DefiningPoints)[3]);
-				CheckForBorderVertex(I);
 
 				// add newly created point to DEM
 				SetNewDEMPointData(I, FDEMData(I.Z, EDEMState::DEM_KNOWN));
@@ -929,6 +928,7 @@ struct FDEM
 			{
 				GetPointElevation(I, I.Z);
 			}
+			CheckForBorderVertex(I);
 		}
 		else
 		{
