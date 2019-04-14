@@ -28,23 +28,51 @@ struct FDEMData
 	UPROPERTY()
 	EDEMState State;
 	float Elevation;
+	FVector Normal;
 
 	FDEMData(float elevation)
 	{
 		Elevation = elevation;
 		State = EDEMState::DEM_UNKNOWN;
+		Normal = FVector(0.f, 0.f, 0.f);
 	}
 
-	FDEMData(float elevation, EDEMState state)
+	FDEMData(const float elevation, const FVector normal)
+	{
+		Elevation = elevation;
+		State = EDEMState::DEM_UNKNOWN;
+		Normal = normal;
+	}
+
+	FDEMData(const float elevation, const EDEMState state)
 	{
 		Elevation = elevation;
 		State = state;
+		Normal = FVector(0.f, 0.f, 0.f);
+	}
+
+	FDEMData(const float elevation, const EDEMState state, const FVector normal)
+	{
+		Elevation = elevation;
+		State = state;
+		Normal = normal;
 	}
 
 	FDEMData()
 	{
 		Elevation = 0.f;
 		State = EDEMState::DEM_UNKNOWN;
+		Normal = FVector(0.f, 0.f, 0.f);
+	}
+
+	void AddFaceNormal(const FVector normal)
+	{
+		Normal += normal;
+	}
+
+	FVector GetVertexNormalNormalized() const
+	{
+		return Normal.GetSafeNormal();
 	}
 
 };
@@ -66,6 +94,28 @@ struct FVector2DArray
 	}
 
 	FVector2DArray()
+	{
+		Array.Empty();
+	}
+};
+
+/**
+ * struct because unreal c++ won't allow nested containers
+ */
+USTRUCT()
+struct FVectorArray
+{
+	GENERATED_USTRUCT_BODY()
+
+	UPROPERTY()
+	TArray<FVector> Array;
+
+	FVectorArray(const TArray<FVector>& ArrayToInitialize)
+	{
+		Array = ArrayToInitialize;
+	}
+
+	FVectorArray()
 	{
 		Array.Empty();
 	}
@@ -111,6 +161,12 @@ struct FDEM
 	 */
 	UPROPERTY()
 	TArray<FVector> VerticesBottomBorder;
+
+	/**
+	 * array that stores all vertices that later should be passed to the vertex and triangle buffer
+	 */
+	UPROPERTY()
+	TArray<FVectorArray> MeshVertices;
 
 	/**
 	 * values for each border
@@ -200,6 +256,7 @@ struct FDEM
 		DEM.Empty();
 		AscendingPoints.Empty();
 		ChildrenPoints.Empty();
+		MeshVertices.Init(FVectorArray(), 4);
 	}
 
 	FDEM(const float H_FractalDimension, const float I_InterpolationCurveTuning, const float I_bu_InterpolationCurveTuning, const float rt_RandomNumberTranslation, const float rs_ScaleFactorRandomNumber, const float n_SpatialDomainRandomNumber, const float TransitionLowMediumElevation, const float TransitionMediumHighElevation, const float TransitionElevationVariationLowMedium, const float TransitionElevationVariationMediumHigh)
@@ -217,6 +274,7 @@ struct FDEM
 		this->TransitionMediumHighElevation = TransitionMediumHighElevation;
 		this->TransitionElevationVariationLowMedium = TransitionElevationVariationLowMedium;
 		this->TransitionElevationVariationMediumHigh = TransitionElevationVariationMediumHigh;
+		MeshVertices.Init(FVectorArray(), 4);
 	}
 
 	void GetVerticesLeftBorder(TArray<FVector>& OUTVertices) const
@@ -355,6 +413,58 @@ struct FDEM
 		}
 		OUTPointData.Elevation = Data->Elevation;
 		OUTPointData.State = Data->State;
+		return true;
+	}
+
+	// gets the points normal
+	bool GetPointNormal(const FVector2D Point, FVector& OUTNormal) const
+	{
+		const FDEMData* Data = DEM.Find(GetKeyForPoint(Point));
+		if (!Data)
+		{
+			UE_LOG(LogTemp, Error, TEXT("Could not find specified key (%s) in GetPointData"), *GetKeyForPoint(Point));
+			return false;
+		}
+		OUTNormal = Data->GetVertexNormalNormalized();
+		return true;
+	}
+
+	// gets the points normal
+	bool GetPointNormal(const FVector Point, FVector& OUTNormal) const
+	{
+		const FDEMData* Data = DEM.Find(GetKeyForPoint(Point));
+		if (!Data)
+		{
+			UE_LOG(LogTemp, Error, TEXT("Could not find specified key (%s) in GetPointData"), *GetKeyForPoint(Point));
+			return false;
+		}
+		OUTNormal = Data->GetVertexNormalNormalized();
+		return true;
+	}
+
+	// adds the given normal to the points DEM data normal
+	bool AddPointNormal(const FVector Point, const FVector Normal)
+	{
+		FDEMData* Data = DEM.Find(GetKeyForPoint(Point));
+		if (!Data)
+		{
+			UE_LOG(LogTemp, Error, TEXT("Could not find specified key (%s) in GetPointData"), *GetKeyForPoint(Point));
+			return false;
+		}
+		Data->AddFaceNormal(Normal);
+		return true;
+	}
+
+	// adds the given normal to the points DEM data normal
+	bool AddPointNormal(const FVector2D Point, const FVector Normal)
+	{
+		FDEMData* Data = DEM.Find(GetKeyForPoint(Point));
+		if (!Data)
+		{
+			UE_LOG(LogTemp, Error, TEXT("Could not find specified key (%s) in GetPointData"), *GetKeyForPoint(Point));
+			return false;
+		}
+		Data->AddFaceNormal(Normal);
 		return true;
 	}
 
@@ -613,7 +723,7 @@ struct FDEM
 
 
 	// Creates a FRuntimeMeshVertexSimple from the given Vertex
-	FRuntimeMeshVertexSimple CreateRuntimeMeshVertexSimple(const FVector Vertex)
+	FRuntimeMeshVertexSimple CreateRuntimeMeshVertexSimple(const FVector Vertex) const
 	{
 		return FRuntimeMeshVertexSimple(
 			Vertex,										// Vertex position
@@ -621,6 +731,18 @@ struct FDEM
 			FRuntimeMeshTangent(0.f, -1.f, 0.f),		// Vertex tangent
 			FColor::White,								
 			FVector2D(Vertex.X/500.f, Vertex.Y/500.f)	// Vertex texture coordinates
+		);
+	}
+
+	// Creates a FRuntimeMeshVertexSimple from the given Vertex
+	FRuntimeMeshVertexSimple CreateRuntimeMeshVertexSimple(const FVector Vertex, const FVector Normal) const
+	{
+		return FRuntimeMeshVertexSimple(
+			Vertex,											// Vertex position
+			Normal,											// Vertex normal
+			FRuntimeMeshTangent(0.f, -1.f, 0.f),			// Vertex tangent
+			FColor::White,
+			FVector2D(Vertex.X / 500.f, Vertex.Y / 500.f)	// Vertex texture coordinates
 		);
 	}
 
@@ -711,10 +833,20 @@ struct FDEM
 	}
 
 	/**
+	 * calculates the face normal for the given triangle
+	 */
+	FVector CalculateFaceNormal(const FVector Vertex1, const FVector Vertex2, const FVector Vertex3) const
+	{
+		FVector U = Vertex2 - Vertex1;
+		FVector V = Vertex3 - Vertex1;
+		return FVector::CrossProduct(U, V);
+	}
+
+	/**
 	 * adds the given vertices to the vertex buffer and the resulting triangle to the triangle buffer
 	 * @return The next available VertexBuffer index (the next index to be used)
 	 */
-	void AddTriangleToBuffers(const FVector Vertex1, const FVector Vertex2, const FVector Vertex3, TArray<FMeshData>& MeshData)//const int32 NextVertexBufferIndex, TArray<FRuntimeMeshVertexSimple>& OUTVertexBuffer, TArray<int32>& OUTTriangleBuffer)
+	void AddTriangleToBuffer(const FVector Vertex1, const FVector Vertex2, const FVector Vertex3)//, TArray<FMeshData>& MeshData)//const int32 NextVertexBufferIndex, TArray<FRuntimeMeshVertexSimple>& OUTVertexBuffer, TArray<int32>& OUTTriangleBuffer)
 	{
 		/*OUTVertexBuffer.Add(CreateRuntimeMeshVertexSimple(Vertex1));
 		OUTVertexBuffer.Add(CreateRuntimeMeshVertexSimple(Vertex2));
@@ -724,55 +856,72 @@ struct FDEM
 		OUTTriangleBuffer.Add(NextVertexBufferIndex + 2);
 		return (NextVertexBufferIndex + 3);*/
 		//float AverageElevation = InterpolateFloat(Vertex1.Z, Vertex2.Z, Vertex3.Z);
-		float TransitionOffsetMediumHigh = FMath::RandRange(-1.f, 1.f) * TransitionElevationVariationMediumHigh;
+		/*float TransitionOffsetMediumHigh = FMath::RandRange(-1.f, 1.f) * TransitionElevationVariationMediumHigh;
 		float TransitionOffsetLowMedium = FMath::RandRange(-1.f, 1.f) * TransitionElevationVariationLowMedium;
 		float HeighestElevation = GetHighestPointElevation(Vertex1, Vertex2, Vertex3) ;
-		int32 VertexBufferIndex;
+		int32 VertexBufferIndex;*/
 		int32 BufferToUse;
+		
+		BufferToUse = 1;
 
-		if (HeighestElevation <= (TransitionLowMediumElevation + TransitionOffsetLowMedium))
-		{
-			// use MeshData[1]
-			if (!MeshData.IsValidIndex(1)) 
-			{ 
-				UE_LOG(LogTemp, Error, TEXT("Index 1 is not a valid index in MeshData"));
-				return; 
-			}
-			BufferToUse = 1;
+		// uncommented for use of dynamic material
 
-		}
-		else if (HeighestElevation > (TransitionLowMediumElevation + TransitionOffsetLowMedium) && HeighestElevation <= (TransitionMediumHighElevation + TransitionOffsetMediumHigh))
-		{
-			// use MeshData[2]
-			if (!MeshData.IsValidIndex(2)) 
-			{ 
-				UE_LOG(LogTemp, Error, TEXT("Index 2 is not a valid index in MeshData"));
-				return; 
-			}
-			BufferToUse = 2;
-		}
-		else if (HeighestElevation > (TransitionMediumHighElevation + TransitionOffsetMediumHigh))
-		{
-			// use MeshData[3]
-			if (!MeshData.IsValidIndex(3)) 
-			{ 
-				UE_LOG(LogTemp, Error, TEXT("Index 3 is not a valid index in MeshData"));
-				return; 
-			}
-			BufferToUse = 3;
-		}
-		else
-		{
-			return;
-		}
+		//if (HeighestElevation <= (TransitionLowMediumElevation + TransitionOffsetLowMedium))
+		//{
+		//	// use MeshData[1]
+		//	if (!MeshData.IsValidIndex(1)) 
+		//	{ 
+		//		UE_LOG(LogTemp, Error, TEXT("Index 1 is not a valid index in MeshData"));
+		//		return; 
+		//	}
+		//	BufferToUse = 1;
 
-		VertexBufferIndex = MeshData[BufferToUse].VertexBuffer.Num();
+		//}
+		//else if (HeighestElevation > (TransitionLowMediumElevation + TransitionOffsetLowMedium) && HeighestElevation <= (TransitionMediumHighElevation + TransitionOffsetMediumHigh))
+		//{
+		//	// use MeshData[2]
+		//	if (!MeshData.IsValidIndex(2)) 
+		//	{ 
+		//		UE_LOG(LogTemp, Error, TEXT("Index 2 is not a valid index in MeshData"));
+		//		return; 
+		//	}
+		//	BufferToUse = 2;
+		//}
+		//else if (HeighestElevation > (TransitionMediumHighElevation + TransitionOffsetMediumHigh))
+		//{
+		//	// use MeshData[3]
+		//	if (!MeshData.IsValidIndex(3)) 
+		//	{ 
+		//		UE_LOG(LogTemp, Error, TEXT("Index 3 is not a valid index in MeshData"));
+		//		return; 
+		//	}
+		//	BufferToUse = 3;
+		//}
+		//else
+		//{
+		//	return;
+		//}
+
+		// calculate face normal
+		FVector Normal = CalculateFaceNormal(Vertex1, Vertex2, Vertex3);
+		AddPointNormal(Vertex1, Normal);
+		AddPointNormal(Vertex2, Normal);
+		AddPointNormal(Vertex3, Normal);
+
+		MeshVertices[BufferToUse].Array.Add(Vertex1);
+		MeshVertices[BufferToUse].Array.Add(Vertex2);
+		MeshVertices[BufferToUse].Array.Add(Vertex3);
+
+
+
+
+		/*VertexBufferIndex = MeshData[BufferToUse].VertexBuffer.Num();
 		MeshData[BufferToUse].VertexBuffer.Add(CreateRuntimeMeshVertexSimple(Vertex1));
 		MeshData[BufferToUse].VertexBuffer.Add(CreateRuntimeMeshVertexSimple(Vertex2));
 		MeshData[BufferToUse].VertexBuffer.Add(CreateRuntimeMeshVertexSimple(Vertex3));
 		MeshData[BufferToUse].TriangleBuffer.Add(VertexBufferIndex);
 		MeshData[BufferToUse].TriangleBuffer.Add(VertexBufferIndex + 1);
-		MeshData[BufferToUse].TriangleBuffer.Add(VertexBufferIndex + 2);
+		MeshData[BufferToUse].TriangleBuffer.Add(VertexBufferIndex + 2);*/
 		return;
 	}
 
@@ -780,6 +929,32 @@ struct FDEM
 	FVector2D Vec2Vec2D(const FVector Vector) const
 	{
 		return FVector2D(Vector.X, Vector.Y);
+	}
+
+	void CopyBufferToMeshData(TArray<FMeshData>& OUTMeshData)
+	{
+		for (int32 i = 0; i < MeshVertices.Num(); ++i)
+		{
+			if (MeshVertices[i].Array.Num() < 3)
+			{
+				continue;
+			}
+
+			for (int32 VertexIndex = 0; VertexIndex < MeshVertices[i].Array.Num(); ++VertexIndex)
+			{
+				FVector Normal = FVector(0.f, 0.f, 1.f);		// default normal
+				GetPointNormal(MeshVertices[i].Array[VertexIndex], Normal);
+				OUTMeshData[i].VertexBuffer.Add
+				(
+					CreateRuntimeMeshVertexSimple
+					(
+						MeshVertices[i].Array[VertexIndex],
+						Normal
+					)
+				);
+				OUTMeshData[i].TriangleBuffer.Add(VertexIndex);
+			}
+		}
 	}
 
 
@@ -815,7 +990,7 @@ struct FDEM
 	 * @param Iteration - the current iteration depth the recursion is in
 	 * @param MaxIterations - number of iterations after which the recursion stops
 	 */
-	void TriangleEdge(const TArray<FVector>* DefiningPoints, const int32 Iteration, const int32 MaxIterations, TArray<FMeshData>& MeshData)//TArray<FRuntimeMeshVertexSimple>& OUTVertexBuffer, TArray<int32>& OUTTriangleBuffer)
+	void TriangleEdge(const TArray<FVector>* DefiningPoints, const int32 Iteration, const int32 MaxIterations)//, TArray<FMeshData>& MeshData)//TArray<FRuntimeMeshVertexSimple>& OUTVertexBuffer, TArray<int32>& OUTTriangleBuffer)
 	{
 		if (!DefiningPoints)
 		{
@@ -1053,28 +1228,28 @@ struct FDEM
 			// fill vertex & triangle buffer
 
 			// triangle A, E, H
-			AddTriangleToBuffers((*DefiningPoints)[0], H, E, MeshData);
+			AddTriangleToBuffer((*DefiningPoints)[0], H, E);
 
 			// triangle E, I, H
-			AddTriangleToBuffers(H, I, E, MeshData);
+			AddTriangleToBuffer(H, I, E);
 
 			// triangle E, B, I
-			AddTriangleToBuffers(E, I, (*DefiningPoints)[1], MeshData);
+			AddTriangleToBuffer(E, I, (*DefiningPoints)[1]);
 
 			// triangle B, F, I
-			AddTriangleToBuffers(I, F, (*DefiningPoints)[1], MeshData);
+			AddTriangleToBuffer(I, F, (*DefiningPoints)[1]);
 
 			// triangle H, I, D
-			AddTriangleToBuffers(H, (*DefiningPoints)[3], I, MeshData);
+			AddTriangleToBuffer(H, (*DefiningPoints)[3], I);
 
 			// triangle I, G, D
-			AddTriangleToBuffers(I, (*DefiningPoints)[3], G, MeshData);
+			AddTriangleToBuffer(I, (*DefiningPoints)[3], G);
 
 			// triangle I, F, G
-			AddTriangleToBuffers(I, G, F, MeshData);
+			AddTriangleToBuffer(I, G, F);
 
 			// triangle F, C, G
-			AddTriangleToBuffers(F, G, (*DefiningPoints)[2], MeshData);
+			AddTriangleToBuffer(F, G, (*DefiningPoints)[2]);
 
 			return;
 		}
@@ -1102,10 +1277,10 @@ struct FDEM
 			Quad4.Add(G);
 			Quad4.Add((*DefiningPoints)[3]);
 
-			TriangleEdge(&Quad1, Iteration + 1, MaxIterations, MeshData);//OUTVertexBuffer, OUTTriangleBuffer);
-			TriangleEdge(&Quad2, Iteration + 1, MaxIterations, MeshData);//OUTVertexBuffer, OUTTriangleBuffer);
-			TriangleEdge(&Quad3, Iteration + 1, MaxIterations, MeshData);//OUTVertexBuffer, OUTTriangleBuffer);
-			TriangleEdge(&Quad4, Iteration + 1, MaxIterations, MeshData);//OUTVertexBuffer, OUTTriangleBuffer);
+			TriangleEdge(&Quad1, Iteration + 1, MaxIterations);//, MeshData);//OUTVertexBuffer, OUTTriangleBuffer);
+			TriangleEdge(&Quad2, Iteration + 1, MaxIterations);// , MeshData);//OUTVertexBuffer, OUTTriangleBuffer);
+			TriangleEdge(&Quad3, Iteration + 1, MaxIterations);// , MeshData);//OUTVertexBuffer, OUTTriangleBuffer);
+			TriangleEdge(&Quad4, Iteration + 1, MaxIterations);// , MeshData);//OUTVertexBuffer, OUTTriangleBuffer);
 
 			return;
 		}
