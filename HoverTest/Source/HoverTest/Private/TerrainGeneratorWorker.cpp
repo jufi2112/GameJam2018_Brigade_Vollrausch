@@ -50,6 +50,8 @@ uint32 TerrainGeneratorWorker::Run()
 
 			// array to save all constraints for the new DEM
 			TArray<FVector> Constraints;
+			// array to save all border constraints for the new DEM
+			TArray<FBorderVertex> BorderConstraints;
 			// bools to check if corner points already definded by a constraint
 			bool bBottomLeftCorner = false;
 			bool bBottomRightCorner = false;
@@ -91,12 +93,12 @@ uint32 TerrainGeneratorWorker::Run()
 				if (!Tile->GetVerticesOnBorderSet()) { continue; }
 				else
 				{
-					TArray<FVector> Verts;
+					TArray<FBorderVertex> Verts;
 					// top tile?
 					if (Tile->GetCurrentSector() == (TerrainJob.TerrainTile->GetCurrentSector() + FIntVector2D(0, 1)))
 					{
 						Tile->GetVerticesBottomBorder(Verts);
-						Constraints.Append(Verts);
+						BorderConstraints.Append(Verts);
 						if (!bTopRightCorner)
 						{
 							DefiningPoints[2].Z = Tile->GetBottomRightCorner().Z;
@@ -114,7 +116,7 @@ uint32 TerrainGeneratorWorker::Run()
 					if (Tile->GetCurrentSector() == (TerrainJob.TerrainTile->GetCurrentSector() - FIntVector2D(0, 1)))
 					{
 						Tile->GetVerticesTopBorder(Verts);
-						Constraints.Append(Verts);
+						BorderConstraints.Append(Verts);
 						if (!bBottomLeftCorner)
 						{
 							DefiningPoints[0].Z = Tile->GetTopLeftCorner().Z;
@@ -132,7 +134,7 @@ uint32 TerrainGeneratorWorker::Run()
 					if (Tile->GetCurrentSector() == (TerrainJob.TerrainTile->GetCurrentSector() + FIntVector2D(1, 0)))
 					{
 						Tile->GetVerticesLeftBorder(Verts);
-						Constraints.Append(Verts);
+						BorderConstraints.Append(Verts);
 						if (!bBottomRightCorner)
 						{
 							DefiningPoints[1].Z = Tile->GetBottomLeftCorner().Z;
@@ -150,7 +152,7 @@ uint32 TerrainGeneratorWorker::Run()
 					if (Tile->GetCurrentSector() == (TerrainJob.TerrainTile->GetCurrentSector() - FIntVector2D(1, 0)))
 					{
 						Tile->GetVerticesRightBorder(Verts);
-						Constraints.Append(Verts);
+						BorderConstraints.Append(Verts);
 						if (!bBottomLeftCorner)
 						{
 							DefiningPoints[0].Z = Tile->GetBottomRightCorner().Z;
@@ -193,7 +195,7 @@ uint32 TerrainGeneratorWorker::Run()
 			UE_LOG(LogTemp, Error, TEXT("End of log for tile %s"), *TerrainJob.TerrainTile->GetCurrentSector().ToString());*/
 
 
-			if (Constraints.Num() == 0)
+			if ((Constraints.Num() == 0) && (BorderConstraints.Num() == 0))
 			{
 				// add default values for the moment
 				/* vertex data hardcoded for the moment */
@@ -205,9 +207,10 @@ uint32 TerrainGeneratorWorker::Run()
 			TerrainJob.MeshData.Add(FMeshData());
 
 			DEM.SimulateTriangleEdge(&DefiningPoints, 0, TerrainSettings.FractalNoiseTerrainSettings.TriangleEdgeIterations);
-			DEM.MidpointDisplacementBottomUp(&Constraints);
+			DEM.MidpointDisplacementBottomUp(&Constraints, &BorderConstraints);
 			DEM.TriangleEdge(&DefiningPoints, 0, TerrainSettings.FractalNoiseTerrainSettings.TriangleEdgeIterations);// , TerrainJob.MeshData);
 			DEM.CopyBufferToMeshData(TerrainJob.MeshData);
+			//DEM.CalculateBorderVertexNormals();
 
 			/*UE_LOG(LogTemp, Error, TEXT("DEM constraints array log for tile %s in sector %s"), *TerrainJob.TerrainTile->GetName(), *TerrainJob.TerrainTile->GetCurrentSector().ToString());
 			UE_LOG(LogTemp, Warning, TEXT("#VerticesTopBorder: %i"), DEM.VerticesTopBorder.Num());

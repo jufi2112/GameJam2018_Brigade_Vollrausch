@@ -5,6 +5,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "Runtime/Engine/Classes/Engine/World.h"
 
+
 // Sets default values
 ATerrainTile::ATerrainTile()
 {
@@ -189,46 +190,46 @@ ETileStatus ATerrainTile::GetTileStatus() const
 	return TileStatus;
 }
 
-void ATerrainTile::SetVerticesLeftBorder(const TArray<FVector>& Vertices)
+void ATerrainTile::SetVerticesLeftBorder(const TArray<FBorderVertex>& Vertices)
 {
 	VerticesLeftBorder.Empty();
 	VerticesLeftBorder.Append(Vertices);
 }
 
-void ATerrainTile::SetVerticesRightBorder(const TArray<FVector>& Vertices)
+void ATerrainTile::SetVerticesRightBorder(const TArray<FBorderVertex>& Vertices)
 {
 	VerticesRightBorder.Empty();
 	VerticesRightBorder.Append(Vertices);
 }
 
-void ATerrainTile::SetVerticesTopBorder(const TArray<FVector>& Vertices)
+void ATerrainTile::SetVerticesTopBorder(const TArray<FBorderVertex>& Vertices)
 {
 	VerticesTopBorder.Empty();
 	VerticesTopBorder.Append(Vertices);
 }
 
-void ATerrainTile::SetVerticesBottomBorder(const TArray<FVector>& Vertices)
+void ATerrainTile::SetVerticesBottomBorder(const TArray<FBorderVertex>& Vertices)
 {
 	VerticesBottomBorder.Empty();
 	VerticesBottomBorder.Append(Vertices);
 }
 
-void ATerrainTile::GetVerticesLeftBorder(TArray<FVector>& OUTVertices) const
+void ATerrainTile::GetVerticesLeftBorder(TArray<FBorderVertex>& OUTVertices) const
 {
 	OUTVertices = VerticesLeftBorder;
 }
 
-void ATerrainTile::GetVerticesRightBorder(TArray<FVector>& OUTVertices) const
+void ATerrainTile::GetVerticesRightBorder(TArray<FBorderVertex>& OUTVertices) const
 {
 	OUTVertices = VerticesRightBorder;
 }
 
-void ATerrainTile::GetVerticesTopBorder(TArray<FVector>& OUTVertices) const
+void ATerrainTile::GetVerticesTopBorder(TArray<FBorderVertex>& OUTVertices) const
 {
 	OUTVertices = VerticesTopBorder;
 }
 
-void ATerrainTile::GetVerticesBottomBorder(TArray<FVector>& OUTVertices) const
+void ATerrainTile::GetVerticesBottomBorder(TArray<FBorderVertex>& OUTVertices) const
 {
 	OUTVertices = VerticesBottomBorder;
 }

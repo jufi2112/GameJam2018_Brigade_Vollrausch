@@ -5,6 +5,7 @@
 #include "MyStaticLibrary.h"
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "TerrainGenerator.h"
 #include "TerrainTile.generated.h"
 
 class URuntimeMeshComponent;
@@ -68,28 +69,28 @@ public:
 	ETileStatus GetTileStatus() const;
 
 	UFUNCTION()
-	void SetVerticesLeftBorder(const TArray<FVector>& Vertices);
+	void SetVerticesLeftBorder(const TArray<FBorderVertex>& Vertices);
 
 	UFUNCTION()
-	void SetVerticesRightBorder(const TArray<FVector>& Vertices);
+	void SetVerticesRightBorder(const TArray<FBorderVertex>& Vertices);
 
 	UFUNCTION()
-	void SetVerticesTopBorder(const TArray<FVector>& Vertices);
+	void SetVerticesTopBorder(const TArray<FBorderVertex>& Vertices);
 
 	UFUNCTION()
-	void SetVerticesBottomBorder(const TArray<FVector>& Vertices);
+	void SetVerticesBottomBorder(const TArray<FBorderVertex>& Vertices);
 
 	UFUNCTION()
-	void GetVerticesLeftBorder(TArray<FVector>& OUTVertices) const;
+	void GetVerticesLeftBorder(TArray<FBorderVertex>& OUTVertices) const;
 
 	UFUNCTION()
-	void GetVerticesRightBorder(TArray<FVector>& OUTVertices) const;
+	void GetVerticesRightBorder(TArray<FBorderVertex>& OUTVertices) const;
 
 	UFUNCTION()
-	void GetVerticesTopBorder(TArray<FVector>& OUTVertices) const;
+	void GetVerticesTopBorder(TArray<FBorderVertex>& OUTVertices) const;
 
 	UFUNCTION()
-	void GetVerticesBottomBorder(TArray<FVector>& OUTVertices) const;
+	void GetVerticesBottomBorder(TArray<FBorderVertex>& OUTVertices) const;
 
 	UFUNCTION()
 	float GetVerticesLeftBorderNum() const;
@@ -172,19 +173,19 @@ private:
 
 	// all vertices on the left border of the tile
 	UPROPERTY()
-	TArray<FVector> VerticesLeftBorder;
+	TArray<FBorderVertex> VerticesLeftBorder;
 
 	// all vertices on the top border of the tile
 	UPROPERTY()
-	TArray<FVector> VerticesTopBorder;
+	TArray<FBorderVertex> VerticesTopBorder;
 
 	// all vertices on the right border of the tile
 	UPROPERTY()
-	TArray<FVector> VerticesRightBorder;
+	TArray<FBorderVertex> VerticesRightBorder;
 
 	// all vertices on the bottom border of the tile
 	UPROPERTY()
-	TArray<FVector> VerticesBottomBorder;
+	TArray<FBorderVertex> VerticesBottomBorder;
 
 	// are all vertices on border data set?
 	bool bVerticesOnBorderSet = false;

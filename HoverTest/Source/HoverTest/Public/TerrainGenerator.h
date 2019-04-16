@@ -122,6 +122,39 @@ struct FVectorArray
 };
 
 /**
+ * struct for storing a border vertex along with its normal
+ */
+USTRUCT()
+struct FBorderVertex
+{
+	GENERATED_USTRUCT_BODY()
+
+	UPROPERTY()
+	FVector Position;
+
+	UPROPERTY()
+	FVector Normal;
+
+	FBorderVertex()
+	{
+		Position = FVector();
+		Normal = FVector();
+	}
+
+	FBorderVertex(const FVector VertexPosition, const FVector VertexNormal)
+	{
+		Position = VertexPosition;
+		Normal = VertexNormal;
+	}
+
+	FBorderVertex(const FVector VertexPosition)
+	{
+		Position = VertexPosition;
+		Normal = FVector();
+	}
+};
+
+/**
  * struct for a digital elevation map (DEM) as presented in "Terrain Modeling: A Constrained Fractal Model" by Farès Belhadj in 2007
  */
 USTRUCT()
@@ -142,25 +175,25 @@ struct FDEM
 	 * array that contains all vertices on the left border of the tile
 	 */
 	UPROPERTY()
-	TArray<FVector> VerticesLeftBorder;
+	TArray<FBorderVertex> VerticesLeftBorder;
 
 	/**
 	 * array that contains all vertices on the top border of the tile
 	 */
 	UPROPERTY()
-	TArray<FVector> VerticesTopBorder;
+	TArray<FBorderVertex> VerticesTopBorder;
 
 	/**
 	 * array that contains all vertices on the right border of the tile
 	 */
 	UPROPERTY()
-	TArray<FVector> VerticesRightBorder;
+	TArray<FBorderVertex> VerticesRightBorder;
 
 	/**
 	 * array that contains all vertices on the bottom border of the tile
 	 */
 	UPROPERTY()
-	TArray<FVector> VerticesBottomBorder;
+	TArray<FBorderVertex> VerticesBottomBorder;
 
 	/**
 	 * array that stores all vertices that later should be passed to the vertex and triangle buffer
@@ -277,22 +310,22 @@ struct FDEM
 		MeshVertices.Init(FVectorArray(), 4);
 	}
 
-	void GetVerticesLeftBorder(TArray<FVector>& OUTVertices) const
+	void GetVerticesLeftBorder(TArray<FBorderVertex>& OUTVertices) const
 	{
 		OUTVertices.Append(VerticesLeftBorder);
 	}
 
-	void GetVerticesTopBorder(TArray<FVector>& OUTVertices) const
+	void GetVerticesTopBorder(TArray<FBorderVertex>& OUTVertices) const
 	{
 		OUTVertices.Append(VerticesTopBorder);
 	}
 
-	void GetVerticesRightBorder(TArray<FVector>& OUTVertices) const
+	void GetVerticesRightBorder(TArray<FBorderVertex>& OUTVertices) const
 	{
 		OUTVertices.Append(VerticesRightBorder);
 	}
 
-	void GetVerticesBottomBorder(TArray<FVector>& OUTVertices) const
+	void GetVerticesBottomBorder(TArray<FBorderVertex>& OUTVertices) const
 	{
 		OUTVertices.Append(VerticesBottomBorder);
 	}
@@ -422,7 +455,7 @@ struct FDEM
 		const FDEMData* Data = DEM.Find(GetKeyForPoint(Point));
 		if (!Data)
 		{
-			UE_LOG(LogTemp, Error, TEXT("Could not find specified key (%s) in GetPointData"), *GetKeyForPoint(Point));
+			UE_LOG(LogTemp, Error, TEXT("Could not find specified key (%s) in GetPointNormal"), *GetKeyForPoint(Point));
 			return false;
 		}
 		OUTNormal = Data->GetVertexNormalNormalized();
@@ -435,7 +468,7 @@ struct FDEM
 		const FDEMData* Data = DEM.Find(GetKeyForPoint(Point));
 		if (!Data)
 		{
-			UE_LOG(LogTemp, Error, TEXT("Could not find specified key (%s) in GetPointData"), *GetKeyForPoint(Point));
+			UE_LOG(LogTemp, Error, TEXT("Could not find specified key (%s) in GetPointNormal"), *GetKeyForPoint(Point));
 			return false;
 		}
 		OUTNormal = Data->GetVertexNormalNormalized();
@@ -448,7 +481,7 @@ struct FDEM
 		FDEMData* Data = DEM.Find(GetKeyForPoint(Point));
 		if (!Data)
 		{
-			UE_LOG(LogTemp, Error, TEXT("Could not find specified key (%s) in GetPointData"), *GetKeyForPoint(Point));
+			UE_LOG(LogTemp, Error, TEXT("Could not find specified key (%s) in AddPointNormal"), *GetKeyForPoint(Point));
 			return false;
 		}
 		Data->AddFaceNormal(Normal);
@@ -461,7 +494,7 @@ struct FDEM
 		FDEMData* Data = DEM.Find(GetKeyForPoint(Point));
 		if (!Data)
 		{
-			UE_LOG(LogTemp, Error, TEXT("Could not find specified key (%s) in GetPointData"), *GetKeyForPoint(Point));
+			UE_LOG(LogTemp, Error, TEXT("Could not find specified key (%s) in AddPointNormal"), *GetKeyForPoint(Point));
 			return false;
 		}
 		Data->AddFaceNormal(Normal);
@@ -532,11 +565,17 @@ struct FDEM
 		DEM.Add(GetKeyForPoint(Point), NewPointData);
 	}
 
+	/**
+	 * as suggested in "Terrain Modeling: A Constrained Fractal Model" by Farès Belhadj in 2007
+	 */
 	int32 Sigma(const float I) const
 	{
 		return (I >= 0 ? 1 : -1);
 	}
 
+	/**
+	 * as suggested in "Terrain Modeling: A Constrained Fractal Model" by Farès Belhadj in 2007
+	 */
 	float Delta_BU(const float e, const float d) const
 	{
 		if (d_max == 0.f)
@@ -756,25 +795,25 @@ struct FDEM
 		// Left border -> in unreals coordinate system, this will become the top border (when viewing in positive X direction)
 		if (FMath::IsNearlyEqual(UMyStaticLibrary::GetFloatWithPrecision(Vertex.X, 2), UMyStaticLibrary::GetFloatWithPrecision(XLeftBorder, 2)))
 		{
-			VerticesLeftBorder.Add(FVector(XRightBorder, Vertex.Y, Vertex.Z));
+			VerticesLeftBorder.Add(FBorderVertex(FVector(XRightBorder, Vertex.Y, Vertex.Z)));
 		}
 
 		// Right border -> in unreals coordinate system, this will become the bottom border (when viewing in positive X direction)
 		if (FMath::IsNearlyEqual(UMyStaticLibrary::GetFloatWithPrecision(Vertex.X, 2), UMyStaticLibrary::GetFloatWithPrecision(XRightBorder, 2)))
 		{
-			VerticesRightBorder.Add(FVector(XLeftBorder, Vertex.Y, Vertex.Z));
+			VerticesRightBorder.Add(FBorderVertex(FVector(XLeftBorder, Vertex.Y, Vertex.Z)));
 		}
 
 		// top border -> in unreals coordinate system, this will become the right border (when viewing in positive X direction)
 		if (FMath::IsNearlyEqual(UMyStaticLibrary::GetFloatWithPrecision(Vertex.Y, 2), UMyStaticLibrary::GetFloatWithPrecision(YTopBorder, 2)))
 		{
-			VerticesTopBorder.Add(FVector(Vertex.X, YBottomBorder, Vertex.Z));
+			VerticesTopBorder.Add(FBorderVertex(FVector(Vertex.X, YBottomBorder, Vertex.Z)));
 		}
 
 		// bottom border -> in unreals coordinate system, this will become the left border (when viewing in positive X direction)
 		if (FMath::IsNearlyEqual(UMyStaticLibrary::GetFloatWithPrecision(Vertex.Y, 2), UMyStaticLibrary::GetFloatWithPrecision(YBottomBorder, 2)))
 		{
-			VerticesBottomBorder.Add(FVector(Vertex.X, YTopBorder, Vertex.Z));
+			VerticesBottomBorder.Add(FBorderVertex(FVector(Vertex.X, YTopBorder, Vertex.Z)));
 		}
 	}
 
@@ -855,13 +894,22 @@ struct FDEM
 		OUTTriangleBuffer.Add(NextVertexBufferIndex + 1);
 		OUTTriangleBuffer.Add(NextVertexBufferIndex + 2);
 		return (NextVertexBufferIndex + 3);*/
-		//float AverageElevation = InterpolateFloat(Vertex1.Z, Vertex2.Z, Vertex3.Z);
-		/*float TransitionOffsetMediumHigh = FMath::RandRange(-1.f, 1.f) * TransitionElevationVariationMediumHigh;
-		float TransitionOffsetLowMedium = FMath::RandRange(-1.f, 1.f) * TransitionElevationVariationLowMedium;
-		float HeighestElevation = GetHighestPointElevation(Vertex1, Vertex2, Vertex3) ;
-		int32 VertexBufferIndex;*/
+		/*float AverageElevation = InterpolateFloat(Vertex1.Z, Vertex2.Z, Vertex3.Z);
+		float TransitionOffsetMediumHigh = FMath::RandRange(-1.f, 1.f) * TransitionElevationVariationMediumHigh;*/
+		/*float TransitionOffsetLowMedium = FMath::RandRange(-1.f, 1.f) * TransitionElevationVariationLowMedium;
+		float HeighestElevation = GetHighestPointElevation(Vertex1, Vertex2, Vertex3) ;*/
+		//int32 VertexBufferIndex;
 		int32 BufferToUse;
 		
+		/*if (AverageElevation <= (TransitionMediumHighElevation + TransitionOffsetMediumHigh))
+		{
+			BufferToUse = 1;
+		}
+		else
+		{
+			BufferToUse = 2;
+		}*/
+
 		BufferToUse = 1;
 
 		// uncommented for use of dynamic material
@@ -869,7 +917,7 @@ struct FDEM
 		//if (HeighestElevation <= (TransitionLowMediumElevation + TransitionOffsetLowMedium))
 		//{
 		//	// use MeshData[1]
-		//	if (!MeshData.IsValidIndex(1)) 
+		//	if (!MeshVertices.IsValidIndex(1)) 
 		//	{ 
 		//		UE_LOG(LogTemp, Error, TEXT("Index 1 is not a valid index in MeshData"));
 		//		return; 
@@ -880,7 +928,7 @@ struct FDEM
 		//else if (HeighestElevation > (TransitionLowMediumElevation + TransitionOffsetLowMedium) && HeighestElevation <= (TransitionMediumHighElevation + TransitionOffsetMediumHigh))
 		//{
 		//	// use MeshData[2]
-		//	if (!MeshData.IsValidIndex(2)) 
+		//	if (!MeshVertices.IsValidIndex(2))
 		//	{ 
 		//		UE_LOG(LogTemp, Error, TEXT("Index 2 is not a valid index in MeshData"));
 		//		return; 
@@ -890,7 +938,7 @@ struct FDEM
 		//else if (HeighestElevation > (TransitionMediumHighElevation + TransitionOffsetMediumHigh))
 		//{
 		//	// use MeshData[3]
-		//	if (!MeshData.IsValidIndex(3)) 
+		//	if (!MeshVertices.IsValidIndex(3))
 		//	{ 
 		//		UE_LOG(LogTemp, Error, TEXT("Index 3 is not a valid index in MeshData"));
 		//		return; 
@@ -954,6 +1002,32 @@ struct FDEM
 				);
 				OUTMeshData[i].TriangleBuffer.Add(VertexIndex);
 			}
+		}
+	}
+
+	/**
+	 * copies the border vertices normals from the DEM to the respective array
+	 */
+	void CalculateBorderVertexNormals()
+	{
+		for (FBorderVertex Vertex : VerticesTopBorder)
+		{
+			GetPointNormal(Vertex.Position, Vertex.Normal);
+		}
+
+		for (FBorderVertex Vertex : VerticesBottomBorder)
+		{
+			GetPointNormal(Vertex.Position, Vertex.Normal);
+		}
+
+		for (FBorderVertex Vertex : VerticesLeftBorder)
+		{
+			GetPointNormal(Vertex.Position, Vertex.Normal);
+		}
+
+		for (FBorderVertex Vertex : VerticesRightBorder)
+		{
+			GetPointNormal(Vertex.Position, Vertex.Normal);
 		}
 	}
 
@@ -1443,21 +1517,25 @@ struct FDEM
 	* implementation of the MDBU algorithm from "Terrain Modeling: A Constrained Fractal Model" by Farès Belhadj (2007)
 	* comments refer to the pseudo code provided in the paper above
 	*/
-	void MidpointDisplacementBottomUp(const TArray<FVector>* InitialConstraints)
+	void MidpointDisplacementBottomUp(const TArray<FVector>* InitialConstraints, const TArray<FBorderVertex>* BorderConstraints)
 	{
-		// add constraints to the DEM
+		// FIFO Queue
+		TQueue<FVector2D, EQueueMode::Spsc> FQ;
+
+		// add constraints to the DEM and put constraints into FIFO Queue
 		for (const FVector Constraint : (*InitialConstraints))
 		{
 			SetNewDEMPointData(Constraint, FDEMData(Constraint.Z, EDEMState::DEM_KNOWN));
+			FQ.Enqueue(FVector2D(Constraint.X, Constraint.Y));
 		}
 
-		// FIFO Queue
-		TQueue<FVector2D, EQueueMode::Spsc> FQ;
-		// put all initial constraints in the FIFO Queue
-		for (FVector Vec : *(InitialConstraints))
+		// add border constraints to the DEM and put constraints into FIFO Queue
+		for (const FBorderVertex Constraint : (*BorderConstraints))
 		{
-			FQ.Enqueue(FVector2D(Vec.X, Vec.Y));
+			SetNewDEMPointData(Constraint.Position, FDEMData(Constraint.Position.Z, EDEMState::DEM_KNOWN, Constraint.Normal));
+			FQ.Enqueue(FVector2D(Constraint.Position.X, Constraint.Position.Y));
 		}
+
 		while (!FQ.IsEmpty())
 		{
 			FVector2D E;
