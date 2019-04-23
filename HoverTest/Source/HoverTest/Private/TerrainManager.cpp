@@ -69,6 +69,44 @@ TArray<FIntVector2D> ATerrainManager::CalculateSectorsNeededAroundGivenSector(FI
 	return Sectors;
 }
 
+void ATerrainManager::CalculateTrackPointsInSectors()
+{
+	while (SectorsToCreateTileFor.Num() > 0)
+	{
+		// check if NextTrackSector is contained in tiles that should be created
+		if (!SectorsToCreateTileFor.Contains(NextTrackSector))
+		{
+			// all tiles will not have any tracks in them
+			for (FIntVector2D Sector : SectorsToCreateTileFor)
+			{
+				if (!TrackMap.Contains(Sector))
+				{
+					TrackMap.Add(Sector, FSectorTrackInfo());
+				}
+			}
+
+			SectorsToCreateTileFor.Empty();
+			return;
+		}
+
+		// NextTrackSector is contained in SectorsToCreateTileFor -> remove it, calculate track for it, update
+		if (SectorsToCreateTileFor.Remove(NextTrackSector) != 1)
+		{
+			UE_LOG(LogTemp, Error, TEXT("Removed none or more than one occurence of NextTrackSector in CalculateTrackPointsInSectors in %s"), *GetName());
+		}
+
+		if (!TrackMap.Contains(NextTrackSector))
+		{
+			// calculate_points()
+			// add to TrackMap
+		}
+		
+		CurrentTrackSector = NextTrackSector;
+		// update_nexttracksector
+	}
+
+}
+
 void ATerrainManager::GetAdjacentSectors(const FIntVector2D Sector, TArray<FIntVector2D>& OUTAdjacentSectors)
 {
 	for (int32 i = -1; i <= 1; ++i)
@@ -408,6 +446,29 @@ void ATerrainManager::GetAdjacentTiles(const FIntVector2D Sector, TArray<ATerrai
 		if (AdjacentSectors.Contains(Tile->GetCurrentSector()))
 		{
 			OUTAdjacentTiles.Add(Tile);
+		}
+	}
+}
+
+int32 ATerrainManager::GetTrackPointsForSector(const FIntVector2D Sector, FVector2D & OUTTrackEntryPoint, FVector2D & OUTTrackExitPoint)
+{
+	FSectorTrackInfo* TrackInfo = TrackMap.Find(Sector);
+
+	if (!TrackInfo)
+	{
+		return -1;
+	}
+	else
+	{
+		if (!TrackInfo->bSectorHasTrack)
+		{
+			return 0;
+		}
+		else
+		{
+			OUTTrackEntryPoint = TrackInfo->TrackEntryPoint;
+			OUTTrackExitPoint = TrackInfo->TrackExitPoint;
+			return 1;
 		}
 	}
 }

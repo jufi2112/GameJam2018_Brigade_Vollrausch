@@ -59,6 +59,37 @@ protected:
 	// array of all used threads
 	TArray<FRunnableThread*> Threads;
 
+	// the sector where the next track segment should be created (not yet created)
+	UPROPERTY()
+	FIntVector2D NextTrackSector = FIntVector2D();
+
+	// the sector where the current last track segment is located (already created)
+	UPROPERTY()
+	FIntVector2D CurrentTrackSector = FIntVector2D();
+
+	// hashmap that stores all already calculated track information for every processed sector
+	UPROPERTY()
+	TMap<FIntVector2D, FSectorTrackInfo> TrackMap;
+
+	/**
+	 * array that contains all sectors for which a tile should be created
+	 * gets filled by the function CreateAndInitializeTiles
+	 */
+	UPROPERTY()
+	TArray<FIntVector2D> SectorsToCreateTileFor;
+
+	/**
+	 * calculates the global track path for all sectors in SectorsToCreateTileFor
+	 */
+	UFUNCTION()
+	void CalculateTrackPointsInSectors();
+
+
+
+
+
+
+
 
 private:
 
@@ -91,10 +122,10 @@ public:
 	bool bGenerateTerrainOnActorRegister = true;
 
 	/**
-	* to make it possible to begin terrain generation not just when an actor registers itself but also on an input event,
-	* tile creation and initialization is outsourced to an own function
-	* called by default from the AddActorToTrack() method, but can also be called from for example blueprint when setting bGenerateTerrainOnActorRegister to false
-	*/
+	 * to make it possible to begin terrain generation not just when an actor registers itself but also on an input event,
+	 * tile creation and initialization is outsourced to an own function
+	 * called by default from the AddActorToTrack() method, but can also be called from for example blueprint when setting bGenerateTerrainOnActorRegister to false
+	 */
 	UFUNCTION(BlueprintCallable)
 	void CreateAndInitializeTiles(int32 NumberOfTilesToCreate = 9);
 
@@ -131,4 +162,14 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable)
 	void GetAdjacentTiles(const FIntVector2D Sector, TArray<ATerrainTile*>& OUTAdjacentTiles, const bool OnlyReturnRelevantTiles = false);
+
+	/**
+	* returns (when existent) the track entry and track exit points for the given sector
+	* @param Sector The sector for which the track points should be returned
+	* @param OUTTrackEntryPoint The entry point of the track in the sector
+	* @param OUTTrackExitPoint The exit point of the track in the sector
+	* @return -1 if the provided sector has not yet been processed, 0 if the provided sector does not contain a track, 1 if the provided sector does contain a track
+	*/
+	UFUNCTION()
+	int32 GetTrackPointsForSector(const FIntVector2D Sector, FVector2D& OUTTrackEntryPoint, FVector2D& OUTTrackExitPoint);
 };

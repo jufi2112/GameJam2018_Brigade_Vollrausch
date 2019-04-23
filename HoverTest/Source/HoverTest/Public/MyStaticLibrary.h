@@ -76,6 +76,40 @@ struct FIntVector2D
 	}
 };
 
+/**
+ * struct that is used to store track information for each sector
+ */
+USTRUCT()
+struct FSectorTrackInfo
+{
+	GENERATED_USTRUCT_BODY()
+
+	// does the sector contains a track?
+	bool bSectorHasTrack = false;
+
+	// start point of the track in this sector
+	UPROPERTY()
+	FVector2D TrackEntryPoint = FVector2D();
+
+	// end point of the track in this sector
+	UPROPERTY()
+	FVector2D TrackExitPoint = FVector2D();
+
+	// sector has no track
+	FSectorTrackInfo()
+	{
+
+	}
+
+	// sector has a track
+	FSectorTrackInfo(FVector2D EntryPoint, FVector2D ExitPoint)
+	{
+		bSectorHasTrack = true;
+		TrackEntryPoint = EntryPoint;
+		TrackExitPoint = ExitPoint;
+	}
+};
+
 ///**
 //* struct for a float based index system (x and y components of position) used in the DEM
 //* specially constructed so that the == method could be overloaded by using FMath::IsNearlyEqual
