@@ -69,7 +69,7 @@ TArray<FIntVector2D> ATerrainManager::CalculateSectorsNeededAroundGivenSector(FI
 	return Sectors;
 }
 
-void ATerrainManager::CalculateTrackPointsInSectors()
+void ATerrainManager::CalculateTrackPath()
 {
 	while (SectorsToCreateTileFor.Num() > 0)
 	{
@@ -98,12 +98,20 @@ void ATerrainManager::CalculateTrackPointsInSectors()
 		if (!TrackMap.Contains(NextTrackSector))
 		{
 			// calculate_points()
+
+			FVector2D EntryPoint;
+			FVector2D ExitPoint;
 			// add to TrackMap
 		}
 		
 		CurrentTrackSector = NextTrackSector;
 		// update_nexttracksector
 	}
+
+}
+
+void ATerrainManager::CalculateTrackPoints(FVector2D & OUTTrackEntryPoint, FVector2D & OUTTrackExitPoint)
+{
 
 }
 

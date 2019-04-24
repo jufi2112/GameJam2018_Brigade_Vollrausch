@@ -68,7 +68,7 @@ protected:
 	FIntVector2D CurrentTrackSector = FIntVector2D();
 
 	// hashmap that stores all already calculated track information for every processed sector
-	UPROPERTY()
+	//UPROPERTY()
 	TMap<FIntVector2D, FSectorTrackInfo> TrackMap;
 
 	/**
@@ -82,7 +82,14 @@ protected:
 	 * calculates the global track path for all sectors in SectorsToCreateTileFor
 	 */
 	UFUNCTION()
-	void CalculateTrackPointsInSectors();
+	void CalculateTrackPath();
+
+	/**
+	 * calculates the track entry and exit points for the NextTrackSector
+	 */
+	UFUNCTION()
+	void CalculateTrackPoints(FVector2D& OUTTrackEntryPoint, FVector2D& OUTTrackExitPoint);
+
 
 
 

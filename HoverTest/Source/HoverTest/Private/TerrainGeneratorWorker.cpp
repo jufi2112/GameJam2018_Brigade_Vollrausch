@@ -60,27 +60,14 @@ uint32 TerrainGeneratorWorker::Run()
 			// array with the defining points for the DEM (the corners of the DEM)
 			TArray<FVector> DefiningPoints;
 			DefiningPoints.Init(FVector(), 4);
-			DefiningPoints[0] = FVector(0.f, 0.f, 0.f);
+			/*DefiningPoints[0] = FVector(0.f, 0.f, 0.f);
 			DefiningPoints[1] = FVector(TerrainSettings.TileEdgeSize, 0.f, 0.f);
 			DefiningPoints[2] = FVector(TerrainSettings.TileEdgeSize, TerrainSettings.TileEdgeSize, 0.f);
-			DefiningPoints[3] = FVector(0.f, TerrainSettings.TileEdgeSize, 0.f);
-
-			/**
-			*
-			* !! A T T E N T I O N !!
-			*
-			* the following lines work, but only with the help of a little black magic
-			* the position used in the comments (e.g. 'top tile?') are not correct in terms of unreals coordinate systems (which is positive X forward, positive Y to the right, positive Z upwards) because they were made with the intention of positive X to the right, positive Y foward, positive Z upwards
-			* the constraints extraced from the DEM (e.g. 'VerticesBottomBorder') are also made (and named) with the (not correct) assumption of positive X to the right, positive Y forward
-			* so one might think that combining these assumption and unreals coordinate orientations, things wont work well together
-			* turns out they do work fine together, but I don't really know why
-			* thanks to whatever reason this works, and better not touch any of this until its really necessary
-			*
-			* if for whatever reason you want to feel your brain melt, just uncomment all UE_LOGs in this function and try to make sense out of them
-			* if you found out why these lines work, feel free to inform me via an Issue on GitHub :)
-			*/
-
-			//UE_LOG(LogTemp, Error, TEXT("Start of log for tile %s in Sector %s"), *TerrainJob.TerrainTile->GetName(), *TerrainJob.TerrainTile->GetCurrentSector().ToString());
+			DefiningPoints[3] = FVector(0.f, TerrainSettings.TileEdgeSize, 0.f);*/
+			DefiningPoints[0] = FVector(0.f, 0.f, 0.f);
+			DefiningPoints[1] = FVector(0.f, TerrainSettings.TileEdgeSize, 0.f);
+			DefiningPoints[2] = FVector(TerrainSettings.TileEdgeSize, TerrainSettings.TileEdgeSize, 0.f);
+			DefiningPoints[3] = FVector(TerrainSettings.TileEdgeSize, 0.f, 0.f);
 
 			// get adjacent tiles
 			TArray<ATerrainTile*> AdjacentTiles;
@@ -95,7 +82,7 @@ uint32 TerrainGeneratorWorker::Run()
 				{
 					TArray<FBorderVertex> Verts;
 					// top tile?
-					if (Tile->GetCurrentSector() == (TerrainJob.TerrainTile->GetCurrentSector() + FIntVector2D(0, 1)))
+					if (Tile->GetCurrentSector() == (TerrainJob.TerrainTile->GetCurrentSector() + FIntVector2D(1, 0)))
 					{
 						Tile->GetVerticesBottomBorder(Verts);
 						BorderConstraints.Append(Verts);
@@ -113,7 +100,7 @@ uint32 TerrainGeneratorWorker::Run()
 						continue;
 					}
 					// bottom tile?
-					if (Tile->GetCurrentSector() == (TerrainJob.TerrainTile->GetCurrentSector() - FIntVector2D(0, 1)))
+					if (Tile->GetCurrentSector() == (TerrainJob.TerrainTile->GetCurrentSector() - FIntVector2D(1, 0)))
 					{
 						Tile->GetVerticesTopBorder(Verts);
 						BorderConstraints.Append(Verts);
@@ -131,7 +118,7 @@ uint32 TerrainGeneratorWorker::Run()
 						continue;
 					}
 					// right tile?
-					if (Tile->GetCurrentSector() == (TerrainJob.TerrainTile->GetCurrentSector() + FIntVector2D(1, 0)))
+					if (Tile->GetCurrentSector() == (TerrainJob.TerrainTile->GetCurrentSector() + FIntVector2D(0, 1)))
 					{
 						Tile->GetVerticesLeftBorder(Verts);
 						BorderConstraints.Append(Verts);
@@ -149,7 +136,7 @@ uint32 TerrainGeneratorWorker::Run()
 						continue;
 					}
 					// left tile?
-					if (Tile->GetCurrentSector() == (TerrainJob.TerrainTile->GetCurrentSector() - FIntVector2D(1, 0)))
+					if (Tile->GetCurrentSector() == (TerrainJob.TerrainTile->GetCurrentSector() - FIntVector2D(0, 1)))
 					{
 						Tile->GetVerticesRightBorder(Verts);
 						BorderConstraints.Append(Verts);
@@ -191,9 +178,6 @@ uint32 TerrainGeneratorWorker::Run()
 				bTopLeftCorner = true;
 			}
 
-			/*UE_LOG(LogTemp, Warning, TEXT("Got %i constraints for Tile in Sector: %s with name %s"), Constraints.Num(), *TerrainJob.TerrainTile->GetCurrentSector().ToString(), *TerrainJob.TerrainTile->GetName());
-			UE_LOG(LogTemp, Error, TEXT("End of log for tile %s"), *TerrainJob.TerrainTile->GetCurrentSector().ToString());*/
-
 
 			if ((Constraints.Num() == 0) && (BorderConstraints.Num() == 0))
 			{
@@ -210,7 +194,7 @@ uint32 TerrainGeneratorWorker::Run()
 			DEM.MidpointDisplacementBottomUp(&Constraints, &BorderConstraints);
 			DEM.TriangleEdge(&DefiningPoints, 0, TerrainSettings.FractalNoiseTerrainSettings.TriangleEdgeIterations);// , TerrainJob.MeshData);
 			DEM.CopyBufferToMeshData(TerrainJob.MeshData);
-			//DEM.CalculateBorderVertexNormals();
+			DEM.CalculateBorderVertexNormals();
 
 			/*UE_LOG(LogTemp, Error, TEXT("DEM constraints array log for tile %s in sector %s"), *TerrainJob.TerrainTile->GetName(), *TerrainJob.TerrainTile->GetCurrentSector().ToString());
 			UE_LOG(LogTemp, Warning, TEXT("#VerticesTopBorder: %i"), DEM.VerticesTopBorder.Num());

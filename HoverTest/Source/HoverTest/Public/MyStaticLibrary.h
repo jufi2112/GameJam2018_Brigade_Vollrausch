@@ -68,11 +68,12 @@ struct FIntVector2D
 		return FString::Printf(TEXT("X=%i Y=%i"), X, Y);
 	}
 
-	FORCEINLINE uint32 GetTypeHash(const FIntVector2D& Vector)
+	friend FORCEINLINE uint32 GetTypeHash(const FIntVector2D& Vector)
 	{
 		// Note: this assumes there's no padding in FINTVector2D that could contain uncompared data.
 		//return FCrc::MemCrc_DEPRECATED(&Vector, sizeof(Vector));
-		return FCrc::MemCrc32(&Vector, sizeof(FIntVector2D));
+		//return FCrc::MemCrc32(&Vector, sizeof(FIntVector2D));
+		return FCrc::MemCrc_DEPRECATED(&Vector, sizeof(FIntVector2D));
 	}
 };
 
@@ -95,6 +96,14 @@ struct FSectorTrackInfo
 	UPROPERTY()
 	FVector2D TrackExitPoint = FVector2D();
 
+	// previous track sector
+	UPROPERTY()
+	FIntVector2D PreviousTrackSector = FIntVector2D();
+
+	// following track sector
+	UPROPERTY()
+	FIntVector2D FollowingTrackSector = FIntVector2D();
+
 	// sector has no track
 	FSectorTrackInfo()
 	{
@@ -102,11 +111,13 @@ struct FSectorTrackInfo
 	}
 
 	// sector has a track
-	FSectorTrackInfo(FVector2D EntryPoint, FVector2D ExitPoint)
+	FSectorTrackInfo(FVector2D EntryPoint, FVector2D ExitPoint, FIntVector2D PreviousSector, FIntVector2D FollowingSector)
 	{
 		bSectorHasTrack = true;
 		TrackEntryPoint = EntryPoint;
 		TrackExitPoint = ExitPoint;
+		PreviousTrackSector = PreviousSector;
+		FollowingTrackSector = FollowingSector;
 	}
 };
 

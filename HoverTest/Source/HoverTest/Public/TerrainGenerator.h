@@ -204,10 +204,10 @@ struct FDEM
 	/**
 	 * values for each border
 	 */
-	float XLeftBorder = 0.f;
-	float XRightBorder = 0.f;
-	float YTopBorder = 0.f;
-	float YBottomBorder = 0.f;
+	float XBottomBorder = 0.f;
+	float XTopBorder = 0.f;
+	float YLeftBorder = 0.f;
+	float YRightBorder = 0.f;
 
 	/**
 	 * the four corner points of the DEM
@@ -787,33 +787,33 @@ struct FDEM
 
 	/**
 	 * checks if the given vertex is located on a border and adds the vertex to the respective array if so
-	 * the vertex X and Y values get modified so that they can directly be used as constraints for other DEMs 
+	 * the vertex' X and Y values get modified so that they can directly be used as constraints for other DEMs 
 	 * that means for example: the X value of a vertex located at the right border will be zeroed, while the X coordinate of a vertex on the left border will become XRightBorder
 	 */
 	void CheckForBorderVertex(const FVector Vertex)
 	{
-		// Left border -> in unreals coordinate system, this will become the top border (when viewing in positive X direction)
-		if (FMath::IsNearlyEqual(UMyStaticLibrary::GetFloatWithPrecision(Vertex.X, 2), UMyStaticLibrary::GetFloatWithPrecision(XLeftBorder, 2)))
+		// Left border
+		if (FMath::IsNearlyEqual(UMyStaticLibrary::GetFloatWithPrecision(Vertex.Y, 2), UMyStaticLibrary::GetFloatWithPrecision(YLeftBorder, 2)))
 		{
-			VerticesLeftBorder.Add(FBorderVertex(FVector(XRightBorder, Vertex.Y, Vertex.Z)));
+			VerticesLeftBorder.Add(FBorderVertex(FVector(Vertex.X, YRightBorder, Vertex.Z)));
 		}
 
-		// Right border -> in unreals coordinate system, this will become the bottom border (when viewing in positive X direction)
-		if (FMath::IsNearlyEqual(UMyStaticLibrary::GetFloatWithPrecision(Vertex.X, 2), UMyStaticLibrary::GetFloatWithPrecision(XRightBorder, 2)))
+		// Right border
+		if (FMath::IsNearlyEqual(UMyStaticLibrary::GetFloatWithPrecision(Vertex.Y, 2), UMyStaticLibrary::GetFloatWithPrecision(YRightBorder, 2)))
 		{
-			VerticesRightBorder.Add(FBorderVertex(FVector(XLeftBorder, Vertex.Y, Vertex.Z)));
+			VerticesRightBorder.Add(FBorderVertex(FVector(Vertex.X, YLeftBorder, Vertex.Z)));
 		}
 
-		// top border -> in unreals coordinate system, this will become the right border (when viewing in positive X direction)
-		if (FMath::IsNearlyEqual(UMyStaticLibrary::GetFloatWithPrecision(Vertex.Y, 2), UMyStaticLibrary::GetFloatWithPrecision(YTopBorder, 2)))
+		// top border
+		if (FMath::IsNearlyEqual(UMyStaticLibrary::GetFloatWithPrecision(Vertex.X, 2), UMyStaticLibrary::GetFloatWithPrecision(XTopBorder, 2)))
 		{
-			VerticesTopBorder.Add(FBorderVertex(FVector(Vertex.X, YBottomBorder, Vertex.Z)));
+			VerticesTopBorder.Add(FBorderVertex(FVector(XBottomBorder, Vertex.Y, Vertex.Z)));
 		}
 
-		// bottom border -> in unreals coordinate system, this will become the left border (when viewing in positive X direction)
-		if (FMath::IsNearlyEqual(UMyStaticLibrary::GetFloatWithPrecision(Vertex.Y, 2), UMyStaticLibrary::GetFloatWithPrecision(YBottomBorder, 2)))
+		// bottom border
+		if (FMath::IsNearlyEqual(UMyStaticLibrary::GetFloatWithPrecision(Vertex.X, 2), UMyStaticLibrary::GetFloatWithPrecision(XBottomBorder, 2)))
 		{
-			VerticesBottomBorder.Add(FBorderVertex(FVector(Vertex.X, YTopBorder, Vertex.Z)));
+			VerticesBottomBorder.Add(FBorderVertex(FVector(XTopBorder, Vertex.Y, Vertex.Z)));
 		}
 	}
 
@@ -1111,10 +1111,10 @@ struct FDEM
 			}
 
 			// calculate border values
-			XLeftBorder = (*DefiningPoints)[0].X;
-			XRightBorder = (*DefiningPoints)[2].X;
-			YTopBorder = (*DefiningPoints)[2].Y;
-			YBottomBorder = (*DefiningPoints)[0].Y;
+			XBottomBorder = (*DefiningPoints)[0].X;
+			XTopBorder = (*DefiningPoints)[2].X;
+			YRightBorder = (*DefiningPoints)[2].Y;
+			YLeftBorder = (*DefiningPoints)[0].Y;
 
 			CheckForBorderVertex((*DefiningPoints)[0]);
 			CheckForBorderVertex((*DefiningPoints)[1]);
@@ -1122,17 +1122,17 @@ struct FDEM
 			CheckForBorderVertex((*DefiningPoints)[3]);
 		}
 
-		float HalfWidth  = (((*DefiningPoints)[1].X - (*DefiningPoints)[0].X) / 2.f) + (*DefiningPoints)[0].X;
-		float HalfHeight = (((*DefiningPoints)[3].Y - (*DefiningPoints)[0].Y) / 2.f) + (*DefiningPoints)[0].Y;
+		float HalfWidth  = (((*DefiningPoints)[1].Y - (*DefiningPoints)[0].Y) / 2.f) + (*DefiningPoints)[0].Y;
+		float HalfHeight = (((*DefiningPoints)[3].X - (*DefiningPoints)[0].X) / 2.f) + (*DefiningPoints)[0].X;
 
 		// don't need to add DefiningPoints to DEM, because at iteration 0 those are constraints and at iteration i, those points have been added to the DEM at iteration (i-1)
 
 		// calculate new points
-		FVector E = FVector(HalfWidth, (*DefiningPoints)[0].Y, 0.f);
-		FVector F = FVector((*DefiningPoints)[1].X, HalfHeight, 0.f);
-		FVector G = FVector(HalfWidth, (*DefiningPoints)[2].Y, 0.f);
-		FVector H = FVector((*DefiningPoints)[0].X, HalfHeight, 0.f);
-		FVector I = FVector(HalfWidth, HalfHeight, 0.f);
+		FVector E = FVector((*DefiningPoints)[0].X, HalfWidth, 0.f);
+		FVector F = FVector(HalfHeight, (*DefiningPoints)[1].Y, 0.f);
+		FVector G = FVector((*DefiningPoints)[2].X, HalfWidth, 0.f);
+		FVector H = FVector(HalfHeight, (*DefiningPoints)[0].Y, 0.f);
+		FVector I = FVector(HalfHeight, HalfWidth, 0.f);
 
 		/* calculate elevation of newly created points */
 
@@ -1302,28 +1302,28 @@ struct FDEM
 			// fill vertex & triangle buffer
 
 			// triangle A, E, H
-			AddTriangleToBuffer((*DefiningPoints)[0], H, E);
+			AddTriangleToBuffer((*DefiningPoints)[0], E, H);
 
 			// triangle E, I, H
-			AddTriangleToBuffer(H, I, E);
+			AddTriangleToBuffer(E, I, H);
 
 			// triangle E, B, I
-			AddTriangleToBuffer(E, I, (*DefiningPoints)[1]);
+			AddTriangleToBuffer(E, (*DefiningPoints)[1], I);
 
 			// triangle B, F, I
-			AddTriangleToBuffer(I, F, (*DefiningPoints)[1]);
+			AddTriangleToBuffer(I, (*DefiningPoints)[1], F);
 
 			// triangle H, I, D
-			AddTriangleToBuffer(H, (*DefiningPoints)[3], I);
+			AddTriangleToBuffer(H, I, (*DefiningPoints)[3]);
 
 			// triangle I, G, D
-			AddTriangleToBuffer(I, (*DefiningPoints)[3], G);
+			AddTriangleToBuffer(I, G, (*DefiningPoints)[3]);
 
 			// triangle I, F, G
-			AddTriangleToBuffer(I, G, F);
+			AddTriangleToBuffer(I, F, G);
 
 			// triangle F, C, G
-			AddTriangleToBuffer(F, G, (*DefiningPoints)[2]);
+			AddTriangleToBuffer(F, (*DefiningPoints)[2], G);
 
 			return;
 		}
@@ -1408,8 +1408,8 @@ struct FDEM
 			return;
 		}
 
-		float HalfWidth  = (((*DefiningPoints)[1].X - (*DefiningPoints)[0].X) / 2.f) + (*DefiningPoints)[0].X;
-		float HalfHeight = (((*DefiningPoints)[3].Y - (*DefiningPoints)[0].Y) / 2.f) + (*DefiningPoints)[0].Y;
+		float HalfWidth = (((*DefiningPoints)[1].Y - (*DefiningPoints)[0].Y) / 2.f) + (*DefiningPoints)[0].Y;
+		float HalfHeight = (((*DefiningPoints)[3].X - (*DefiningPoints)[0].X) / 2.f) + (*DefiningPoints)[0].X;		
 
 		/* add defining points to DEM */
 		for (FVector Vec : (*DefiningPoints))
@@ -1419,11 +1419,11 @@ struct FDEM
 		}
 
 		/* calculate new points */
-		FVector E = FVector(HalfWidth, (*DefiningPoints)[0].Y, 0.f);
-		FVector F = FVector((*DefiningPoints)[1].X, HalfHeight, 0.f);
-		FVector G = FVector(HalfWidth, (*DefiningPoints)[2].Y, 0.f);
-		FVector H = FVector((*DefiningPoints)[0].X, HalfHeight, 0.f);
-		FVector I = FVector(HalfWidth, HalfHeight, 0.f);
+		FVector E = FVector((*DefiningPoints)[0].X, HalfWidth, 0.f);
+		FVector F = FVector(HalfHeight, (*DefiningPoints)[1].Y, 0.f);
+		FVector G = FVector((*DefiningPoints)[2].X, HalfWidth, 0.f);
+		FVector H = FVector(HalfHeight, (*DefiningPoints)[0].Y, 0.f);
+		FVector I = FVector(HalfHeight, HalfWidth, 0.f);
 
 		/* calculate DEM diagonal, used in calculation of Delta_BU*/
 		if (Iteration == 0)
@@ -1432,10 +1432,10 @@ struct FDEM
 			d_max = FVector2D::Distance(Vec2Vec2D((*DefiningPoints)[3]), Vec2Vec2D((*DefiningPoints)[1]));
 			//UE_LOG(LogTemp, Warning, TEXT("d_max is %f"), d_max);
 
+			TopLeftCorner = (*DefiningPoints)[3];
 			BottomLeftCorner = (*DefiningPoints)[0];
 			BottomRightCorner = (*DefiningPoints)[1];
 			TopRightCorner = (*DefiningPoints)[2];
-			TopLeftCorner = (*DefiningPoints)[3];
 		}
 
 		/* add ascending points to hashmap */
