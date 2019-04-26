@@ -60,10 +60,6 @@ uint32 TerrainGeneratorWorker::Run()
 			// array with the defining points for the DEM (the corners of the DEM)
 			TArray<FVector> DefiningPoints;
 			DefiningPoints.Init(FVector(), 4);
-			/*DefiningPoints[0] = FVector(0.f, 0.f, 0.f);
-			DefiningPoints[1] = FVector(TerrainSettings.TileEdgeSize, 0.f, 0.f);
-			DefiningPoints[2] = FVector(TerrainSettings.TileEdgeSize, TerrainSettings.TileEdgeSize, 0.f);
-			DefiningPoints[3] = FVector(0.f, TerrainSettings.TileEdgeSize, 0.f);*/
 			DefiningPoints[0] = FVector(0.f, 0.f, 0.f);
 			DefiningPoints[1] = FVector(0.f, TerrainSettings.TileEdgeSize, 0.f);
 			DefiningPoints[2] = FVector(TerrainSettings.TileEdgeSize, TerrainSettings.TileEdgeSize, 0.f);

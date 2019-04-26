@@ -32,9 +32,15 @@ void ATerrainManager::BeginPlay()
 				FPlatformAffinity::GetNoAffinityMask()
 			)
 		);
-
-
 	}
+
+	CurrentTrackSector = FIntVector2D();
+	NextTrackSector = FIntVector2D();
+	TopLeftCorner = FIntVector2D();
+	TopRightCorner = FIntVector2D();
+	BottomLeftCorner = FIntVector2D();
+	BottomRightCorner = FIntVector2D();
+
 }
 
 TArray<FIntVector2D> ATerrainManager::CalculateSectorsNeededAroundGivenLocation(FVector Location)
@@ -69,8 +75,11 @@ TArray<FIntVector2D> ATerrainManager::CalculateSectorsNeededAroundGivenSector(FI
 	return Sectors;
 }
 
-void ATerrainManager::CalculateTrackPath()
+void ATerrainManager::CalculateTrackPath(const TArray<FIntVector2D> SectorsToCreate)
 {
+	TArray<FIntVector2D> SectorsToCreateTileFor;
+	SectorsToCreateTileFor.Append(SectorsToCreate);
+
 	while (SectorsToCreateTileFor.Num() > 0)
 	{
 		// check if NextTrackSector is contained in tiles that should be created
@@ -97,21 +106,29 @@ void ATerrainManager::CalculateTrackPath()
 
 		if (!TrackMap.Contains(NextTrackSector))
 		{
-			// calculate_points()
+			//UE_LOG(LogTemp, Warning, TEXT("NextTrackSector: %s"), *NextTrackSector.ToString());
+			FSectorTrackInfo TrackInfo = CalculateNewNextTrackSector();
+			// !!! CurrentTrackSector now has the value of NextTrackSector !!!
+
+			// PreviousTrackSector and FollowingTrackSector are used to calculate the entry and exit point
 
 			FVector2D EntryPoint;
 			FVector2D ExitPoint;
+
+			CalculateEntryExitPoints(TrackInfo, EntryPoint, ExitPoint);
+			TrackInfo.TrackEntryPoint = EntryPoint;
+			TrackInfo.TrackExitPoint = ExitPoint;
+
 			// add to TrackMap
+			TrackMap.Add(CurrentTrackSector, TrackInfo);
+		}
+		else
+		{
+			// this case should not happen
+			UE_LOG(LogTemp, Error, TEXT("NextTrackSector was found in TrackMap, which means it was already calculated!"));
 		}
 		
-		CurrentTrackSector = NextTrackSector;
-		// update_nexttracksector
 	}
-
-}
-
-void ATerrainManager::CalculateTrackPoints(FVector2D & OUTTrackEntryPoint, FVector2D & OUTTrackExitPoint)
-{
 
 }
 
@@ -138,6 +155,181 @@ void ATerrainManager::GetRelevantAdjacentSectors(const FIntVector2D Sector, TArr
 	// right sector
 	OUTAdjacentSectors.Add(FIntVector2D(Sector.X + 1, Sector.Y));
 	return;
+}
+
+FSectorTrackInfo ATerrainManager::CalculateNewNextTrackSector()
+{
+	// get all possible next sectors
+	TArray<FIntVector2D> PossibleSectors;
+
+	FIntVector2D LeftDirection = NextTrackSector - FIntVector2D(0, 1);
+	FIntVector2D UpDirection = NextTrackSector + FIntVector2D(1, 0);
+	FIntVector2D RightDirection = NextTrackSector + FIntVector2D(0, 1);
+	FIntVector2D DownDirection = NextTrackSector - FIntVector2D(1, 0);
+
+	FSectorTrackInfo TrackInfo = FSectorTrackInfo();
+
+	// check if this is the first track we create -> all directions possible
+	if (NextTrackSector == CurrentTrackSector && CurrentTrackSector == FIntVector2D())
+	{
+		PossibleSectors.Add(LeftDirection);
+		PossibleSectors.Add(UpDirection);
+		PossibleSectors.Add(RightDirection);
+		PossibleSectors.Add(DownDirection);
+	}
+	else
+	{
+
+		// left of our current NextTrackSector
+		if (CheckupSector(LeftDirection))
+		{
+			PossibleSectors.Add(LeftDirection);
+		}
+		// right
+		if (CheckupSector(RightDirection))
+		{
+			PossibleSectors.Add(RightDirection);
+		}
+		// up
+		if (CheckupSector(UpDirection))
+		{
+			PossibleSectors.Add(UpDirection);
+		}
+		// down
+		if (CheckupSector(DownDirection))
+		{
+			PossibleSectors.Add(DownDirection);
+		}
+	}
+
+	if (PossibleSectors.Num() == 0)
+	{
+		UE_LOG(LogTemp, Error, TEXT("No possible NextTrackSector could be determined!"));
+		return TrackInfo;
+	}
+	TrackInfo.bSectorHasTrack = true;
+
+	// draw random direction
+	int32 RandomVariable = FMath::RandRange(0, PossibleSectors.Num() - 1);
+	
+	// update previous track sector of NextTrackSector
+	TrackInfo.PreviousTrackSector = CurrentTrackSector;
+
+	CurrentTrackSector = NextTrackSector;
+
+	// include CurrentTrackSector in the no-go quad
+	AdjustQuad();
+
+	NextTrackSector = PossibleSectors[RandomVariable];
+
+	// update following sector of Current track sector (= previous Next track sector)
+	TrackInfo.FollowingTrackSector = NextTrackSector;
+
+	return TrackInfo;
+}
+
+bool ATerrainManager::CheckSectorWithinQuad(const FIntVector2D Sector)
+{
+	if (Sector.X <= TopLeftCorner.X && Sector.X >= BottomLeftCorner.X && Sector.Y >= TopLeftCorner.Y && Sector.Y <= TopRightCorner.Y)
+	{
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+
+bool ATerrainManager::CheckupSector(const FIntVector2D Sector)
+{
+	if (!TrackMap.Contains(Sector))
+	{
+		// not yet calculated -> check if it lies within our no-go quad
+		if (!CheckSectorWithinQuad(Sector))
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+void ATerrainManager::CalculateEntryExitPoints(const FSectorTrackInfo TrackInfo, FVector2D & OUTEntryPoint, FVector2D & OUTExitPoint)
+{
+	// entry point
+	if (TrackInfo.PreviousTrackSector == CurrentTrackSector + FIntVector2D(1, 0))
+	{
+		// Top
+		OUTEntryPoint = FVector2D(TerrainSettings.TileEdgeSize, TerrainSettings.TileEdgeSize / 2.f);
+	}
+	else if (TrackInfo.PreviousTrackSector == CurrentTrackSector + FIntVector2D(0, 1))
+	{
+		// Right
+		OUTEntryPoint = FVector2D(TerrainSettings.TileEdgeSize / 2.f, TerrainSettings.TileEdgeSize);
+	}
+	else if (TrackInfo.PreviousTrackSector == CurrentTrackSector - FIntVector2D(1, 0))
+	{
+		// Bottom
+		OUTEntryPoint = FVector2D(0.f, TerrainSettings.TileEdgeSize / 2.f);
+	}
+	else if (TrackInfo.PreviousTrackSector == CurrentTrackSector - FIntVector2D(0, 1))
+	{
+		// Left
+		OUTEntryPoint = FVector2D(TerrainSettings.TileEdgeSize / 2.f, 0.f);
+	}
+
+	// exit point
+	if (TrackInfo.FollowingTrackSector == CurrentTrackSector + FIntVector2D(1, 0))
+	{
+		// Top
+		OUTExitPoint = FVector2D(TerrainSettings.TileEdgeSize, TerrainSettings.TileEdgeSize / 2.f);
+	}
+	else if (TrackInfo.FollowingTrackSector == CurrentTrackSector + FIntVector2D(0, 1))
+	{
+		// Right
+		OUTExitPoint = FVector2D(TerrainSettings.TileEdgeSize / 2.f, TerrainSettings.TileEdgeSize);
+	}
+	else if (TrackInfo.FollowingTrackSector == CurrentTrackSector - FIntVector2D(1, 0))
+	{
+		// Bottom
+		OUTExitPoint = FVector2D(0.f, TerrainSettings.TileEdgeSize / 2.f);
+	}
+	else if (TrackInfo.FollowingTrackSector == CurrentTrackSector - FIntVector2D(0, 1))
+	{
+		// Left
+		OUTExitPoint = FVector2D(TerrainSettings.TileEdgeSize / 2.f, 0.f);
+	}
+
+	return;
+}
+
+void ATerrainManager::AdjustQuad()
+{
+	if (CurrentTrackSector.X > TopLeftCorner.X)
+	{
+		TopLeftCorner.X = CurrentTrackSector.X;
+		TopRightCorner.X = CurrentTrackSector.X;
+	}
+
+	if (CurrentTrackSector.X < BottomLeftCorner.X)
+	{
+		BottomLeftCorner.X = CurrentTrackSector.X;
+		BottomRightCorner.X = CurrentTrackSector.X;
+	}
+
+	if (CurrentTrackSector.Y > TopRightCorner.Y)
+	{
+		TopRightCorner.Y = CurrentTrackSector.Y;
+		BottomRightCorner.Y = CurrentTrackSector.Y;
+	}
+
+	if (CurrentTrackSector.Y < TopLeftCorner.Y)
+	{
+		TopLeftCorner.Y = CurrentTrackSector.Y;
+		BottomLeftCorner.Y = CurrentTrackSector.Y;
+	}
+
+	return;
+
 }
 
 // Called every frame
@@ -226,6 +418,8 @@ void ATerrainManager::AddActorToTrack(AActor * ActorToTrack)
 				Tile->AddAssociatedActor();
 			}
 		}
+
+		CalculateTrackPath(SectorsThatNeedCoverage);
 
 		// use free tiles to cover sectors
 		while (SectorsThatNeedCoverage.Num() > 0 && FreeTiles.Num() > 0)
@@ -420,6 +614,8 @@ void ATerrainManager::HandleTrackedActorChangedSector(AActor * TrackedActor, FIn
 	{
 		CreateAndInitializeTiles(SectorsNeededAtNewPosition.Num() - FreeTiles.Num());
 	}
+
+	CalculateTrackPath(SectorsNeededAtNewPosition);
 
 	// update free tiles to cover new sectors and increase associatedactors count
 	while (SectorsNeededAtNewPosition.Num() > 0 && FreeTiles.Num() > 0)

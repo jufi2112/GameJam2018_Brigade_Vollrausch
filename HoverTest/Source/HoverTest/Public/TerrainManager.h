@@ -72,30 +72,28 @@ protected:
 	TMap<FIntVector2D, FSectorTrackInfo> TrackMap;
 
 	/**
-	 * array that contains all sectors for which a tile should be created
-	 * gets filled by the function CreateAndInitializeTiles
-	 */
-	UPROPERTY()
-	TArray<FIntVector2D> SectorsToCreateTileFor;
-
-	/**
 	 * calculates the global track path for all sectors in SectorsToCreateTileFor
 	 */
 	UFUNCTION()
-	void CalculateTrackPath();
+	void CalculateTrackPath(const TArray<FIntVector2D> SectorsToCreate);
 
 	/**
-	 * calculates the track entry and exit points for the NextTrackSector
+	 * the following 4 points define a quad that restricts the area, where new track parts can be created
+	 * i.e. NextTrackSector cannot be located in the defined quad
+	 * in the comments, this quad is often refered to as 'no-go quad'
 	 */
-	UFUNCTION()
-	void CalculateTrackPoints(FVector2D& OUTTrackEntryPoint, FVector2D& OUTTrackExitPoint);
 
+	UPROPERTY()
+	FIntVector2D TopLeftCorner;
 
+	UPROPERTY()
+	FIntVector2D TopRightCorner;
 
+	UPROPERTY()
+	FIntVector2D BottomLeftCorner;
 
-
-
-
+	UPROPERTY()
+	FIntVector2D BottomRightCorner;
 
 
 private:
@@ -112,7 +110,36 @@ private:
 	UFUNCTION()
 	void GetRelevantAdjacentSectors(const FIntVector2D Sector, TArray<FIntVector2D>& OUTAdjacentSectors);
 
+	/**
+	 * calculates the new NextTrackSector
+	 * updates NextTrackSector and CurrentTrackSector
+	 */
+	UFUNCTION()
+	FSectorTrackInfo CalculateNewNextTrackSector();
 
+	/**
+	 * checks if the given sector lies within the quad specified by TopLeftCorner, TopRightCorner, BottomLeftCorner, BottomRightCorner
+	 */
+	UFUNCTION()
+	bool CheckSectorWithinQuad(const FIntVector2D Sector);
+
+	/**
+	 * checks if the given sector can become the new NextTrackSector
+	 */
+	UFUNCTION()
+	bool CheckupSector(const FIntVector2D Sector);
+
+	/**
+	 * calculates the entry and exit points for the CurrentTrackSector with the given FSectorTrackInfo
+	 */
+	UFUNCTION()
+	void CalculateEntryExitPoints(const FSectorTrackInfo TrackInfo, FVector2D& OUTEntryPoint, FVector2D& OUTExitPoint);
+
+	/**
+	 * adjusts the no-go quad's corner points to include the new CurrentTrackSector
+	 */
+	UFUNCTION()
+	void AdjustQuad();
 
 
 
