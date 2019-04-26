@@ -255,28 +255,6 @@ bool ATerrainManager::CheckupSector(const FIntVector2D Sector)
 
 void ATerrainManager::CalculateEntryExitPoints(const FSectorTrackInfo TrackInfo, FVector2D & OUTEntryPoint, FVector2D & OUTExitPoint)
 {
-	// entry point
-	if (TrackInfo.PreviousTrackSector == CurrentTrackSector + FIntVector2D(1, 0))
-	{
-		// Top
-		OUTEntryPoint = FVector2D(TerrainSettings.TileEdgeSize, TerrainSettings.TileEdgeSize / 2.f);
-	}
-	else if (TrackInfo.PreviousTrackSector == CurrentTrackSector + FIntVector2D(0, 1))
-	{
-		// Right
-		OUTEntryPoint = FVector2D(TerrainSettings.TileEdgeSize / 2.f, TerrainSettings.TileEdgeSize);
-	}
-	else if (TrackInfo.PreviousTrackSector == CurrentTrackSector - FIntVector2D(1, 0))
-	{
-		// Bottom
-		OUTEntryPoint = FVector2D(0.f, TerrainSettings.TileEdgeSize / 2.f);
-	}
-	else if (TrackInfo.PreviousTrackSector == CurrentTrackSector - FIntVector2D(0, 1))
-	{
-		// Left
-		OUTEntryPoint = FVector2D(TerrainSettings.TileEdgeSize / 2.f, 0.f);
-	}
-
 	// exit point
 	if (TrackInfo.FollowingTrackSector == CurrentTrackSector + FIntVector2D(1, 0))
 	{
@@ -297,6 +275,36 @@ void ATerrainManager::CalculateEntryExitPoints(const FSectorTrackInfo TrackInfo,
 	{
 		// Left
 		OUTExitPoint = FVector2D(TerrainSettings.TileEdgeSize / 2.f, 0.f);
+	}
+
+	// special case: start of the game, where CurrentTrackSector == (0,0)
+	if (CurrentTrackSector == FIntVector2D())
+	{
+		// entry point needs to be at the opposite direction of exit point
+		OUTEntryPoint = FVector2D(TerrainSettings.TileEdgeSize, TerrainSettings.TileEdgeSize) - OUTExitPoint;
+		return;
+	}
+
+	// entry point
+	if (TrackInfo.PreviousTrackSector == CurrentTrackSector + FIntVector2D(1, 0))
+	{
+		// Top
+		OUTEntryPoint = FVector2D(TerrainSettings.TileEdgeSize, TerrainSettings.TileEdgeSize / 2.f);
+	}
+	else if (TrackInfo.PreviousTrackSector == CurrentTrackSector + FIntVector2D(0, 1))
+	{
+		// Right
+		OUTEntryPoint = FVector2D(TerrainSettings.TileEdgeSize / 2.f, TerrainSettings.TileEdgeSize);
+	}
+	else if (TrackInfo.PreviousTrackSector == CurrentTrackSector - FIntVector2D(1, 0))
+	{
+		// Bottom
+		OUTEntryPoint = FVector2D(0.f, TerrainSettings.TileEdgeSize / 2.f);
+	}
+	else if (TrackInfo.PreviousTrackSector == CurrentTrackSector - FIntVector2D(0, 1))
+	{
+		// Left
+		OUTEntryPoint = FVector2D(TerrainSettings.TileEdgeSize / 2.f, 0.f);
 	}
 
 	return;
