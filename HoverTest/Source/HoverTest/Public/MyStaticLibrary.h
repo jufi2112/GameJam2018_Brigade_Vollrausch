@@ -251,6 +251,29 @@ struct FFractalNoiseTerrainSettings
 };
 
 /**
+ * struct with all settings to configure the track generation
+ */
+USTRUCT(BlueprintType)
+struct FTrackGenerationSettings
+{
+	GENERATED_USTRUCT_BODY()
+
+	/**
+	 * defines how many points on the Bézier curve should be calculated
+	 * a higher number creates a smoother mesh, but also increases performance costs
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int32 TrackResolution = 30;
+
+	/**
+	 * the overall track width in cm
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float TrackWidth = 500;
+};
+
+
+/**
  * struct for terrain settings
  */
 USTRUCT(BlueprintType)
@@ -320,6 +343,10 @@ struct FTerrainSettings
 	// fractal noise terrain generation settings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	FFractalNoiseTerrainSettings FractalNoiseTerrainSettings;
+
+	// track generation settings
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FTrackGenerationSettings TrackGenerationSettings;
 
 	// height in cm at which a transition from low terrain material to medium terrain material should occur
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)

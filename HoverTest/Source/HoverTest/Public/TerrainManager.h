@@ -206,4 +206,13 @@ public:
 	*/
 	UFUNCTION()
 	int32 GetTrackPointsForSector(const FIntVector2D Sector, FVector2D& OUTTrackEntryPoint, FVector2D& OUTTrackExitPoint);
+
+	/**
+	 * calculates a Bézier curve given by the provided start and end point and two internal created control points
+	 * @param StartPoint The start point of the Bézier curve (the entry point of the track in the tile)
+	 * @param EndPoint The end point of the Bézier curve (the exit point of the track in the tile)
+	 * @param OUTVertexBuffer A vertex buffer where the generated triangle points should be stored
+	 * @param OUTTriangleBuffer A triangle buffer where the generated triangle point order should be stored
+	 */
+	void GenerateTrackMesh(const FVector2D StartPoint, const FVector2D EndPoint, TArray<FRuntimeMeshVertexSimple>& OUTVertexBuffer, TArray<int32>& OUTTriangleBuffer);
 };

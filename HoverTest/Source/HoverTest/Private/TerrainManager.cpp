@@ -685,5 +685,48 @@ int32 ATerrainManager::GetTrackPointsForSector(const FIntVector2D Sector, FVecto
 	}
 }
 
+void ATerrainManager::GenerateTrackMesh(const FVector2D StartPoint, const FVector2D EndPoint, TArray<FRuntimeMeshVertexSimple>& OUTVertexBuffer, TArray<int32>& OUTTriangleBuffer)
+{
+	// convert FVector2D to FVector
+	FVector TrackStartPoint = FVector(StartPoint.X, StartPoint.Y, 0.f);
+	FVector TrackEndPoint = FVector(EndPoint.X, EndPoint.Y, 0.f);
+
+	// calculate control points
+	FVector ControlPoint1 = FVector(TerrainSettings.TileEdgeSize, TerrainSettings.TileEdgeSize, 0.f);
+	FVector ControlPoint2 = FVector(TerrainSettings.TileEdgeSize, TerrainSettings.TileEdgeSize, 0.f);
+
+	FVector BezierPoints[4];
+	BezierPoints[0] = TrackStartPoint;
+	BezierPoints[1] = ControlPoint1;
+	BezierPoints[2] = ControlPoint2;
+	BezierPoints[3] = TrackEndPoint;
+
+
+	// calculate mesh
+	TArray<FVector> PointsOnTrack;
+	FVector::EvaluateBezier(BezierPoints, TerrainSettings.TrackGenerationSettings.TrackResolution, PointsOnTrack);
+
+	// need to convert the values to the next power of 2
+
+	UE_LOG(LogTemp, Error, TEXT("Begin TrackPoints"));
+	for (int32 i = 0; i < PointsOnTrack.Num(); ++i)
+	{
+		FVector Log2 = FVector(
+			FMath::FloorLog2(PointsOnTrack[i].X),
+			FMath::FloorLog2(PointsOnTrack[i].Y),
+			PointsOnTrack[i].Z
+		);
+		FVector Pow = FVector(
+			FMath::Pow(2, Log2.X),
+			FMath::Pow(2, Log2.Y),
+			Log2.Z
+		);
+		UE_LOG(LogTemp, Warning, TEXT("Point %i: %s"), i, *PointsOnTrack[i].ToString());
+		UE_LOG(LogTemp, Warning, TEXT("With log2: %s"), *Log2.ToString());
+		UE_LOG(LogTemp, Warning, TEXT("%s"), *Pow.ToString());
+	}
+	UE_LOG(LogTemp, Error, TEXT("End of TrackPoints"));
+}
+
 
 

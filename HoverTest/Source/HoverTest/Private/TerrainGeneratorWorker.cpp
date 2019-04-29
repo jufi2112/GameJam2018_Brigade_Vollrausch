@@ -46,7 +46,11 @@ uint32 TerrainGeneratorWorker::Run()
 				TerrainSettings.TransitionElevationVariationMediumHigh
 			);
 
-			if (!TerrainManager) { return 1; }
+			if (!TerrainManager) 
+			{ 
+				UE_LOG(LogTemp, Error, TEXT("Provided TerrainManager is nullptr in TerrainGeneratorWorker"));
+				return 1; 
+			}
 
 			// array to save all constraints for the new DEM
 			TArray<FVector> Constraints;
@@ -174,7 +178,6 @@ uint32 TerrainGeneratorWorker::Run()
 				bTopLeftCorner = true;
 			}
 
-
 			if ((Constraints.Num() == 0) && (BorderConstraints.Num() == 0))
 			{
 				// add default values for the moment
@@ -185,6 +188,29 @@ uint32 TerrainGeneratorWorker::Run()
 			}
 
 			TerrainJob.MeshData.Add(FMeshData());
+
+			// get possible track entry and exit points
+			FVector2D TrackEntryPoint;
+			FVector2D TrackExitPoint;
+
+			int32 SectorProcessed = TerrainManager->GetTrackPointsForSector(TerrainJob.TerrainTile->GetCurrentSector(), TrackEntryPoint, TrackExitPoint);
+			// make sure we already processed the current sector in TerrainManager (should always be processed, but better safe than sorry
+			while (SectorProcessed == -1)
+			{
+				FPlatformProcess::Sleep(0.01f);
+				SectorProcessed = TerrainManager->GetTrackPointsForSector(TerrainJob.TerrainTile->GetCurrentSector(), TrackEntryPoint, TrackExitPoint);
+			}
+
+			// check if the tile should have a track inside
+			if (SectorProcessed == 1)
+			{
+				// calculate track mesh
+				TArray<FRuntimeMeshVertexSimple> TrackVertexBuffer;
+				TArray<int32> TrackTriangleBuffer;
+				TArray<FRuntimeMeshVertexSimple> Array1;
+				TArray<int32> Array2;
+				TerrainManager->GenerateTrackMesh(TrackEntryPoint, TrackExitPoint, Array1, Array2);
+			}
 
 			DEM.SimulateTriangleEdge(&DefiningPoints, 0, TerrainSettings.FractalNoiseTerrainSettings.TriangleEdgeIterations);
 			DEM.MidpointDisplacementBottomUp(&Constraints, &BorderConstraints);
