@@ -209,7 +209,7 @@ uint32 TerrainGeneratorWorker::Run()
 				TArray<int32> TrackTriangleBuffer;
 				TArray<FRuntimeMeshVertexSimple> Array1;
 				TArray<int32> Array2;
-				TerrainManager->GenerateTrackMesh(TrackEntryPoint, TrackExitPoint, Array1, Array2);
+				TerrainManager->GenerateTrackMesh(TrackEntryPoint, TrackExitPoint, TerrainJob.MeshData[0].VertexBuffer, TerrainJob.MeshData[0].TriangleBuffer);
 			}
 
 			DEM.SimulateTriangleEdge(&DefiningPoints, 0, TerrainSettings.FractalNoiseTerrainSettings.TriangleEdgeIterations);

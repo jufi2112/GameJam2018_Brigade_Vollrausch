@@ -692,8 +692,8 @@ void ATerrainManager::GenerateTrackMesh(const FVector2D StartPoint, const FVecto
 	FVector TrackEndPoint = FVector(EndPoint.X, EndPoint.Y, 0.f);
 
 	// calculate control points
-	FVector ControlPoint1 = FVector(TerrainSettings.TileEdgeSize, TerrainSettings.TileEdgeSize, 0.f);
-	FVector ControlPoint2 = FVector(TerrainSettings.TileEdgeSize, TerrainSettings.TileEdgeSize, 0.f);
+	FVector ControlPoint1 = FVector(TerrainSettings.TileEdgeSize/2, TerrainSettings.TileEdgeSize/2, 0.f);
+	FVector ControlPoint2 = FVector(TerrainSettings.TileEdgeSize/2, TerrainSettings.TileEdgeSize/2, 0.f);
 
 	FVector BezierPoints[4];
 	BezierPoints[0] = TrackStartPoint;
@@ -708,10 +708,10 @@ void ATerrainManager::GenerateTrackMesh(const FVector2D StartPoint, const FVecto
 
 	// need to convert the values to the next power of 2
 
-	UE_LOG(LogTemp, Error, TEXT("Begin TrackPoints"));
+	//UE_LOG(LogTemp, Error, TEXT("Begin TrackPoints"));
 	for (int32 i = 0; i < PointsOnTrack.Num(); ++i)
 	{
-		FVector Log2 = FVector(
+		/*FVector Log2 = FVector(
 			FMath::FloorLog2(PointsOnTrack[i].X),
 			FMath::FloorLog2(PointsOnTrack[i].Y),
 			PointsOnTrack[i].Z
@@ -723,9 +723,123 @@ void ATerrainManager::GenerateTrackMesh(const FVector2D StartPoint, const FVecto
 		);
 		UE_LOG(LogTemp, Warning, TEXT("Point %i: %s"), i, *PointsOnTrack[i].ToString());
 		UE_LOG(LogTemp, Warning, TEXT("With log2: %s"), *Log2.ToString());
-		UE_LOG(LogTemp, Warning, TEXT("%s"), *Pow.ToString());
+		UE_LOG(LogTemp, Warning, TEXT("%s"), *Pow.ToString());*/
+
+		// calculate normal
+
+		/**
+		 * X1X0 is the vector from the current track mid point to the next track mid point
+		 * Normal is the normal of X1X0 and (0,0,1)
+		 * Y0 and Y1 are the track border points (left and right) of the current track mid point
+		 */
+		FVector Y0;
+		FVector Y1;
+		FVector Normal;
+		if (i == PointsOnTrack.Num() - 1)
+		{
+			// since the points on the bézier curve get approximated, we need to 'guess' on what border of the tile the last point lies
+			int32 TileSize = TerrainSettings.TileEdgeSize;
+			FVector Pt = PointsOnTrack[i];		// shorter writing
+			// we calculate the normal via crossproduct to ensure the same normal orientation as in previous steps
+			
+			// bottom?
+			if (Pt.X < (0.25 * TileSize) && Pt.Y >(0.25 * TileSize) && Pt.Y < (0.75 * TileSize))
+			{
+				Normal = FVector::CrossProduct(FVector(-1, 0, 0), FVector(0, 0, 1)).GetSafeNormal();
+			}
+			// right?
+			else if (Pt.X < (0.75 * TileSize) && Pt.X >(0.25 * TileSize) && Pt.Y > (0.75 * TileSize))
+			{
+				Normal = FVector::CrossProduct(FVector(0, 1, 0), FVector(0, 0, 1));
+			}
+			// top?
+			else if (Pt.X > (0.75 * TileSize) && Pt.Y > (0.25 * TileSize) && Pt.Y < (0.75 * TileSize))
+			{
+				Normal = FVector::CrossProduct(FVector(1, 0, 0), FVector(0, 0, 1));
+			}
+			// left?
+			else if (Pt.X > (0.25 * TileSize) && Pt.X < (0.75 * TileSize) && Pt.Y < (0.25 * TileSize))
+			{
+				Normal = FVector::CrossProduct(FVector(0, -1, 0), FVector(0, 0, 1));
+			}
+			else
+			{
+				UE_LOG(LogTemp, Error, TEXT("Could not guess on which border the last point on the bézier curve lies."));
+			}		
+		}
+		else
+		{
+			FVector X1X0 = PointsOnTrack[i + 1] - PointsOnTrack[i];
+			Normal = FVector::CrossProduct(X1X0, FVector(0, 0, 1)).GetSafeNormal();
+		}
+		Y0 = PointsOnTrack[i] + (TerrainSettings.TrackGenerationSettings.TrackWidth / 2.f) * Normal;
+		Y1 = PointsOnTrack[i] + (-TerrainSettings.TrackGenerationSettings.TrackWidth / 2.f) * Normal;
+
+		OUTVertexBuffer.Add(CreateRuntimeMeshVertexSimple(PointsOnTrack[i], FVector(0, 0, 1)));
+		OUTVertexBuffer.Add(CreateRuntimeMeshVertexSimple(Y0, FVector(0, 0, 1)));
+		OUTVertexBuffer.Add(CreateRuntimeMeshVertexSimple(Y1, FVector(0, 0, 1)));
+
+		// create triangles
+		// can only create triangles if we have at least two midpoints calculated
+		if (i > 0)
+		{
+			/**
+			 * track segments looks like this: (viewing from point X1)
+			 *
+			 *			Y2----------X1----------Y3
+			 *			|			|			|
+			 *			|			|			|
+			 *			|			|			|
+			 *			Y0----------X0----------Y1
+			 *
+			 *
+			 * points:	Y3 = Num - 1
+			 *			Y2 = Num - 2
+			 *			X1 = Num - 3
+			 *			Y1 = Num - 4
+			 *			Y0 = Num - 5
+			 *			X0 = Num - 6
+			 *
+			 *	(note that order of Y2 and Y3 (and Y0 and Y1) can be reversed due to normal calculation (but since its reveresed for all points, it doesn't matter)
+			 */
+			int32 Num = OUTVertexBuffer.Num();
+			// triangle Y0 X0 Y2
+			OUTTriangleBuffer.Add(Num - 5);
+			OUTTriangleBuffer.Add(Num - 6);
+			OUTTriangleBuffer.Add(Num - 2);
+
+			// triangle X0 X1 Y2
+			OUTTriangleBuffer.Add(Num - 6);
+			OUTTriangleBuffer.Add(Num - 3);
+			OUTTriangleBuffer.Add(Num - 2);
+
+			// triangle X0 Y1 X1
+			OUTTriangleBuffer.Add(Num - 6);
+			OUTTriangleBuffer.Add(Num - 4);
+			OUTTriangleBuffer.Add(Num - 3);
+
+			// triangle Y1 Y3 X1
+			OUTTriangleBuffer.Add(Num - 4);
+			OUTTriangleBuffer.Add(Num - 1);
+			OUTTriangleBuffer.Add(Num - 3);
+		}
 	}
-	UE_LOG(LogTemp, Error, TEXT("End of TrackPoints"));
+
+
+	//UE_LOG(LogTemp, Error, TEXT("End of TrackPoints"));
+}
+
+// Creates a FRuntimeMeshVertexSimple from the given Vertex
+FRuntimeMeshVertexSimple ATerrainManager::CreateRuntimeMeshVertexSimple(const FVector Vertex, const FVector Normal) const
+{
+	return FRuntimeMeshVertexSimple(
+		//Vertex,										// Vertex position
+		FVector(Vertex.X, Vertex.Y, 20000.f),			// TODO remove this line if testing is done
+		Normal,											// Vertex normal
+		FRuntimeMeshTangent(0.f, -1.f, 0.f),			// Vertex tangent
+		FColor::White,
+		FVector2D(Vertex.X / 500.f, Vertex.Y / 500.f)	// Vertex texture coordinates
+	);
 }
 
 

@@ -141,6 +141,8 @@ private:
 	UFUNCTION()
 	void AdjustQuad();
 
+	FRuntimeMeshVertexSimple CreateRuntimeMeshVertexSimple(const FVector Vertex, const FVector Normal) const;
+
 
 
 public:
