@@ -52,6 +52,10 @@ uint32 TerrainGeneratorWorker::Run()
 				return 1; 
 			}
 
+			// size between two adjacent vertices
+			float UnitSize = 0.f;
+			// track segments
+			TArray<FTrackSegment> TrackSegments;
 			// array to save all constraints for the new DEM
 			TArray<FVector> Constraints;
 			// array to save all border constraints for the new DEM
@@ -209,10 +213,19 @@ uint32 TerrainGeneratorWorker::Run()
 				TArray<int32> TrackTriangleBuffer;
 				TArray<FRuntimeMeshVertexSimple> Array1;
 				TArray<int32> Array2;
-				TerrainManager->GenerateTrackMesh(TrackEntryPoint, TrackExitPoint, TerrainJob.MeshData[0].VertexBuffer, TerrainJob.MeshData[0].TriangleBuffer);
+				TerrainManager->GenerateTrackMesh(TrackEntryPoint, TrackExitPoint, TerrainJob.MeshData[0].VertexBuffer, TerrainJob.MeshData[0].TriangleBuffer, TrackSegments);
 			}
 
 			DEM.SimulateTriangleEdge(&DefiningPoints, 0, TerrainSettings.FractalNoiseTerrainSettings.TriangleEdgeIterations);
+			UnitSize = DEM.GetUnitSize();
+
+			// calculate track constraints in TrackSegments
+			for (FTrackSegment Segment : TrackSegments)
+			{
+				TArray<FVector2D> PointsOnTrack;
+				Segment.CalculatePointsOnTrack(UnitSize, false, PointsOnTrack);
+			}
+
 			DEM.MidpointDisplacementBottomUp(&Constraints, &BorderConstraints);
 			DEM.TriangleEdge(&DefiningPoints, 0, TerrainSettings.FractalNoiseTerrainSettings.TriangleEdgeIterations);// , TerrainJob.MeshData);
 			DEM.CopyBufferToMeshData(TerrainJob.MeshData);

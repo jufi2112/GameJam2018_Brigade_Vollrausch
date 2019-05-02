@@ -216,5 +216,5 @@ public:
 	 * @param OUTVertexBuffer A vertex buffer where the generated triangle points should be stored
 	 * @param OUTTriangleBuffer A triangle buffer where the generated triangle point order should be stored
 	 */
-	void GenerateTrackMesh(const FVector2D StartPoint, const FVector2D EndPoint, TArray<FRuntimeMeshVertexSimple>& OUTVertexBuffer, TArray<int32>& OUTTriangleBuffer);
+	void GenerateTrackMesh(const FVector2D StartPoint, const FVector2D EndPoint, TArray<FRuntimeMeshVertexSimple>& OUTVertexBuffer, TArray<int32>& OUTTriangleBuffer, TArray<FTrackSegment>& TrackSegments);
 };

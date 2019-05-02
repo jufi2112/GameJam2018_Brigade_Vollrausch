@@ -685,7 +685,7 @@ int32 ATerrainManager::GetTrackPointsForSector(const FIntVector2D Sector, FVecto
 	}
 }
 
-void ATerrainManager::GenerateTrackMesh(const FVector2D StartPoint, const FVector2D EndPoint, TArray<FRuntimeMeshVertexSimple>& OUTVertexBuffer, TArray<int32>& OUTTriangleBuffer)
+void ATerrainManager::GenerateTrackMesh(const FVector2D StartPoint, const FVector2D EndPoint, TArray<FRuntimeMeshVertexSimple>& OUTVertexBuffer, TArray<int32>& OUTTriangleBuffer, TArray<FTrackSegment>& TrackSegments)
 {
 	// convert FVector2D to FVector
 	FVector TrackStartPoint = FVector(StartPoint.X, StartPoint.Y, 0.f);
@@ -706,25 +706,8 @@ void ATerrainManager::GenerateTrackMesh(const FVector2D StartPoint, const FVecto
 	TArray<FVector> PointsOnTrack;
 	FVector::EvaluateBezier(BezierPoints, TerrainSettings.TrackGenerationSettings.TrackResolution, PointsOnTrack);
 
-	// need to convert the values to the next power of 2
-
-	//UE_LOG(LogTemp, Error, TEXT("Begin TrackPoints"));
 	for (int32 i = 0; i < PointsOnTrack.Num(); ++i)
 	{
-		/*FVector Log2 = FVector(
-			FMath::FloorLog2(PointsOnTrack[i].X),
-			FMath::FloorLog2(PointsOnTrack[i].Y),
-			PointsOnTrack[i].Z
-		);
-		FVector Pow = FVector(
-			FMath::Pow(2, Log2.X),
-			FMath::Pow(2, Log2.Y),
-			Log2.Z
-		);
-		UE_LOG(LogTemp, Warning, TEXT("Point %i: %s"), i, *PointsOnTrack[i].ToString());
-		UE_LOG(LogTemp, Warning, TEXT("With log2: %s"), *Log2.ToString());
-		UE_LOG(LogTemp, Warning, TEXT("%s"), *Pow.ToString());*/
-
 		// calculate normal
 
 		/**
@@ -822,11 +805,14 @@ void ATerrainManager::GenerateTrackMesh(const FVector2D StartPoint, const FVecto
 			OUTTriangleBuffer.Add(Num - 4);
 			OUTTriangleBuffer.Add(Num - 1);
 			OUTTriangleBuffer.Add(Num - 3);
+
+			FVector2D Point0 = FVector2D(OUTVertexBuffer[Num - 5].Position.X, OUTVertexBuffer[Num - 5].Position.Y);
+			FVector2D Point1 = FVector2D(OUTVertexBuffer[Num - 4].Position.X, OUTVertexBuffer[Num - 4].Position.Y);
+			FVector2D Point3 = FVector2D(OUTVertexBuffer[Num - 1].Position.X, OUTVertexBuffer[Num - 1].Position.Y);
+			FVector2D Point2 = FVector2D(OUTVertexBuffer[Num - 2].Position.X, OUTVertexBuffer[Num - 2].Position.Y);
+			TrackSegments.Add(FTrackSegment(Point0, Point1, Point3, Point2));
 		}
 	}
-
-
-	//UE_LOG(LogTemp, Error, TEXT("End of TrackPoints"));
 }
 
 // Creates a FRuntimeMeshVertexSimple from the given Vertex

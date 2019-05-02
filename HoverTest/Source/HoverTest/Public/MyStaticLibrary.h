@@ -121,6 +121,131 @@ struct FSectorTrackInfo
 	}
 };
 
+/**
+ * struct to store a track segment and perform calculations on it
+ */
+USTRUCT()
+struct FTrackSegment
+{
+	GENERATED_USTRUCT_BODY()
+
+	// points that define the track segment
+	UPROPERTY()
+	TArray<FVector2D> DefiningPoints;
+
+	// values for the bounding rectangle of the above points
+
+	float MinX = 0.f;
+	float MaxX = 0.f;
+	float MinY = 0.f;
+	float MaxY = 0.f;
+
+	/**
+	 * minimum parameters such that Points with X in [i_min * UnitSize, i_max * UnitSize] and Y in [j_min * UnitSize, j_max * UnitSize] lie within rectanglular bounding box
+	 */
+	int32 i_min = 0;
+	int32 i_max = 0;
+	int32 j_min = 0;
+	int32 j_max = 0;
+
+	/**
+	 * size between to adjacent terrain mesh vertices
+	 */
+	float UnitSize = 0.f;
+
+	/**
+	 * array of points that lie on the track segment (or its rectangular bounding box)
+	 */
+	UPROPERTY()
+	TArray<FVector2D> PointsOnTrackSegment;
+
+	FTrackSegment(const FVector2D Point1, const FVector2D Point2, const FVector2D Point3, const FVector2D Point4)
+	{
+		DefiningPoints.Add(Point1);
+		DefiningPoints.Add(Point2);
+		DefiningPoints.Add(Point3);
+		DefiningPoints.Add(Point4);
+	}
+
+	/**
+	 * calculates all points that lie on the given track segment
+	 * @param UnitSize The distance between to adjacent mesh vertices
+	 * @param UseTightBoundingBox Using a tight bounding box will return points that lie in the initially defined track segment, false if all points in the rectangular bounding box around the given track segment should be returned
+	 * @param OUTPointsOnTrack All points that lie on the track as specified by UseTightBoundingBox
+	 */
+	void CalculatePointsOnTrack(const float UnitSize, const bool UseTightBoundingBox, TArray<FVector2D>& OUTPointsOnTrack)
+	{
+		this->UnitSize = UnitSize;
+
+		CalculateBoundingRectangle();
+
+		CalculatePointsInBoundingBox(UseTightBoundingBox);
+		OUTPointsOnTrack = PointsOnTrackSegment;
+
+	}
+
+	/**
+	 * ! For internal use only, use CalculatePointsOnTrack instead !
+	 */
+	void CalculateBoundingRectangle()
+	{
+		for (const FVector2D Point : DefiningPoints)
+		{
+			MinX = Point.X < MinX ? Point.X : MinX;
+			MaxX = Point.X > MaxX ? Point.X : MaxX;
+			MinY = Point.Y < MinY ? Point.Y : MinY;
+			MaxY = Point.Y > MaxY ? Point.Y : MaxY;
+		}
+	}
+
+	/**
+	 * ! For internal use only, use CalculatePointsOnTrack instead !
+	 */
+	void CalculatePointsInBoundingBox(const bool UseTightBoundingBox)
+	{
+		j_min = FMath::FloorToInt(MinY / UnitSize);
+		j_max = FMath::CeilToInt(MaxY / UnitSize);
+		i_min = FMath::FloorToInt(MinX / UnitSize);
+		i_max = FMath::CeilToInt(MaxX / UnitSize);
+
+		// calculate points in rectangular bounding box
+		for (int32 i = i_min; i <= i_max; ++i)
+		{
+			for (int32 j = j_min; j <= j_max; ++j)
+			{
+				PointsOnTrackSegment.Add(FVector2D(i * UnitSize, j * UnitSize));
+			}
+		}
+		if (!UseTightBoundingBox) { return; }
+		// use cross product (in 2D space determinant) to check if point lies within original track segment
+		// point numeration switches from 1-based to 0-based to better comply with array indices
+		FVector2D Vector_Point0Point1 = DefiningPoints[1] - DefiningPoints[0];
+		FVector2D Vector_Point1Point2 = DefiningPoints[2] - DefiningPoints[1];
+		FVector2D Vector_Point2Point3 = DefiningPoints[3] - DefiningPoints[2];
+		FVector2D Vector_Point3Point0 = DefiningPoints[0] - DefiningPoints[3];
+
+		// iterate all points and remove those that don't lie within original track segment
+		for (int k = PointsOnTrackSegment.Num() - 1; k >= 0; --k)
+		{
+			FVector2D Vector_Point0P = PointsOnTrackSegment[k] - DefiningPoints[0];
+			FVector2D Vector_Point1P = PointsOnTrackSegment[k] - DefiningPoints[1];
+			FVector2D Vector_Point2P = PointsOnTrackSegment[k] - DefiningPoints[2];
+			FVector2D Vector_Point3P = PointsOnTrackSegment[k] - DefiningPoints[3];
+
+			float detA = FVector2D::CrossProduct(Vector_Point0Point1, Vector_Point0P);
+			float detB = FVector2D::CrossProduct(Vector_Point1Point2, Vector_Point1P);
+			float detC = FVector2D::CrossProduct(Vector_Point2Point3, Vector_Point2P);
+			float detD = FVector2D::CrossProduct(Vector_Point3Point0, Vector_Point3P);
+
+			// point lies within convex quad, if all cross poducts have the same sign
+			if (!((detA <= 0 && detB <= 0 && detC <= 0 && detD <= 0) || (detA >= 0 && detB >= 0 && detC >= 0 && detD >= 0)))
+			{
+				PointsOnTrackSegment.RemoveAt(k);
+			}
+		}
+	}
+};
+
 ///**
 //* struct for a float based index system (x and y components of position) used in the DEM
 //* specially constructed so that the == method could be overloaded by using FMath::IsNearlyEqual
@@ -159,43 +284,6 @@ struct FSectorTrackInfo
 //	{
 //		return FCrc::MemCrc32(&ComparableFloat, sizeof(FComparableFloat));
 //	}
-//};
-
-//UENUM()
-//enum class EDEMState : uint8
-//{
-//	DEM_UNKNOWN,
-//	DEM_KNOWN
-//};
-//
-///**
-//* struct for a digital elevation map (DEM, as presented in "Terrain Modeling: A Constrained Fractal Model" by Farès Belhadj in 2007)
-//* should be used as TMultiMap<FComparableFloat, TMap<FComparableFloat, FDEM>>
-//*/
-//USTRUCT()
-//struct FDEM
-//{
-//	GENERATED_USTRUCT_BODY()
-//
-//	float Elevation;
-//	EDEMState DEMState;
-//
-//	FDEM(float elevation)
-//	{
-//		Elevation = elevation;
-//		DEMState = EDEMState::DEM_UNKNOWN;
-//	}
-//	FDEM(float elevation, EDEMState State)
-//	{
-//		Elevation = elevation;
-//		DEMState = State;
-//	}
-//	FDEM()
-//	{
-//		Elevation = 0.f;
-//		DEMState = EDEMState::DEM_UNKNOWN;
-//	}
-//
 //};
 
 /**
@@ -270,6 +358,12 @@ struct FTrackGenerationSettings
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float TrackWidth = 500;
+
+	/**
+	 * if enabled, tries to only add those points as track constraints that lie on a track segment, otherwise all points in a rectangle around the track segment get added as constraints
+	 * disable to save performance
+	 */
+	bool bUseTightTrackBoundingBox = true;
 };
 
 

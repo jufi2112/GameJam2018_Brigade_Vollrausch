@@ -276,9 +276,16 @@ struct FDEM
 	float TransitionElevationVariationMediumHigh = 2000.f;
 
 	/**
-	* variation of the low medium transition elevation parameter (in cm)
-	*/
+	 * variation of the low medium transition elevation parameter (in cm)
+	 */
 	float TransitionElevationVariationLowMedium = 1000.f;
+
+	/**
+	 * distance between two adjacent vertices
+	 */
+	float UnitSize = 0.f;
+
+	bool bUnitSizeTaken = false;
 
 	/**
 	 * ! Please use other constructor so that terrain setting variables can be used !
@@ -328,6 +335,11 @@ struct FDEM
 	void GetVerticesBottomBorder(TArray<FBorderVertex>& OUTVertices) const
 	{
 		OUTVertices.Append(VerticesBottomBorder);
+	}
+
+	float GetUnitSize() const
+	{
+		return Unitsize;
 	}
 
 	FVector2D GetPointFromKey(FString TheKey)
@@ -1475,6 +1487,12 @@ struct FDEM
 			SetNewDEMPointData(G, FDEMData());
 			SetNewDEMPointData(H, FDEMData());
 			SetNewDEMPointData(I, FDEMData());
+
+			if (!bUnitSizeTaken)
+			{
+				UnitSize = E.X - (*DefiningPoints)[0].X;
+				bUnitSizeTaken = true;
+			}
 			return;
 		}
 		if (Iteration < MaxIterations)
@@ -1528,6 +1546,9 @@ struct FDEM
 			SetNewDEMPointData(Constraint, FDEMData(Constraint.Z, EDEMState::DEM_KNOWN));
 			FQ.Enqueue(FVector2D(Constraint.X, Constraint.Y));
 		}
+
+		// add track constraints here
+		FMath::Lerp()
 
 		// add border constraints to the DEM and put constraints into FIFO Queue
 		for (const FBorderVertex Constraint : (*BorderConstraints))
