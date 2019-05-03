@@ -733,17 +733,17 @@ void ATerrainManager::GenerateTrackMesh(const FVector2D StartPoint, const FVecto
 			// right?
 			else if (Pt.X < (0.75 * TileSize) && Pt.X >(0.25 * TileSize) && Pt.Y > (0.75 * TileSize))
 			{
-				Normal = FVector::CrossProduct(FVector(0, 1, 0), FVector(0, 0, 1));
+				Normal = FVector::CrossProduct(FVector(0, 1, 0), FVector(0, 0, 1)).GetSafeNormal();
 			}
 			// top?
 			else if (Pt.X > (0.75 * TileSize) && Pt.Y > (0.25 * TileSize) && Pt.Y < (0.75 * TileSize))
 			{
-				Normal = FVector::CrossProduct(FVector(1, 0, 0), FVector(0, 0, 1));
+				Normal = FVector::CrossProduct(FVector(1, 0, 0), FVector(0, 0, 1)).GetSafeNormal();
 			}
 			// left?
 			else if (Pt.X > (0.25 * TileSize) && Pt.X < (0.75 * TileSize) && Pt.Y < (0.25 * TileSize))
 			{
-				Normal = FVector::CrossProduct(FVector(0, -1, 0), FVector(0, 0, 1));
+				Normal = FVector::CrossProduct(FVector(0, -1, 0), FVector(0, 0, 1)).GetSafeNormal();
 			}
 			else
 			{
@@ -806,11 +806,7 @@ void ATerrainManager::GenerateTrackMesh(const FVector2D StartPoint, const FVecto
 			OUTTriangleBuffer.Add(Num - 1);
 			OUTTriangleBuffer.Add(Num - 3);
 
-			FVector2D Point0 = FVector2D(OUTVertexBuffer[Num - 5].Position.X, OUTVertexBuffer[Num - 5].Position.Y);
-			FVector2D Point1 = FVector2D(OUTVertexBuffer[Num - 4].Position.X, OUTVertexBuffer[Num - 4].Position.Y);
-			FVector2D Point3 = FVector2D(OUTVertexBuffer[Num - 1].Position.X, OUTVertexBuffer[Num - 1].Position.Y);
-			FVector2D Point2 = FVector2D(OUTVertexBuffer[Num - 2].Position.X, OUTVertexBuffer[Num - 2].Position.Y);
-			TrackSegments.Add(FTrackSegment(Point0, Point1, Point3, Point2));
+			TrackSegments.Add(FTrackSegment(OUTVertexBuffer[Num - 5].Position, OUTVertexBuffer[Num - 4].Position, OUTVertexBuffer[Num - 1].Position, OUTVertexBuffer[Num - 2].Position));
 		}
 	}
 }

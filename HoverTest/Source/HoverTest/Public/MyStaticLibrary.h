@@ -157,23 +157,38 @@ struct FTrackSegment
 	 * array of points that lie on the track segment (or its rectangular bounding box)
 	 */
 	UPROPERTY()
-	TArray<FVector2D> PointsOnTrackSegment;
+	TArray<FVector> PointsOnTrackSegment;
 
-	FTrackSegment(const FVector2D Point1, const FVector2D Point2, const FVector2D Point3, const FVector2D Point4)
+	/**
+	 * the height of the base line of the track segment
+	 * i.e. height of defining points 1 and 2
+	 */
+	float BaseLineHeight = 0.f;
+
+	/**
+	 * the height of the end line of the track segment
+	 * i.e. height of defining points 3 and 4
+	 */
+	float EndLineHeight = 0.f;
+
+	FTrackSegment(const FVector Point1, const FVector Point2, const FVector Point3, const FVector Point4)
 	{
-		DefiningPoints.Add(Point1);
-		DefiningPoints.Add(Point2);
-		DefiningPoints.Add(Point3);
-		DefiningPoints.Add(Point4);
+		DefiningPoints.Add(FVector2D(Point1.X, Point1.Y));
+		DefiningPoints.Add(FVector2D(Point2.X, Point2.Y));
+		DefiningPoints.Add(FVector2D(Point3.X, Point3.Y));
+		DefiningPoints.Add(FVector2D(Point4.X, Point4.Y));
+
+		BaseLineHeight = Point1.Z;
+		EndLineHeight = Point3.Z;
 	}
 
 	/**
 	 * calculates all points that lie on the given track segment
 	 * @param UnitSize The distance between to adjacent mesh vertices
 	 * @param UseTightBoundingBox Using a tight bounding box will return points that lie in the initially defined track segment, false if all points in the rectangular bounding box around the given track segment should be returned
-	 * @param OUTPointsOnTrack All points that lie on the track as specified by UseTightBoundingBox
+	 * @param OUTPointsOnTrack All points that lie on the track as specified by UseTightBoundingBox with correct height
 	 */
-	void CalculatePointsOnTrack(const float UnitSize, const bool UseTightBoundingBox, TArray<FVector2D>& OUTPointsOnTrack)
+	void CalculatePointsOnTrack(const float UnitSize, const bool UseTightBoundingBox, TArray<FVector>& OUTPointsOnTrack)
 	{
 		this->UnitSize = UnitSize;
 
@@ -198,6 +213,7 @@ struct FTrackSegment
 		}
 	}
 
+
 	/**
 	 * ! For internal use only, use CalculatePointsOnTrack instead !
 	 */
@@ -213,7 +229,7 @@ struct FTrackSegment
 		{
 			for (int32 j = j_min; j <= j_max; ++j)
 			{
-				PointsOnTrackSegment.Add(FVector2D(i * UnitSize, j * UnitSize));
+				PointsOnTrackSegment.Add(FVector(i * UnitSize, j * UnitSize));
 			}
 		}
 		if (!UseTightBoundingBox) { return; }
@@ -755,6 +771,27 @@ public:
 
 		return;
 
+	}
+
+	/**
+	 * calculates the minimum distance between a point and a given line segment
+	 * code adopted from https://stackoverflow.com/questions/849211/shortest-distance-between-a-point-and-a-line-segment
+	 * @param Point The Point for which the distance to the given line segment should be calculated
+	 * @param LineStartPoint The start point of the line segment
+	 * @param LineEndPoint The end point of the line segment
+	 * @return Minimum distance between given point and line segment
+	 */
+	static float CalculateMinimumDistancePointLineSegment(const FVector2D Point, const FVector2D LineStartPoint, const FVector2D LineEndPoint)
+	{
+		const float L2 = FVector2D::DistSquared(LineStartPoint, LineEndPoint);
+		if (FMath::IsNearlyZero(L2))
+		{
+			return FVector2D::Distance(Point, LineStartPoint);
+		}
+		const float t = FMath::Max<float>(0.f, FMath::Min<float>(1.f, FVector2D::DotProduct(Point - LineStartPoint, LineEndPoint - LineStartPoint) / L2));
+		
+		const FVector2D Projection = LineStartPoint + t * (LineEndPoint - LineStartPoint);
+		return FVector2D::Distance(Point, Projection);
 	}
 
 
