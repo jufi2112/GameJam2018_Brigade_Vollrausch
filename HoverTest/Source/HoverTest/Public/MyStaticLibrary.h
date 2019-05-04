@@ -229,7 +229,8 @@ struct FTrackSegment
 		{
 			for (int32 j = j_min; j <= j_max; ++j)
 			{
-				PointsOnTrackSegment.Add(FVector(i * UnitSize, j * UnitSize));
+				const FVector2D Point = FVector2D(i * UnitSize, j * UnitSize);
+				PointsOnTrackSegment.Add(FVector(Point.X, Point.Y, InterpolatePointElevation(Point));
 			}
 		}
 		if (!UseTightBoundingBox) { return; }
@@ -243,10 +244,10 @@ struct FTrackSegment
 		// iterate all points and remove those that don't lie within original track segment
 		for (int k = PointsOnTrackSegment.Num() - 1; k >= 0; --k)
 		{
-			FVector2D Vector_Point0P = PointsOnTrackSegment[k] - DefiningPoints[0];
-			FVector2D Vector_Point1P = PointsOnTrackSegment[k] - DefiningPoints[1];
-			FVector2D Vector_Point2P = PointsOnTrackSegment[k] - DefiningPoints[2];
-			FVector2D Vector_Point3P = PointsOnTrackSegment[k] - DefiningPoints[3];
+			FVector2D Vector_Point0P = FVector2D(PointsOnTrackSegment[k].X, PointsOnTrackSegment[k].Y) - DefiningPoints[0];
+			FVector2D Vector_Point1P = FVector2D(PointsOnTrackSegment[k].X, PointsOnTrackSegment[k].Y) - DefiningPoints[1];
+			FVector2D Vector_Point2P = FVector2D(PointsOnTrackSegment[k].X, PointsOnTrackSegment[k].Y) - DefiningPoints[2];
+			FVector2D Vector_Point3P = FVector2D(PointsOnTrackSegment[k].X, PointsOnTrackSegment[k].Y) - DefiningPoints[3];
 
 			float detA = FVector2D::CrossProduct(Vector_Point0Point1, Vector_Point0P);
 			float detB = FVector2D::CrossProduct(Vector_Point1Point2, Vector_Point1P);
@@ -259,6 +260,23 @@ struct FTrackSegment
 				PointsOnTrackSegment.RemoveAt(k);
 			}
 		}
+	}
+
+	/**
+	 * ! For internal use only !
+	 * linearly interpolates the given points elevation
+	 */
+	float InterpolatePointElevation(const FVector2D Point)
+	{
+		// calculate distance from point to base line
+		float DistanceToBaseLine = UMyStaticLibrary::CalculateMinimumDistancePointLineSegment(Point, DefiningPoints[0], DefiningPoints[1]);
+
+		// calculate distance from point to end line
+		float DistanceToEndLine = UMyStaticLibrary::CalculateMinimumDistancePointLineSegment(Point, DefiningPoints[3], DefiningPoints[2]);
+		if (DistanceToBaseLine + DistanceToEndLine == 0.f) { return 0.f; }
+		float Alpha = DistanceToBaseLine / (DistanceToBaseLine + DistanceToEndLine);
+
+		return FMath::Lerp<float, float>(BaseLineHeight, EndLineHeight, Alpha);
 	}
 };
 
@@ -781,7 +799,7 @@ public:
 	 * @param LineEndPoint The end point of the line segment
 	 * @return Minimum distance between given point and line segment
 	 */
-	static float CalculateMinimumDistancePointLineSegment(const FVector2D Point, const FVector2D LineStartPoint, const FVector2D LineEndPoint)
+	static float CalculateMinimumDistancePointLineSegment(const FVector2D Point, const FVector2D LineStartPoint, const FVector2D LineEndPoint) const
 	{
 		const float L2 = FVector2D::DistSquared(LineStartPoint, LineEndPoint);
 		if (FMath::IsNearlyZero(L2))

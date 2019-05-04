@@ -1535,7 +1535,7 @@ struct FDEM
 	* implementation of the MDBU algorithm from "Terrain Modeling: A Constrained Fractal Model" by Farès Belhadj (2007)
 	* comments refer to the pseudo code provided in the paper above
 	*/
-	void MidpointDisplacementBottomUp(const TArray<FVector>* InitialConstraints, const TArray<FBorderVertex>* BorderConstraints)
+	void MidpointDisplacementBottomUp(const TArray<FVector>* InitialConstraints, const TArray<FBorderVertex>* BorderConstraints, const TArray<FVector>* TrackConstraints)
 	{
 		// FIFO Queue
 		TQueue<FVector2D, EQueueMode::Spsc> FQ;
@@ -1548,7 +1548,12 @@ struct FDEM
 		}
 
 		// add track constraints here
-		FMath::Lerp()
+		for (const FVector Constraint : (*TrackConstraints))
+		{
+			SetNewDEMPointData(Constraint, FDEMData(Constraint.Z, EDEMState::DEM_KNOWN));
+			FQ.Enqueue(FVector2D(Constraint.X, Constraint.Y));
+		}
+		
 
 		// add border constraints to the DEM and put constraints into FIFO Queue
 		for (const FBorderVertex Constraint : (*BorderConstraints))

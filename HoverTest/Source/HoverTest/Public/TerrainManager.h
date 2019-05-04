@@ -207,7 +207,7 @@ public:
 	* @return -1 if the provided sector has not yet been processed, 0 if the provided sector does not contain a track, 1 if the provided sector does contain a track
 	*/
 	UFUNCTION()
-	int32 GetTrackPointsForSector(const FIntVector2D Sector, FVector2D& OUTTrackEntryPoint, FVector2D& OUTTrackExitPoint);
+	int32 GetTrackPointsForSector(const FIntVector2D Sector, FVector& OUTTrackEntryPoint, FVector2D& OUTTrackExitPoint);
 
 	/**
 	 * calculates a Bézier curve given by the provided start and end point and two internal created control points
@@ -216,5 +216,5 @@ public:
 	 * @param OUTVertexBuffer A vertex buffer where the generated triangle points should be stored
 	 * @param OUTTriangleBuffer A triangle buffer where the generated triangle point order should be stored
 	 */
-	void GenerateTrackMesh(const FVector2D StartPoint, const FVector2D EndPoint, TArray<FRuntimeMeshVertexSimple>& OUTVertexBuffer, TArray<int32>& OUTTriangleBuffer, TArray<FTrackSegment>& TrackSegments);
+	void GenerateTrackMesh(const FVector StartPoint, const FVector2D EndPoint, TArray<FRuntimeMeshVertexSimple>& OUTVertexBuffer, TArray<int32>& OUTTriangleBuffer, TArray<FTrackSegment>& TrackSegments);
 };

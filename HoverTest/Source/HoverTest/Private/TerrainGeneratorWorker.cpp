@@ -60,6 +60,8 @@ uint32 TerrainGeneratorWorker::Run()
 			TArray<FVector> Constraints;
 			// array to save all border constraints for the new DEM
 			TArray<FBorderVertex> BorderConstraints;
+			// array to save all track constraints for the new DEM
+			TArray<FVector> TrackConstraints;
 			// bools to check if corner points already definded by a constraint
 			bool bBottomLeftCorner = false;
 			bool bBottomRightCorner = false;
@@ -222,11 +224,12 @@ uint32 TerrainGeneratorWorker::Run()
 			// calculate track constraints in TrackSegments
 			for (FTrackSegment Segment : TrackSegments)
 			{
-				TArray<FVector2D> PointsOnTrack;
+				TArray<FVector> PointsOnTrack;
 				Segment.CalculatePointsOnTrack(UnitSize, false, PointsOnTrack);
+				TrackConstraints.Append(PointsOnTrack);
 			}
 
-			DEM.MidpointDisplacementBottomUp(&Constraints, &BorderConstraints);
+			DEM.MidpointDisplacementBottomUp(&Constraints, &BorderConstraints, &TrackConstraints);
 			DEM.TriangleEdge(&DefiningPoints, 0, TerrainSettings.FractalNoiseTerrainSettings.TriangleEdgeIterations);// , TerrainJob.MeshData);
 			DEM.CopyBufferToMeshData(TerrainJob.MeshData);
 			DEM.CalculateBorderVertexNormals();

@@ -662,7 +662,7 @@ void ATerrainManager::GetAdjacentTiles(const FIntVector2D Sector, TArray<ATerrai
 	}
 }
 
-int32 ATerrainManager::GetTrackPointsForSector(const FIntVector2D Sector, FVector2D & OUTTrackEntryPoint, FVector2D & OUTTrackExitPoint)
+int32 ATerrainManager::GetTrackPointsForSector(const FIntVector2D Sector, FVector & OUTTrackEntryPoint, FVector2D & OUTTrackExitPoint)
 {
 	FSectorTrackInfo* TrackInfo = TrackMap.Find(Sector);
 
@@ -685,10 +685,10 @@ int32 ATerrainManager::GetTrackPointsForSector(const FIntVector2D Sector, FVecto
 	}
 }
 
-void ATerrainManager::GenerateTrackMesh(const FVector2D StartPoint, const FVector2D EndPoint, TArray<FRuntimeMeshVertexSimple>& OUTVertexBuffer, TArray<int32>& OUTTriangleBuffer, TArray<FTrackSegment>& TrackSegments)
+void ATerrainManager::GenerateTrackMesh(const FVector StartPoint, const FVector2D EndPoint, TArray<FRuntimeMeshVertexSimple>& OUTVertexBuffer, TArray<int32>& OUTTriangleBuffer, TArray<FTrackSegment>& TrackSegments)
 {
 	// convert FVector2D to FVector
-	FVector TrackStartPoint = FVector(StartPoint.X, StartPoint.Y, 0.f);
+	FVector TrackStartPoint = StartPoint;
 	FVector TrackEndPoint = FVector(EndPoint.X, EndPoint.Y, 0.f);
 
 	// calculate control points
