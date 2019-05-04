@@ -678,19 +678,42 @@ int32 ATerrainManager::GetTrackPointsForSector(const FIntVector2D Sector, FVecto
 		}
 		else
 		{
-			OUTTrackEntryPoint = TrackInfo->TrackEntryPoint;
+			// get elevation of previous sector's track exit point
+			FSectorTrackInfo* PreviousTrackInfo = TrackMap.Find(TrackInfo->PreviousTrackSector);
+			if (!PreviousTrackInfo)
+			{
+				// TODO check if that makes sense
+				UE_LOG(LogTemp, Error, TEXT("Could not find previous track sector in GetTrackPointsForSector for sector %s"), *Sector.ToString());
+				return -1;
+			}
+			OUTTrackEntryPoint = FVector(TrackInfo->TrackEntryPoint, PreviousTrackInfo->TrackExitPointElevation);
 			OUTTrackExitPoint = TrackInfo->TrackExitPoint;
 			return 1;
 		}
 	}
 }
 
-void ATerrainManager::GenerateTrackMesh(const FVector StartPoint, const FVector2D EndPoint, TArray<FRuntimeMeshVertexSimple>& OUTVertexBuffer, TArray<int32>& OUTTriangleBuffer, TArray<FTrackSegment>& TrackSegments)
+void ATerrainManager::GenerateTrackMesh(const FIntVector2D Sector, const FVector StartPoint, const FVector2D EndPoint, TArray<FRuntimeMeshVertexSimple>& OUTVertexBuffer, TArray<int32>& OUTTriangleBuffer, TArray<FTrackSegment>& TrackSegments)
 {
 	// convert FVector2D to FVector
 	FVector TrackStartPoint = StartPoint;
+	// TODO calculate elevation of TrackEndPoint and add to TrackMap
+
+	float EndPointElevation = 0.f;		// needs to be calculated when creating track pathing, since at this point we can't guarantee that the previous track sector's end point elevation is already calculated (since the sector my not have been calculated yet)
+
+	FSectorTrackInfo* TrackInfo = TrackMap.Find(Sector);
+	if (TrackInfo)
+	{
+		TrackInfo->TrackExitPointElevation = EndPointElevation;
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("Could not find sector %s in TrackMap in function GenerateTrackMash"), *Sector.ToString());
+	}
+
 	FVector TrackEndPoint = FVector(EndPoint.X, EndPoint.Y, 0.f);
 
+	// TODO calculate elevation of control points
 	// calculate control points
 	FVector ControlPoint1 = FVector(TerrainSettings.TileEdgeSize/2, TerrainSettings.TileEdgeSize/2, 0.f);
 	FVector ControlPoint2 = FVector(TerrainSettings.TileEdgeSize/2, TerrainSettings.TileEdgeSize/2, 0.f);

@@ -104,6 +104,10 @@ struct FSectorTrackInfo
 	UPROPERTY()
 	FIntVector2D FollowingTrackSector = FIntVector2D();
 
+	// elevation of the track exit point
+	UPROPERTY()
+	float TrackExitPointElevation = 0.f;
+
 	// sector has no track
 	FSectorTrackInfo()
 	{

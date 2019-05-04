@@ -211,10 +211,11 @@ public:
 
 	/**
 	 * calculates a Bézier curve given by the provided start and end point and two internal created control points
+	 * @param Sector The sector for which the track gets generated, used to update its track sector info
 	 * @param StartPoint The start point of the Bézier curve (the entry point of the track in the tile)
 	 * @param EndPoint The end point of the Bézier curve (the exit point of the track in the tile)
 	 * @param OUTVertexBuffer A vertex buffer where the generated triangle points should be stored
 	 * @param OUTTriangleBuffer A triangle buffer where the generated triangle point order should be stored
 	 */
-	void GenerateTrackMesh(const FVector StartPoint, const FVector2D EndPoint, TArray<FRuntimeMeshVertexSimple>& OUTVertexBuffer, TArray<int32>& OUTTriangleBuffer, TArray<FTrackSegment>& TrackSegments);
+	void GenerateTrackMesh(const FIntVector2D Sector, const FVector StartPoint, const FVector2D EndPoint, TArray<FRuntimeMeshVertexSimple>& OUTVertexBuffer, TArray<int32>& OUTTriangleBuffer, TArray<FTrackSegment>& TrackSegments);
 };

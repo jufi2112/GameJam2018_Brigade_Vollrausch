@@ -196,7 +196,7 @@ uint32 TerrainGeneratorWorker::Run()
 			TerrainJob.MeshData.Add(FMeshData());
 
 			// get possible track entry and exit points
-			FVector2D TrackEntryPoint;
+			FVector TrackEntryPoint;
 			FVector2D TrackExitPoint;
 
 			int32 SectorProcessed = TerrainManager->GetTrackPointsForSector(TerrainJob.TerrainTile->GetCurrentSector(), TrackEntryPoint, TrackExitPoint);
@@ -215,7 +215,7 @@ uint32 TerrainGeneratorWorker::Run()
 				TArray<int32> TrackTriangleBuffer;
 				TArray<FRuntimeMeshVertexSimple> Array1;
 				TArray<int32> Array2;
-				TerrainManager->GenerateTrackMesh(TrackEntryPoint, TrackExitPoint, TerrainJob.MeshData[0].VertexBuffer, TerrainJob.MeshData[0].TriangleBuffer, TrackSegments);
+				TerrainManager->GenerateTrackMesh(TerrainJob.TerrainTile->GetCurrentSector(), TrackEntryPoint, TrackExitPoint, TerrainJob.MeshData[0].VertexBuffer, TerrainJob.MeshData[0].TriangleBuffer, TrackSegments);
 			}
 
 			DEM.SimulateTriangleEdge(&DefiningPoints, 0, TerrainSettings.FractalNoiseTerrainSettings.TriangleEdgeIterations);
