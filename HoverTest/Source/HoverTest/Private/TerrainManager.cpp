@@ -106,7 +106,6 @@ void ATerrainManager::CalculateTrackPath(const TArray<FIntVector2D> SectorsToCre
 
 		if (!TrackMap.Contains(NextTrackSector))
 		{
-			//UE_LOG(LogTemp, Warning, TEXT("NextTrackSector: %s"), *NextTrackSector.ToString());
 			FSectorTrackInfo TrackInfo = CalculateNewNextTrackSector();
 			// !!! CurrentTrackSector now has the value of NextTrackSector !!!
 
