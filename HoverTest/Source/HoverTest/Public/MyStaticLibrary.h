@@ -6,6 +6,7 @@
 #include "RuntimeMeshComponent.h"
 #include "UObject/NoExportTypes.h"
 #include "Engine/Classes/Materials/MaterialInterface.h"
+#include "Math/NumericLimits.h"
 #include "MyStaticLibrary.generated.h"
 
 class ATerrainTile;
@@ -138,11 +139,10 @@ struct FTrackSegment
 	TArray<FVector2D> DefiningPoints;
 
 	// values for the bounding rectangle of the above points
-
-	float MinX = 0.f;
-	float MaxX = 0.f;
-	float MinY = 0.f;
-	float MaxY = 0.f;
+	float MinX = TNumericLimits<float>::Max();
+	float MaxX = TNumericLimits<float>::Min();
+	float MinY = TNumericLimits<float>::Max();
+	float MaxY = TNumericLimits<float>::Min();
 
 	/**
 	 * minimum parameters such that Points with X in [i_min * UnitSize, i_max * UnitSize] and Y in [j_min * UnitSize, j_max * UnitSize] lie within rectanglular bounding box
@@ -174,6 +174,20 @@ struct FTrackSegment
 	 * i.e. height of defining points 3 and 4
 	 */
 	float EndLineHeight = 0.f;
+
+	/**
+	 * @DEPRECATED, use other constructor!
+	 */
+	FTrackSegment()
+	{
+		for (int32 i = 0; i < 4; ++i)
+		{
+			DefiningPoints.Add(FVector2D());
+		}
+		BaseLineHeight = 0.f;
+		EndLineHeight = 0.f;
+		UE_LOG(LogTemp, Error, TEXT("Using wrong FTrackSegment constructor"));
+	}
 
 	FTrackSegment(const FVector Point1, const FVector Point2, const FVector Point3, const FVector Point4)
 	{
@@ -215,6 +229,7 @@ struct FTrackSegment
 			MinY = Point.Y < MinY ? Point.Y : MinY;
 			MaxY = Point.Y > MaxY ? Point.Y : MaxY;
 		}
+
 	}
 
 
@@ -234,7 +249,7 @@ struct FTrackSegment
 			for (int32 j = j_min; j <= j_max; ++j)
 			{
 				const FVector2D Point = FVector2D(i * UnitSize, j * UnitSize);
-				PointsOnTrackSegment.Add(FVector(Point.X, Point.Y, InterpolatePointElevation(Point));
+				PointsOnTrackSegment.Add(FVector(Point.X, Point.Y, InterpolatePointElevation(Point)));
 			}
 		}
 		if (!UseTightBoundingBox) { return; }
@@ -273,14 +288,30 @@ struct FTrackSegment
 	float InterpolatePointElevation(const FVector2D Point)
 	{
 		// calculate distance from point to base line
-		float DistanceToBaseLine = UMyStaticLibrary::CalculateMinimumDistancePointLineSegment(Point, DefiningPoints[0], DefiningPoints[1]);
+		float DistanceToBaseLine = CalculateMinimumDistancePointLineSegment(Point, DefiningPoints[0], DefiningPoints[1]);
 
 		// calculate distance from point to end line
-		float DistanceToEndLine = UMyStaticLibrary::CalculateMinimumDistancePointLineSegment(Point, DefiningPoints[3], DefiningPoints[2]);
-		if (DistanceToBaseLine + DistanceToEndLine == 0.f) { return 0.f; }
+		float DistanceToEndLine = CalculateMinimumDistancePointLineSegment(Point, DefiningPoints[3], DefiningPoints[2]);
+		if (DistanceToBaseLine + DistanceToEndLine == 0.f) { return -10.f; }
 		float Alpha = DistanceToBaseLine / (DistanceToBaseLine + DistanceToEndLine);
 
-		return FMath::Lerp<float, float>(BaseLineHeight, EndLineHeight, Alpha);
+		return (FMath::Lerp<float, float>(BaseLineHeight, EndLineHeight, Alpha) - 10.f);
+	}
+
+	/**
+	 * duplicated from UMyStaticLibrary so it can be used in this struct
+	 */
+	float CalculateMinimumDistancePointLineSegment(const FVector2D Point, const FVector2D LineStartPoint, const FVector2D LineEndPoint)
+	{
+		const float L2 = FVector2D::DistSquared(LineStartPoint, LineEndPoint);
+		if (FMath::IsNearlyZero(L2))
+		{
+			return FVector2D::Distance(Point, LineStartPoint);
+		}
+		const float t = FMath::Max<float>(0.f, FMath::Min<float>(1.f, FVector2D::DotProduct(Point - LineStartPoint, LineEndPoint - LineStartPoint) / L2));
+
+		const FVector2D Projection = LineStartPoint + t * (LineEndPoint - LineStartPoint);
+		return FVector2D::Distance(Point, Projection);
 	}
 };
 
@@ -401,7 +432,28 @@ struct FTrackGenerationSettings
 	 * if enabled, tries to only add those points as track constraints that lie on a track segment, otherwise all points in a rectangle around the track segment get added as constraints
 	 * disable to save performance
 	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	bool bUseTightTrackBoundingBox = true;
+
+	/**
+	 * parameter that controls the maximum elevation difference (in cm) between the track's starting and end point in one tile
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float MaximumElevationDifference = 20000.f;
+
+	/**
+	 * the default elevation for the track's entry point
+	 * used when the track for the very first sector is calculated (since there is no previous track with an exit point where we could get the elevation from)
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float DefaultEntryPointHeight = 2000.f;
+
+	/**
+	 * the height in cm the terrain mesh should lie beneath the track mesh
+	 * @DEPRECATED will not be used
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float HeightTerrainBeneathTrack = 10.f;
 };
 
 
@@ -803,7 +855,7 @@ public:
 	 * @param LineEndPoint The end point of the line segment
 	 * @return Minimum distance between given point and line segment
 	 */
-	static float CalculateMinimumDistancePointLineSegment(const FVector2D Point, const FVector2D LineStartPoint, const FVector2D LineEndPoint) const
+	static float CalculateMinimumDistancePointLineSegment(const FVector2D Point, const FVector2D LineStartPoint, const FVector2D LineEndPoint)
 	{
 		const float L2 = FVector2D::DistSquared(LineStartPoint, LineEndPoint);
 		if (FMath::IsNearlyZero(L2))

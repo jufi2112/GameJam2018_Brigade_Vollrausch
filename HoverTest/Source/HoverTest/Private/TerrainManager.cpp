@@ -120,6 +120,10 @@ void ATerrainManager::CalculateTrackPath(const TArray<FIntVector2D> SectorsToCre
 
 			// add to TrackMap
 			TrackMap.Add(CurrentTrackSector, TrackInfo);
+
+			// TODO check if this get's stored properly
+			// calculate exit point elevation, in-place changes TrackExitPointElevation
+			CalculateTrackExitPointElevation(CurrentTrackSector);			
 		}
 		else
 		{
@@ -336,6 +340,33 @@ void ATerrainManager::AdjustQuad()
 	}
 
 	return;
+
+}
+
+bool ATerrainManager::CalculateTrackExitPointElevation(const FIntVector2D Sector)
+{
+	// this fails because the sector gets added to the trackmap after this function is called
+	FSectorTrackInfo* TrackInfo = TrackMap.Find(Sector);
+	if (!TrackInfo)
+	{
+		UE_LOG(LogTemp, Error, TEXT("Could not find specified sector %s in TrackMap in function CalculateTrackExitPointElevation"), *Sector.ToString());
+		return false;
+	}
+	if (Sector == FIntVector2D(0, 0))
+	{
+		// very first sector, use default elevation for entry point height
+		TrackInfo->TrackExitPointElevation = TerrainSettings.TrackGenerationSettings.DefaultEntryPointHeight + FMath::RandRange(-1, 1) * TerrainSettings.TrackGenerationSettings.MaximumElevationDifference;
+		return true;
+	}
+	const FSectorTrackInfo* PreviousTrackInfo = TrackMap.Find(TrackInfo->PreviousTrackSector);
+	if (!PreviousTrackInfo)
+	{
+		UE_LOG(LogTemp, Error, TEXT("Could not find previous track sector %s in function CalculateTrackExitPointElevation for sector %s"), *TrackInfo->PreviousTrackSector.ToString(), *Sector.ToString());
+		return false;
+	}
+	// calculate exit elevation: exit elevation <-- start elevation + Random[-MaximumElevationDifference, MaximumElevationDifference]
+	TrackInfo->TrackExitPointElevation = PreviousTrackInfo->TrackExitPointElevation + FMath::RandRange(-1, 1) * TerrainSettings.TrackGenerationSettings.MaximumElevationDifference;
+	return true;
 
 }
 
@@ -661,12 +692,13 @@ void ATerrainManager::GetAdjacentTiles(const FIntVector2D Sector, TArray<ATerrai
 	}
 }
 
-int32 ATerrainManager::GetTrackPointsForSector(const FIntVector2D Sector, FVector & OUTTrackEntryPoint, FVector2D & OUTTrackExitPoint)
+int32 ATerrainManager::GetTrackPointsForSector(const FIntVector2D Sector, FVector & OUTTrackEntryPoint, FVector & OUTTrackExitPoint)
 {
 	FSectorTrackInfo* TrackInfo = TrackMap.Find(Sector);
 
 	if (!TrackInfo)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("Sector %s not yet processed"), *Sector.ToString());
 		return -1;
 	}
 	else
@@ -686,36 +718,25 @@ int32 ATerrainManager::GetTrackPointsForSector(const FIntVector2D Sector, FVecto
 				return -1;
 			}
 			OUTTrackEntryPoint = FVector(TrackInfo->TrackEntryPoint, PreviousTrackInfo->TrackExitPointElevation);
-			OUTTrackExitPoint = TrackInfo->TrackExitPoint;
+			OUTTrackExitPoint = FVector(TrackInfo->TrackExitPoint, TrackInfo->TrackExitPointElevation);
 			return 1;
 		}
 	}
 }
 
-void ATerrainManager::GenerateTrackMesh(const FIntVector2D Sector, const FVector StartPoint, const FVector2D EndPoint, TArray<FRuntimeMeshVertexSimple>& OUTVertexBuffer, TArray<int32>& OUTTriangleBuffer, TArray<FTrackSegment>& TrackSegments)
+void ATerrainManager::GenerateTrackMesh(const FIntVector2D Sector, const FVector StartPoint, const FVector EndPoint, TArray<FRuntimeMeshVertexSimple>& OUTVertexBuffer, TArray<int32>& OUTTriangleBuffer, TArray<FTrackSegment>& TrackSegments)
 {
 	// convert FVector2D to FVector
 	FVector TrackStartPoint = StartPoint;
-	// TODO calculate elevation of TrackEndPoint and add to TrackMap
 
-	float EndPointElevation = 0.f;		// needs to be calculated when creating track pathing, since at this point we can't guarantee that the previous track sector's end point elevation is already calculated (since the sector my not have been calculated yet)
+	FVector TrackEndPoint = EndPoint;
 
-	FSectorTrackInfo* TrackInfo = TrackMap.Find(Sector);
-	if (TrackInfo)
-	{
-		TrackInfo->TrackExitPointElevation = EndPointElevation;
-	}
-	else
-	{
-		UE_LOG(LogTemp, Error, TEXT("Could not find sector %s in TrackMap in function GenerateTrackMash"), *Sector.ToString());
-	}
-
-	FVector TrackEndPoint = FVector(EndPoint.X, EndPoint.Y, 0.f);
+	float HalfHeight = TrackEndPoint.Z - ((TrackEndPoint.Z - TrackStartPoint.Z) / 2.f);
 
 	// TODO calculate elevation of control points
 	// calculate control points
-	FVector ControlPoint1 = FVector(TerrainSettings.TileEdgeSize/2, TerrainSettings.TileEdgeSize/2, 0.f);
-	FVector ControlPoint2 = FVector(TerrainSettings.TileEdgeSize/2, TerrainSettings.TileEdgeSize/2, 0.f);
+	FVector ControlPoint1 = FVector(TerrainSettings.TileEdgeSize/2, TerrainSettings.TileEdgeSize/2, HalfHeight);
+	FVector ControlPoint2 = FVector(TerrainSettings.TileEdgeSize/2, TerrainSettings.TileEdgeSize/2, HalfHeight);
 
 	FVector BezierPoints[4];
 	BezierPoints[0] = TrackStartPoint;

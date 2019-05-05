@@ -339,7 +339,7 @@ struct FDEM
 
 	float GetUnitSize() const
 	{
-		return Unitsize;
+		return UnitSize;
 	}
 
 	FVector2D GetPointFromKey(FString TheKey)
@@ -1490,7 +1490,7 @@ struct FDEM
 
 			if (!bUnitSizeTaken)
 			{
-				UnitSize = E.X - (*DefiningPoints)[0].X;
+				UnitSize = E.Y - (*DefiningPoints)[0].Y;
 				bUnitSizeTaken = true;
 			}
 			return;

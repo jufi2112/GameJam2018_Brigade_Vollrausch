@@ -197,7 +197,7 @@ uint32 TerrainGeneratorWorker::Run()
 
 			// get possible track entry and exit points
 			FVector TrackEntryPoint;
-			FVector2D TrackExitPoint;
+			FVector TrackExitPoint;
 
 			int32 SectorProcessed = TerrainManager->GetTrackPointsForSector(TerrainJob.TerrainTile->GetCurrentSector(), TrackEntryPoint, TrackExitPoint);
 			// make sure we already processed the current sector in TerrainManager (should always be processed, but better safe than sorry
@@ -225,7 +225,7 @@ uint32 TerrainGeneratorWorker::Run()
 			for (FTrackSegment Segment : TrackSegments)
 			{
 				TArray<FVector> PointsOnTrack;
-				Segment.CalculatePointsOnTrack(UnitSize, false, PointsOnTrack);
+				Segment.CalculatePointsOnTrack(UnitSize, TerrainSettings.TrackGenerationSettings.bUseTightTrackBoundingBox, PointsOnTrack);
 				TrackConstraints.Append(PointsOnTrack);
 			}
 

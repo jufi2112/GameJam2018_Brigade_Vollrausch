@@ -141,7 +141,19 @@ private:
 	UFUNCTION()
 	void AdjustQuad();
 
+	/**
+	 * creates a FRuntimeMeshVertexSimple struct from the given information
+	 */
 	FRuntimeMeshVertexSimple CreateRuntimeMeshVertexSimple(const FVector Vertex, const FVector Normal) const;
+
+	/**
+	 * calculates the TrackExitPoint's elevation for a track in the specified sector
+	 * @param Sector The sector for which the exit point elevation should be calculated
+	 * @param OUTExitPointElevation Out parameter that contains the exit point's elevation
+	 * @return True if exit point's elevation could be calculated successfully, false if an error occured
+	 */
+	UFUNCTION()
+	bool CalculateTrackExitPointElevation(const FIntVector2D Sector);
 
 
 
@@ -207,7 +219,7 @@ public:
 	* @return -1 if the provided sector has not yet been processed, 0 if the provided sector does not contain a track, 1 if the provided sector does contain a track
 	*/
 	UFUNCTION()
-	int32 GetTrackPointsForSector(const FIntVector2D Sector, FVector& OUTTrackEntryPoint, FVector2D& OUTTrackExitPoint);
+	int32 GetTrackPointsForSector(const FIntVector2D Sector, FVector& OUTTrackEntryPoint, FVector& OUTTrackExitPoint);
 
 	/**
 	 * calculates a Bézier curve given by the provided start and end point and two internal created control points
@@ -217,5 +229,5 @@ public:
 	 * @param OUTVertexBuffer A vertex buffer where the generated triangle points should be stored
 	 * @param OUTTriangleBuffer A triangle buffer where the generated triangle point order should be stored
 	 */
-	void GenerateTrackMesh(const FIntVector2D Sector, const FVector StartPoint, const FVector2D EndPoint, TArray<FRuntimeMeshVertexSimple>& OUTVertexBuffer, TArray<int32>& OUTTriangleBuffer, TArray<FTrackSegment>& TrackSegments);
+	void GenerateTrackMesh(const FIntVector2D Sector, const FVector StartPoint, const FVector EndPoint, TArray<FRuntimeMeshVertexSimple>& OUTVertexBuffer, TArray<int32>& OUTTriangleBuffer, TArray<FTrackSegment>& TrackSegments);
 };
