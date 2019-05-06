@@ -355,7 +355,7 @@ bool ATerrainManager::CalculateTrackExitPointElevation(const FIntVector2D Sector
 	if (Sector == FIntVector2D(0, 0))
 	{
 		// very first sector, use default elevation for entry point height
-		float Elevation = TerrainSettings.TrackGenerationSettings.DefaultEntryPointHeight + FMath::RandRange(-1, 1) * TerrainSettings.TrackGenerationSettings.MaximumElevationDifference;
+		float Elevation = TerrainSettings.TrackGenerationSettings.DefaultEntryPointHeight + FMath::RandRange(-TerrainSettings.TrackGenerationSettings.MaximumElevationDifference, TerrainSettings.TrackGenerationSettings.MaximumElevationDifference);
 
 		TrackInfo->TrackExitPointElevation = Elevation;
 		return true;
@@ -367,7 +367,7 @@ bool ATerrainManager::CalculateTrackExitPointElevation(const FIntVector2D Sector
 		return false;
 	}
 	// calculate exit elevation: exit elevation <-- start elevation + Random[-MaximumElevationDifference, MaximumElevationDifference]
-	float Elevation = PreviousTrackInfo->TrackExitPointElevation + FMath::RandRange(-1, 1) * TerrainSettings.TrackGenerationSettings.MaximumElevationDifference;
+	float Elevation = TerrainSettings.TrackGenerationSettings.DefaultEntryPointHeight + FMath::RandRange(-TerrainSettings.TrackGenerationSettings.MaximumElevationDifference, TerrainSettings.TrackGenerationSettings.MaximumElevationDifference);
 
 	TrackInfo->TrackExitPointElevation = Elevation;
 	return true;
