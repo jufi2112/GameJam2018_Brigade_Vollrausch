@@ -355,7 +355,9 @@ bool ATerrainManager::CalculateTrackExitPointElevation(const FIntVector2D Sector
 	if (Sector == FIntVector2D(0, 0))
 	{
 		// very first sector, use default elevation for entry point height
-		TrackInfo->TrackExitPointElevation = TerrainSettings.TrackGenerationSettings.DefaultEntryPointHeight + FMath::RandRange(-1, 1) * TerrainSettings.TrackGenerationSettings.MaximumElevationDifference;
+		float Elevation = TerrainSettings.TrackGenerationSettings.DefaultEntryPointHeight + FMath::RandRange(-1, 1) * TerrainSettings.TrackGenerationSettings.MaximumElevationDifference;
+
+		TrackInfo->TrackExitPointElevation = Elevation;
 		return true;
 	}
 	const FSectorTrackInfo* PreviousTrackInfo = TrackMap.Find(TrackInfo->PreviousTrackSector);
@@ -365,7 +367,9 @@ bool ATerrainManager::CalculateTrackExitPointElevation(const FIntVector2D Sector
 		return false;
 	}
 	// calculate exit elevation: exit elevation <-- start elevation + Random[-MaximumElevationDifference, MaximumElevationDifference]
-	TrackInfo->TrackExitPointElevation = PreviousTrackInfo->TrackExitPointElevation + FMath::RandRange(-1, 1) * TerrainSettings.TrackGenerationSettings.MaximumElevationDifference;
+	float Elevation = PreviousTrackInfo->TrackExitPointElevation + FMath::RandRange(-1, 1) * TerrainSettings.TrackGenerationSettings.MaximumElevationDifference;
+
+	TrackInfo->TrackExitPointElevation = Elevation;
 	return true;
 
 }
@@ -717,6 +721,7 @@ int32 ATerrainManager::GetTrackPointsForSector(const FIntVector2D Sector, FVecto
 				UE_LOG(LogTemp, Error, TEXT("Could not find previous track sector in GetTrackPointsForSector for sector %s"), *Sector.ToString());
 				return -1;
 			}
+
 			OUTTrackEntryPoint = FVector(TrackInfo->TrackEntryPoint, PreviousTrackInfo->TrackExitPointElevation);
 			OUTTrackExitPoint = FVector(TrackInfo->TrackExitPoint, TrackInfo->TrackExitPointElevation);
 			return 1;
@@ -727,11 +732,15 @@ int32 ATerrainManager::GetTrackPointsForSector(const FIntVector2D Sector, FVecto
 void ATerrainManager::GenerateTrackMesh(const FIntVector2D Sector, const FVector StartPoint, const FVector EndPoint, TArray<FRuntimeMeshVertexSimple>& OUTVertexBuffer, TArray<int32>& OUTTriangleBuffer, TArray<FTrackSegment>& TrackSegments)
 {
 	// convert FVector2D to FVector
-	FVector TrackStartPoint = StartPoint;
+	/*FVector TrackStartPoint = StartPoint;
 
-	FVector TrackEndPoint = EndPoint;
+	FVector TrackEndPoint = EndPoint;*/
 
-	float HalfHeight = TrackEndPoint.Z - ((TrackEndPoint.Z - TrackStartPoint.Z) / 2.f);
+	UE_LOG(LogTemp, Error, TEXT("Elevation from GenerateTrackMesh for Sector %s"), *Sector.ToString());
+	UE_LOG(LogTemp, Warning, TEXT("StartPoint Elevation: %f --- EndPoint Elevation: %f"), StartPoint.Z, EndPoint.Z);
+
+
+	float HalfHeight = EndPoint.Z - ((EndPoint.Z - StartPoint.Z) / 2.f);
 
 	// TODO calculate elevation of control points
 	// calculate control points
@@ -739,10 +748,10 @@ void ATerrainManager::GenerateTrackMesh(const FIntVector2D Sector, const FVector
 	FVector ControlPoint2 = FVector(TerrainSettings.TileEdgeSize/2, TerrainSettings.TileEdgeSize/2, HalfHeight);
 
 	FVector BezierPoints[4];
-	BezierPoints[0] = TrackStartPoint;
+	BezierPoints[0] = StartPoint;
 	BezierPoints[1] = ControlPoint1;
 	BezierPoints[2] = ControlPoint2;
-	BezierPoints[3] = TrackEndPoint;
+	BezierPoints[3] = EndPoint;
 
 
 	// calculate mesh
@@ -858,8 +867,7 @@ void ATerrainManager::GenerateTrackMesh(const FIntVector2D Sector, const FVector
 FRuntimeMeshVertexSimple ATerrainManager::CreateRuntimeMeshVertexSimple(const FVector Vertex, const FVector Normal) const
 {
 	return FRuntimeMeshVertexSimple(
-		//Vertex,										// Vertex position
-		FVector(Vertex.X, Vertex.Y, 20000.f),			// TODO remove this line if testing is done
+		Vertex,										// Vertex position
 		Normal,											// Vertex normal
 		FRuntimeMeshTangent(0.f, -1.f, 0.f),			// Vertex tangent
 		FColor::White,

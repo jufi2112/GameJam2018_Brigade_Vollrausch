@@ -1540,26 +1540,44 @@ struct FDEM
 		// FIFO Queue
 		TQueue<FVector2D, EQueueMode::Spsc> FQ;
 
-		// add constraints to the DEM and put constraints into FIFO Queue
-		for (const FVector Constraint : (*InitialConstraints))
-		{
-			SetNewDEMPointData(Constraint, FDEMData(Constraint.Z, EDEMState::DEM_KNOWN));
-			FQ.Enqueue(FVector2D(Constraint.X, Constraint.Y));
-		}
+		// set to check if a given constraint is already part of the FIFO Queue
+		TSet<FVector2D> AlreadyInsertedConstraints;
 
-		// add track constraints here
+		/** 
+		 * add track constraints first so they don't get overwritten by border constraints
+		 * special case when this is the first track tile, since the tile before will not properly connect to this track constraint:
+		 * TODO think about adding border constraints first in this special case
+		 */
 		for (const FVector Constraint : (*TrackConstraints))
 		{
-			SetNewDEMPointData(Constraint, FDEMData(Constraint.Z, EDEMState::DEM_KNOWN));
-			FQ.Enqueue(FVector2D(Constraint.X, Constraint.Y));
+			if (!AlreadyInsertedConstraints.Contains(Vec2Vec2D(Constraint)))
+			{
+				SetNewDEMPointData(Constraint, FDEMData(Constraint.Z, EDEMState::DEM_KNOWN));
+				FQ.Enqueue(FVector2D(Constraint.X, Constraint.Y));
+				AlreadyInsertedConstraints.Add(Vec2Vec2D(Constraint));
+			}
 		}
-		
 
 		// add border constraints to the DEM and put constraints into FIFO Queue
 		for (const FBorderVertex Constraint : (*BorderConstraints))
 		{
-			SetNewDEMPointData(Constraint.Position, FDEMData(Constraint.Position.Z, EDEMState::DEM_KNOWN, Constraint.Normal));
-			FQ.Enqueue(FVector2D(Constraint.Position.X, Constraint.Position.Y));
+			if (!AlreadyInsertedConstraints.Contains(Vec2Vec2D(Constraint.Position)))
+			{
+				SetNewDEMPointData(Constraint.Position, FDEMData(Constraint.Position.Z, EDEMState::DEM_KNOWN, Constraint.Normal));
+				FQ.Enqueue(FVector2D(Constraint.Position.X, Constraint.Position.Y));
+				AlreadyInsertedConstraints.Add(Vec2Vec2D(Constraint.Position));
+			}
+		}
+
+		// add initial constraints to the DEM and put constraints into FIFO Queue
+		for (const FVector Constraint : (*InitialConstraints))
+		{
+			if (!AlreadyInsertedConstraints.Contains(Vec2Vec2D(Constraint)))
+			{
+				SetNewDEMPointData(Constraint, FDEMData(Constraint.Z, EDEMState::DEM_KNOWN));
+				FQ.Enqueue(FVector2D(Constraint.X, Constraint.Y));
+				AlreadyInsertedConstraints.Add(Vec2Vec2D(Constraint));
+			}
 		}
 
 		while (!FQ.IsEmpty())

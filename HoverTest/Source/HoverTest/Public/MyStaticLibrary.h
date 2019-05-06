@@ -402,9 +402,12 @@ struct FFractalNoiseTerrainSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float I_bu = 5.f;
 
-	// number of iterations for the triangle edge algorithms
+	/**
+	 * number of iterations for the triangle edge algorithms
+	 * reducing this number reduces terrain quality but greatly increases performance
+	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	int32 TriangleEdgeIterations = 5;
+	int32 TriangleEdgeIterations = 6;
 };
 
 /**
