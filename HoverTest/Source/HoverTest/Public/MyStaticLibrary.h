@@ -252,6 +252,33 @@ struct FTrackSegment
 				PointsOnTrackSegment.Add(FVector(Point.X, Point.Y, InterpolatePointElevation(Point)));
 			}
 		}
+
+		/**
+		 * filter out points that probably lie within the next or previous track segment, as they will be processed there
+		 * don't do this for the last track segment in the tile, since there is no next track segment
+		 *
+		 *				X3--------------------X2
+		 *				|					  |
+		 *				|					  |
+		 *				|					  |
+		 *				X0--------------------X1
+		 */
+
+		for (int32 i = PointsOnTrackSegment.Num() - 1; i >= 0; --i)
+		{
+			FVector2D Pt = FVector2D(PointsOnTrackSegment[i].X, PointsOnTrackSegment[i].Y);
+			// don't filter out points 'left' and 'right' but only those behind X3X2 and in front of X0X1
+			float DistancePtBaseLine = CalculateMinimumDistancePointLine(Pt, DefiningPoints[0], DefiningPoints[1]);
+			float DistancePtEndLine = CalculateMinimumDistancePointLine(Pt, DefiningPoints[3], DefiningPoints[2]);
+			float DistanceX0X3 = FVector2D::Distance(DefiningPoints[0], DefiningPoints[3]);
+			float DistanceX1X2 = FVector2D::Distance(DefiningPoints[1], DefiningPoints[2]);
+			float MaxDistance = FMath::Max<float>(DistanceX0X3, DistanceX1X2);
+			if (DistancePtBaseLine > MaxDistance || DistancePtEndLine > MaxDistance)
+			{
+				PointsOnTrackSegment.RemoveAt(i);
+			}
+		}
+
 		if (!UseTightBoundingBox) { return; }
 		// use cross product (in 2D space determinant) to check if point lies within original track segment
 		// point numeration switches from 1-based to 0-based to better comply with array indices
@@ -287,15 +314,19 @@ struct FTrackSegment
 	 */
 	float InterpolatePointElevation(const FVector2D Point)
 	{
+		/*float Offset = -50.f;
+		return (BaseLineHeight < EndLineHeight) ? (BaseLineHeight + Offset) : (EndLineHeight + Offset);*/
+		// for now, use lowest value
 		// calculate distance from point to base line
 		float DistanceToBaseLine = CalculateMinimumDistancePointLineSegment(Point, DefiningPoints[0], DefiningPoints[1]);
 
 		// calculate distance from point to end line
 		float DistanceToEndLine = CalculateMinimumDistancePointLineSegment(Point, DefiningPoints[3], DefiningPoints[2]);
-		if (DistanceToBaseLine + DistanceToEndLine == 0.f) { return -10.f; }
+		if (DistanceToBaseLine + DistanceToEndLine == 0.f) { return 0.f; }
+
 		float Alpha = DistanceToBaseLine / (DistanceToBaseLine + DistanceToEndLine);
 
-		return (FMath::Lerp<float, float>(BaseLineHeight, EndLineHeight, Alpha) - 10.f);
+		return (FMath::Lerp<float, float>(BaseLineHeight, EndLineHeight, Alpha) - 50.f);
 	}
 
 	/**
@@ -312,6 +343,35 @@ struct FTrackSegment
 
 		const FVector2D Projection = LineStartPoint + t * (LineEndPoint - LineStartPoint);
 		return FVector2D::Distance(Point, Projection);
+	}
+
+	/**
+	 * calculates the minimal distance of a point to a line
+	 * equation taken from https://en.wikipedia.org/wiki/Distance_from_a_point_to_a_line#Line_defined_by_an_equation
+	 * @param Point The point for which the distance to a line should be calculated
+	 * @param LinePoint1 First point that lies on the line
+	 * @param LinePoint2 Second point that lies on the line
+	 * @return The minimum distance between the point and the line
+	 */
+	float CalculateMinimumDistancePointLine(const FVector2D Point, const FVector2D LinePoint1, const FVector2D LinePoint2)
+	{
+		float Numerator = FMath::Abs<float>
+			(
+				(LinePoint2.Y - LinePoint1.Y) * Point.X - (LinePoint2.X - LinePoint1.X) * Point.Y +
+				LinePoint2.X * LinePoint1.Y - LinePoint2.Y * LinePoint1.X
+			);
+
+		float Denominator = FMath::Sqrt
+			(
+				FMath::Pow(LinePoint2.Y - LinePoint1.Y, 2) +
+				FMath::Pow(LinePoint2.X - LinePoint1.X, 2)
+			);
+		if (Denominator == 0.f)
+		{
+			UE_LOG(LogTemp, Error, TEXT("Division by 0 in CalculateMinimumDistancePointLine in FTrackSegment"));
+			return 0.f;
+		}
+		return Numerator / Denominator;
 	}
 };
 
@@ -440,6 +500,7 @@ struct FTrackGenerationSettings
 
 	/**
 	 * parameter that controls the maximum elevation difference (in cm) between the track's starting and end point in one tile
+	 * used as threshold values for an uniform probability distribution
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float MaximumElevationDifference = 20000.f;

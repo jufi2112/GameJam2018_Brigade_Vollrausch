@@ -1571,6 +1571,8 @@ struct FDEM
 			}
 		}
 
+
+
 		// add initial constraints to the DEM and put constraints into FIFO Queue
 		for (const FVector Constraint : (*InitialConstraints))
 		{
