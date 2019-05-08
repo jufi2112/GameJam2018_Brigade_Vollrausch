@@ -1563,7 +1563,8 @@ struct FDEM
 		{
 			if (!AlreadyInsertedConstraints.Contains(Vec2Vec2D(Constraint.Position)))
 			{
-				SetNewDEMPointData(Constraint.Position, FDEMData(Constraint.Position.Z, EDEMState::DEM_KNOWN, Constraint.Normal));
+				// if using normal here there is an odd texture interation that results in visible tile borders
+				SetNewDEMPointData(Constraint.Position, FDEMData(Constraint.Position.Z, EDEMState::DEM_KNOWN/*, Constraint.Normal*/));	
 				FQ.Enqueue(FVector2D(Constraint.Position.X, Constraint.Position.Y));
 				AlreadyInsertedConstraints.Add(Vec2Vec2D(Constraint.Position));
 			}

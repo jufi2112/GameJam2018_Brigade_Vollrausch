@@ -330,10 +330,10 @@ struct FTrackSegment
 		return (BaseLineHeight < EndLineHeight) ? (BaseLineHeight + Offset) : (EndLineHeight + Offset);*/
 		// for now, use lowest value
 		// calculate distance from point to base line (not segment, because points outside the track need to get the same elevation as points inside the track
-		float DistanceToBaseLine = CalculateMinimumDistancePointLine/*Segment*/(Point, DefiningPoints[0], DefiningPoints[1]);
+		float DistanceToBaseLine = CalculateMinimumDistancePointLine(Point, DefiningPoints[0], DefiningPoints[1]);
 
 		// calculate distance from point to end line
-		float DistanceToEndLine = CalculateMinimumDistancePointLine/*Segment*/(Point, DefiningPoints[3], DefiningPoints[2]);
+		float DistanceToEndLine = CalculateMinimumDistancePointLine(Point, DefiningPoints[3], DefiningPoints[2]);
 		if (DistanceToBaseLine + DistanceToEndLine == 0.f) { return 0.f; }
 
 		float Alpha = DistanceToBaseLine / (DistanceToBaseLine + DistanceToEndLine);
