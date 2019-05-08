@@ -345,7 +345,6 @@ void ATerrainManager::AdjustQuad()
 
 bool ATerrainManager::CalculateTrackExitPointElevation(const FIntVector2D Sector)
 {
-	// this fails because the sector gets added to the trackmap after this function is called
 	FSectorTrackInfo* TrackInfo = TrackMap.Find(Sector);
 	if (!TrackInfo)
 	{
@@ -416,6 +415,17 @@ void ATerrainManager::Tick(float DeltaTime)
 			}
 			else
 			{
+				/* check if we need to recalculate the tile 'behind' our track start point to match the border elevations */
+				if (Job.TerrainTile->GetCurrentSector() == FIntVector2D(0, 0) && !bRecalculatedTileBehindStartPoint)
+				{
+					bRecalculatedTileBehindStartPoint = true;
+					FSectorTrackInfo* TrackInfo = TrackMap.Find(FIntVector2D(0, 0));
+					if (TrackInfo)
+					{
+						// calculate which sector lies 'behind' track entry point
+						FVector2D EntryPoint = TrackInfo->TrackEntryPoint
+					}
+				}
 				Job.TerrainTile->UpdateMeshData(TerrainSettings, Job.MeshData);
 			}
 		}
@@ -865,6 +875,20 @@ void ATerrainManager::GenerateTrackMesh(const FIntVector2D Sector, const FVector
 			TrackSegments.Add(FTrackSegment(OUTVertexBuffer[Num - 5].Position, OUTVertexBuffer[Num - 4].Position, OUTVertexBuffer[Num - 1].Position, OUTVertexBuffer[Num - 2].Position));
 		}
 	}
+}
+
+void ATerrainManager::RecalculateTileForSector(const FIntVector2D Sector)
+{
+	for (ATerrainTile* Tile : TilesInUse)
+	{
+		if (Tile->GetCurrentSector() == Sector)
+		{
+			FTerrainJob Job;
+			Job.TerrainTile = Tile;
+			PendingTerrainJobQueue.Enqueue(Job);
+			return;
+		}
+	}	
 }
 
 // Creates a FRuntimeMeshVertexSimple from the given Vertex

@@ -6,6 +6,7 @@
 #include "GameFramework/Actor.h"
 #include "MyStaticLibrary.h"
 #include "Runtime/Core/Public/Containers/Queue.h"
+
 #include "TerrainManager.generated.h"
 
 class ATerrainTile;
@@ -97,6 +98,12 @@ protected:
 
 
 private:
+
+	/**
+	 * bool to check whether we already recalculated the tile 'behind' the track start point or not
+	 */
+	UPROPERTY()
+	bool bRecalculatedTileBehindStartPoint = false;
 
 	/**
 	 * calculates all neighboring sectors for the given sector
@@ -230,4 +237,12 @@ public:
 	 * @param OUTTriangleBuffer A triangle buffer where the generated triangle point order should be stored
 	 */
 	void GenerateTrackMesh(const FIntVector2D Sector, const FVector StartPoint, const FVector EndPoint, TArray<FRuntimeMeshVertexSimple>& OUTVertexBuffer, TArray<int32>& OUTTriangleBuffer, TArray<FTrackSegment>& TrackSegments);
+
+	/**
+	 * used to recalculate the tile for the given sector
+	 * only recalculates the tile if it was already calculated (i.e. a tile with the given sector is in TilesInUse)
+	 * @param Sector The sector for which the tile should be recalculated
+	 */
+	UFUNCTION()
+	void RecalculateTileForSector(const FIntVector2D Sector);
 };
