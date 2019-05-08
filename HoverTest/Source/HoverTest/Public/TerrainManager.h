@@ -6,7 +6,6 @@
 #include "GameFramework/Actor.h"
 #include "MyStaticLibrary.h"
 #include "Runtime/Core/Public/Containers/Queue.h"
-
 #include "TerrainManager.generated.h"
 
 class ATerrainTile;
