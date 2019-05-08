@@ -206,13 +206,13 @@ struct FTrackSegment
 	 * @param UseTightBoundingBox Using a tight bounding box will return points that lie in the initially defined track segment, false if all points in the rectangular bounding box around the given track segment should be returned
 	 * @param OUTPointsOnTrack All points that lie on the track as specified by UseTightBoundingBox with correct height
 	 */
-	void CalculatePointsOnTrack(const float UnitSize, const bool UseTightBoundingBox, TArray<FVector>& OUTPointsOnTrack)
+	void CalculatePointsOnTrack(const float UnitSize, const bool UseTightBoundingBox, TArray<FVector>& OUTPointsOnTrack, const bool IsFirstSegmentOnTrack, const bool IsLastSegmentOnTrack)
 	{
 		this->UnitSize = UnitSize;
 
 		CalculateBoundingRectangle();
 
-		CalculatePointsInBoundingBox(UseTightBoundingBox);
+		CalculatePointsInBoundingBox(UseTightBoundingBox, IsFirstSegmentOnTrack, IsLastSegmentOnTrack);
 		OUTPointsOnTrack = PointsOnTrackSegment;
 
 	}
@@ -236,7 +236,7 @@ struct FTrackSegment
 	/**
 	 * ! For internal use only, use CalculatePointsOnTrack instead !
 	 */
-	void CalculatePointsInBoundingBox(const bool UseTightBoundingBox)
+	void CalculatePointsInBoundingBox(const bool UseTightBoundingBox, const bool IsFirstSegmentOnTrack, const bool IsLastSegmentOnTrack)
 	{
 		j_min = FMath::FloorToInt(MinY / UnitSize);
 		j_max = FMath::CeilToInt(MaxY / UnitSize);
@@ -264,6 +264,8 @@ struct FTrackSegment
 		 *				X0--------------------X1
 		 */
 
+		if (IsLastSegmentOnTrack) { return; }
+
 		for (int32 i = PointsOnTrackSegment.Num() - 1; i >= 0; --i)
 		{
 			FVector2D Pt = FVector2D(PointsOnTrackSegment[i].X, PointsOnTrackSegment[i].Y);
@@ -273,39 +275,49 @@ struct FTrackSegment
 			float DistanceX0X3 = FVector2D::Distance(DefiningPoints[0], DefiningPoints[3]);
 			float DistanceX1X2 = FVector2D::Distance(DefiningPoints[1], DefiningPoints[2]);
 			float MaxDistance = FMath::Max<float>(DistanceX0X3, DistanceX1X2);
-			if (DistancePtBaseLine > MaxDistance || DistancePtEndLine > MaxDistance)
+			if (IsFirstSegmentOnTrack)
+			{
+				if (DistancePtBaseLine > MaxDistance)
+				{
+					PointsOnTrackSegment.RemoveAt(i);
+					continue;
+				}
+			}
+			else if (DistancePtBaseLine > MaxDistance || DistancePtEndLine > MaxDistance)
 			{
 				PointsOnTrackSegment.RemoveAt(i);
 			}
 		}
+		return;
 
-		if (!UseTightBoundingBox) { return; }
-		// use cross product (in 2D space determinant) to check if point lies within original track segment
-		// point numeration switches from 1-based to 0-based to better comply with array indices
-		FVector2D Vector_Point0Point1 = DefiningPoints[1] - DefiningPoints[0];
-		FVector2D Vector_Point1Point2 = DefiningPoints[2] - DefiningPoints[1];
-		FVector2D Vector_Point2Point3 = DefiningPoints[3] - DefiningPoints[2];
-		FVector2D Vector_Point3Point0 = DefiningPoints[0] - DefiningPoints[3];
+		// this yields bad results because the mesh resolution isn't high enough
+		//if (!UseTightBoundingBox) { return; }
+		//// use cross product (in 2D space determinant) to check if point lies within original track segment
+		//// point numeration switches from 1-based to 0-based to better comply with array indices
+		//FVector2D Vector_Point0Point1 = DefiningPoints[1] - DefiningPoints[0];
+		//FVector2D Vector_Point1Point2 = DefiningPoints[2] - DefiningPoints[1];
+		//FVector2D Vector_Point2Point3 = DefiningPoints[3] - DefiningPoints[2];
+		//FVector2D Vector_Point3Point0 = DefiningPoints[0] - DefiningPoints[3];
 
-		// iterate all points and remove those that don't lie within original track segment
-		for (int k = PointsOnTrackSegment.Num() - 1; k >= 0; --k)
-		{
-			FVector2D Vector_Point0P = FVector2D(PointsOnTrackSegment[k].X, PointsOnTrackSegment[k].Y) - DefiningPoints[0];
-			FVector2D Vector_Point1P = FVector2D(PointsOnTrackSegment[k].X, PointsOnTrackSegment[k].Y) - DefiningPoints[1];
-			FVector2D Vector_Point2P = FVector2D(PointsOnTrackSegment[k].X, PointsOnTrackSegment[k].Y) - DefiningPoints[2];
-			FVector2D Vector_Point3P = FVector2D(PointsOnTrackSegment[k].X, PointsOnTrackSegment[k].Y) - DefiningPoints[3];
+		//// iterate all points and remove those that don't lie within original track segment
+		//for (int k = PointsOnTrackSegment.Num() - 1; k >= 0; --k)
+		//{
+		//	FVector2D Vector_Point0P = FVector2D(PointsOnTrackSegment[k].X, PointsOnTrackSegment[k].Y) - DefiningPoints[0];
+		//	FVector2D Vector_Point1P = FVector2D(PointsOnTrackSegment[k].X, PointsOnTrackSegment[k].Y) - DefiningPoints[1];
+		//	FVector2D Vector_Point2P = FVector2D(PointsOnTrackSegment[k].X, PointsOnTrackSegment[k].Y) - DefiningPoints[2];
+		//	FVector2D Vector_Point3P = FVector2D(PointsOnTrackSegment[k].X, PointsOnTrackSegment[k].Y) - DefiningPoints[3];
 
-			float detA = FVector2D::CrossProduct(Vector_Point0Point1, Vector_Point0P);
-			float detB = FVector2D::CrossProduct(Vector_Point1Point2, Vector_Point1P);
-			float detC = FVector2D::CrossProduct(Vector_Point2Point3, Vector_Point2P);
-			float detD = FVector2D::CrossProduct(Vector_Point3Point0, Vector_Point3P);
+		//	float detA = FVector2D::CrossProduct(Vector_Point0Point1, Vector_Point0P);
+		//	float detB = FVector2D::CrossProduct(Vector_Point1Point2, Vector_Point1P);
+		//	float detC = FVector2D::CrossProduct(Vector_Point2Point3, Vector_Point2P);
+		//	float detD = FVector2D::CrossProduct(Vector_Point3Point0, Vector_Point3P);
 
-			// point lies within convex quad, if all cross poducts have the same sign
-			if (!((detA <= 0 && detB <= 0 && detC <= 0 && detD <= 0) || (detA >= 0 && detB >= 0 && detC >= 0 && detD >= 0)))
-			{
-				PointsOnTrackSegment.RemoveAt(k);
-			}
-		}
+		//	// point lies within convex quad, if all cross poducts have the same sign
+		//	if (!((detA <= 0 && detB <= 0 && detC <= 0 && detD <= 0) || (detA >= 0 && detB >= 0 && detC >= 0 && detD >= 0)))
+		//	{
+		//		PointsOnTrackSegment.RemoveAt(k);
+		//	}
+		//}
 	}
 
 	/**
@@ -317,11 +329,11 @@ struct FTrackSegment
 		/*float Offset = -50.f;
 		return (BaseLineHeight < EndLineHeight) ? (BaseLineHeight + Offset) : (EndLineHeight + Offset);*/
 		// for now, use lowest value
-		// calculate distance from point to base line
-		float DistanceToBaseLine = CalculateMinimumDistancePointLineSegment(Point, DefiningPoints[0], DefiningPoints[1]);
+		// calculate distance from point to base line (not segment, because points outside the track need to get the same elevation as points inside the track
+		float DistanceToBaseLine = CalculateMinimumDistancePointLine/*Segment*/(Point, DefiningPoints[0], DefiningPoints[1]);
 
 		// calculate distance from point to end line
-		float DistanceToEndLine = CalculateMinimumDistancePointLineSegment(Point, DefiningPoints[3], DefiningPoints[2]);
+		float DistanceToEndLine = CalculateMinimumDistancePointLine/*Segment*/(Point, DefiningPoints[3], DefiningPoints[2]);
 		if (DistanceToBaseLine + DistanceToEndLine == 0.f) { return 0.f; }
 
 		float Alpha = DistanceToBaseLine / (DistanceToBaseLine + DistanceToEndLine);

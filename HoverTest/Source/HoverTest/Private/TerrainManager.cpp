@@ -772,6 +772,10 @@ void ATerrainManager::GenerateTrackMesh(const FIntVector2D Sector, const FVector
 		FVector Normal;
 		if (i == PointsOnTrack.Num() - 1)
 		{
+			// make call to TrackMap and get end point Height from there
+
+			// do this same routine for the entry point
+
 			// since the points on the bézier curve get approximated, we need to 'guess' on what border of the tile the last point lies
 			int32 TileSize = TerrainSettings.TileEdgeSize;
 			FVector Pt = PointsOnTrack[i];		// shorter writing

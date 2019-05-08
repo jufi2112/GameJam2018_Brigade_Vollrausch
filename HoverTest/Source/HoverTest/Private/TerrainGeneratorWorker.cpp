@@ -222,12 +222,20 @@ uint32 TerrainGeneratorWorker::Run()
 			UnitSize = DEM.GetUnitSize();
 
 			// calculate track constraints in TrackSegments
-			for (FTrackSegment Segment : TrackSegments)
+			for (int32 Index = 0; Index < TrackSegments.Num(); ++Index)
 			{
 				TArray<FVector> PointsOnTrack;
-				Segment.CalculatePointsOnTrack(UnitSize, TerrainSettings.TrackGenerationSettings.bUseTightTrackBoundingBox, PointsOnTrack);
+				TrackSegments[Index].CalculatePointsOnTrack(UnitSize, TerrainSettings.TrackGenerationSettings.bUseTightTrackBoundingBox, PointsOnTrack, (Index == 0), (Index == (TrackSegments.Num() - 1)));
 				TrackConstraints.Append(PointsOnTrack);
 			}
+
+			//// calculate track constraints in TrackSegments
+			//for (FTrackSegment Segment : TrackSegments)
+			//{
+			//	TArray<FVector> PointsOnTrack;
+			//	Segment.CalculatePointsOnTrack(UnitSize, TerrainSettings.TrackGenerationSettings.bUseTightTrackBoundingBox, PointsOnTrack);
+			//	TrackConstraints.Append(PointsOnTrack);
+			//}
 
 			DEM.MidpointDisplacementBottomUp(&Constraints, &BorderConstraints, &TrackConstraints);
 			DEM.TriangleEdge(&DefiningPoints, 0, TerrainSettings.FractalNoiseTerrainSettings.TriangleEdgeIterations);// , TerrainJob.MeshData);
