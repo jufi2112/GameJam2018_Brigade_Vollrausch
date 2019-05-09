@@ -7,6 +7,7 @@
 #include "UObject/NoExportTypes.h"
 #include "Engine/Classes/Materials/MaterialInterface.h"
 #include "Math/NumericLimits.h"
+#include <random>
 #include "MyStaticLibrary.generated.h"
 
 class ATerrainTile;
@@ -108,6 +109,14 @@ struct FSectorTrackInfo
 	// elevation of the track exit point
 	UPROPERTY()
 	float TrackExitPointElevation = 0.f;
+
+	// first bézier control point
+	UPROPERTY()
+	FVector FirstBezierControlPoint = FVector();
+
+	// second bézier control point
+	UPROPERTY()
+	FVector SecondBezierControlPoint = FVector();
 
 	// sector has no track
 	FSectorTrackInfo()
@@ -530,6 +539,19 @@ struct FTrackGenerationSettings
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float HeightTerrainBeneathTrack = 10.f;
+
+	/**
+	 * The mean value of the normal distribution for calculating the second bezier control point.
+	 * Defaults to 0.5f
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float CURVINESS_MEAN = 0.5f;
+
+	/**
+	 * the curviness of the track, will be used as standard deviation in a normal distribution with mean CURVINESS_MEAN
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float Curviness = 0.2f;
 };
 
 
@@ -942,6 +964,31 @@ public:
 		
 		const FVector2D Projection = LineStartPoint + t * (LineEndPoint - LineStartPoint);
 		return FVector2D::Distance(Point, Projection);
+	}
+
+	/**
+	 * normal distribution whose value is optionally clamped between Min and Max
+	 * @param Mean The mean
+	 * @param Deviation The standard deviation
+	 * @param Min If the value should be clamped to a minimum, set to 0 for no clamping
+	 * @param Max If the value should be clamped to a maximum, set to 0 for no clamping
+	 * @return A normal distributed value with mean Mean and standard deviation Deviation, optionally clamped to [Min, Max]
+	 */
+	static float GetNormalDistribution(const float Mean, const float Deviation, const float Min = 0.f, const float Max = 0.f)
+	{
+		// following the code from https://en.cppreference.com/w/cpp/numeric/random/normal_distribution
+		std::random_device rd{};
+		std::mt19937 gen{ rd() };
+
+		std::normal_distribution<float> d{ Mean, Deviation };
+		if (Min == 0.f && Max == 0.f)
+		{
+			return d(gen);
+		}
+		else
+		{
+			return FMath::Clamp<float>(d(gen), Min, Max);
+		}
 	}
 
 

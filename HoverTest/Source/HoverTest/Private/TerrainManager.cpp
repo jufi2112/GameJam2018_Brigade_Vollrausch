@@ -118,12 +118,12 @@ void ATerrainManager::CalculateTrackPath(const TArray<FIntVector2D> SectorsToCre
 			TrackInfo.TrackEntryPoint = EntryPoint;
 			TrackInfo.TrackExitPoint = ExitPoint;
 
+			// calculate exit point elevation
+			CalculateTrackExitPointElevation(CurrentTrackSector, TrackInfo, TrackInfo.TrackExitPointElevation);	
+			CalculateBezierControlPoints();
+
 			// add to TrackMap
 			TrackMap.Add(CurrentTrackSector, TrackInfo);
-
-			// TODO check if this get's stored properly
-			// calculate exit point elevation, in-place changes TrackExitPointElevation
-			CalculateTrackExitPointElevation(CurrentTrackSector);			
 		}
 		else
 		{
@@ -343,21 +343,12 @@ void ATerrainManager::AdjustQuad()
 
 }
 
-bool ATerrainManager::CalculateTrackExitPointElevation(const FIntVector2D Sector)
+bool ATerrainManager::CalculateTrackExitPointElevation(const FIntVector2D Sector, const FSectorTrackInfo TrackInfo, float& OUTExitPointElevation)
 {
-	FSectorTrackInfo TrackInfo = TrackMap.FindRef(Sector);
-	if (!TrackMap.Contains(Sector))
-	{
-		UE_LOG(LogTemp, Error, TEXT("Could not find specified sector %s in TrackMap in function CalculateTrackExitPointElevation"), *Sector.ToString());
-		return false;
-	}
 	if (Sector == FIntVector2D(0, 0))
 	{
 		// very first sector, use default elevation for entry point height
-		float Elevation = TerrainSettings.TrackGenerationSettings.DefaultEntryPointHeight + FMath::RandRange(-TerrainSettings.TrackGenerationSettings.MaximumElevationDifference, TerrainSettings.TrackGenerationSettings.MaximumElevationDifference);
-
-		TrackInfo.TrackExitPointElevation = Elevation;
-		TrackMap.Add(Sector, TrackInfo);
+		OUTExitPointElevation = TerrainSettings.TrackGenerationSettings.DefaultEntryPointHeight + FMath::RandRange(-TerrainSettings.TrackGenerationSettings.MaximumElevationDifference, TerrainSettings.TrackGenerationSettings.MaximumElevationDifference);
 		return true;
 	}
 	const FSectorTrackInfo PreviousTrackInfo = TrackMap.FindRef(TrackInfo.PreviousTrackSector);
@@ -367,11 +358,46 @@ bool ATerrainManager::CalculateTrackExitPointElevation(const FIntVector2D Sector
 		return false;
 	}
 	// calculate exit elevation: exit elevation <-- start elevation + Random[-MaximumElevationDifference, MaximumElevationDifference]
-	float Elevation = PreviousTrackInfo.TrackExitPointElevation + FMath::RandRange(-TerrainSettings.TrackGenerationSettings.MaximumElevationDifference, TerrainSettings.TrackGenerationSettings.MaximumElevationDifference);
-
-	TrackInfo.TrackExitPointElevation = Elevation;
-	TrackMap.Add(Sector, TrackInfo);
+	OUTExitPointElevation = PreviousTrackInfo.TrackExitPointElevation + FMath::RandRange(-TerrainSettings.TrackGenerationSettings.MaximumElevationDifference, TerrainSettings.TrackGenerationSettings.MaximumElevationDifference);
 	return true;
+
+}
+
+void ATerrainManager::CalculateBezierControlPoints(const FIntVector2D Sector, const FSectorTrackInfo TrackInfo, FVector & OUTControlPointOne, FVector & OUTControlPointTwo)
+{
+	if (Sector != FIntVector2D(0,0) && !TrackMap.Contains(TrackInfo.PreviousTrackSector))
+	{
+		UE_LOG(LogTemp, Error, TEXT("Could not find previous track sector of sector %s in TrackMap."), *Sector.ToString());
+		return;
+	}
+	FSectorTrackInfo PreviousTrackInfo = TrackMap.FindRef(TrackInfo.PreviousTrackSector);
+
+	FVector ControlPoint1;
+	FVector ControlPoint2;
+	/**
+	 * first control point is:
+	 *		vector of second control point of previous sector to end point of previous sector (called 'Vector')
+	 *		added to start point of current sector (called 'EntryPoint')
+	 */
+	if (Sector == FIntVector2D(0, 0))
+	{
+		// default control point one to tile middle with default entry point height in case we have no control point in a previous sector
+		ControlPoint1 = FVector(TerrainSettings.TileEdgeSize / 2.f, TerrainSettings.TileEdgeSize / 2.f, TerrainSettings.TrackGenerationSettings.DefaultEntryPointHeight);
+	}
+	else
+	{
+		FVector Vector = FVector(PreviousTrackInfo.TrackExitPoint, PreviousTrackInfo.TrackExitPointElevation) - PreviousTrackInfo.SecondBezierControlPoint;
+		FVector EntryPoint = FVector(TrackInfo.TrackEntryPoint, PreviousTrackInfo.TrackExitPointElevation);
+		ControlPoint1 = EntryPoint + Vector;
+	}
+
+	/**
+	 * calculation of control point 2 follows instructions given by Michael Franke in 'Dynamische Streckengenerierung und deren Einbettung in ein Terrain' in 2011
+	 */
+	float MaximumDisplacement = TerrainSettings.TileEdgeSize / 4.f;
+	float RandomNumber = UMyStaticLibrary::GetNormalDistribution(TerrainSettings.TrackGenerationSettings.CURVINESS_MEAN, TerrainSettings.TrackGenerationSettings.Curviness, 0.f, 1.f);
+	float Displacement = MaximumDisplacement * RandomNumber + MaximumDisplacement;
+
 
 }
 

@@ -155,11 +155,22 @@ private:
 	/**
 	 * calculates the TrackExitPoint's elevation for a track in the specified sector
 	 * @param Sector The sector for which the exit point elevation should be calculated
+	 * @param TrackInfo The current sector's track info
 	 * @param OUTExitPointElevation Out parameter that contains the exit point's elevation
 	 * @return True if exit point's elevation could be calculated successfully, false if an error occured
 	 */
 	UFUNCTION()
-	bool CalculateTrackExitPointElevation(const FIntVector2D Sector);
+	bool CalculateTrackExitPointElevation(const FIntVector2D Sector, const FSectorTrackInfo TrackInfo, float& OUTExitPointElevation);
+
+	/**
+	 * calculates the two control points of the bezier curve for the given sector
+	 * @param Sector The sector to calculate the control points for
+	 * @param TrackEntryPoint The entry point of the track in the current sector, with elevation
+	 * @param OUTControlPointOne Out parameter of the first control point
+	 * @param OUTControlPointTwo Out parameter of the second control point
+	 */
+	UFUNCTION()
+	void CalculateBezierControlPoints(const FIntVector2D Sector, const FSectorTrackInfo TrackInfo, FVector& OUTControlPointOne, FVector& OUTControlPointTwo);
 
 
 
