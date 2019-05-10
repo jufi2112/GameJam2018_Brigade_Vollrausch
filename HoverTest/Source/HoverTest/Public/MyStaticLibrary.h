@@ -552,6 +552,12 @@ struct FTrackGenerationSettings
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float Curviness = 0.2f;
+
+	/**
+	 * quality of being hilly, used as standard deviation in a normal distribution with the average elevation between track entry and exit point as mean
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float Hilliness = 2000.f;
 };
 
 

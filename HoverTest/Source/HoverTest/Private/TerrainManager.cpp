@@ -4,6 +4,7 @@
 #include "TerrainTile.h"
 #include "Runtime/Engine/Classes/Engine/World.h"
 #include "TerrainGeneratorWorker.h"
+#include "Engine/Classes/Kismet/KismetMathLibrary.h"
 
 
 // Sets default values
@@ -120,7 +121,7 @@ void ATerrainManager::CalculateTrackPath(const TArray<FIntVector2D> SectorsToCre
 
 			// calculate exit point elevation
 			CalculateTrackExitPointElevation(CurrentTrackSector, TrackInfo, TrackInfo.TrackExitPointElevation);	
-			CalculateBezierControlPoints();
+			CalculateBezierControlPoints(CurrentTrackSector, TrackInfo, TrackInfo.FirstBezierControlPoint, TrackInfo.SecondBezierControlPoint);
 
 			// add to TrackMap
 			TrackMap.Add(CurrentTrackSector, TrackInfo);
@@ -371,6 +372,7 @@ void ATerrainManager::CalculateBezierControlPoints(const FIntVector2D Sector, co
 		return;
 	}
 	FSectorTrackInfo PreviousTrackInfo = TrackMap.FindRef(TrackInfo.PreviousTrackSector);
+	const FVector2D MiddlePoint = FVector2D(TerrainSettings.TileEdgeSize / 2.f, TerrainSettings.TileEdgeSize / 2.f);
 
 	FVector ControlPoint1;
 	FVector ControlPoint2;
@@ -382,7 +384,7 @@ void ATerrainManager::CalculateBezierControlPoints(const FIntVector2D Sector, co
 	if (Sector == FIntVector2D(0, 0))
 	{
 		// default control point one to tile middle with default entry point height in case we have no control point in a previous sector
-		ControlPoint1 = FVector(TerrainSettings.TileEdgeSize / 2.f, TerrainSettings.TileEdgeSize / 2.f, TerrainSettings.TrackGenerationSettings.DefaultEntryPointHeight);
+		ControlPoint1 = FVector(MiddlePoint, TerrainSettings.TrackGenerationSettings.DefaultEntryPointHeight);
 	}
 	else
 	{
@@ -394,10 +396,29 @@ void ATerrainManager::CalculateBezierControlPoints(const FIntVector2D Sector, co
 	/**
 	 * calculation of control point 2 follows instructions given by Michael Franke in 'Dynamische Streckengenerierung und deren Einbettung in ein Terrain' in 2011
 	 */
-	float MaximumDisplacement = TerrainSettings.TileEdgeSize / 4.f;
 	float RandomNumber = UMyStaticLibrary::GetNormalDistribution(TerrainSettings.TrackGenerationSettings.CURVINESS_MEAN, TerrainSettings.TrackGenerationSettings.Curviness, 0.f, 1.f);
-	float Displacement = MaximumDisplacement * RandomNumber + MaximumDisplacement;
+	float Displacement = RandomNumber * (TerrainSettings.TileEdgeSize / 4.f);
+	// vector from middle point to track exit point
+	FVector2D LineEndPointMiddlePoint = TrackInfo.TrackExitPoint - MiddlePoint;
+	// point halfway between middle point and track exit point
+	FVector2D EndPointMiddlePointHalf = MiddlePoint + (LineEndPointMiddlePoint / 2.f);
+	// control point before rotation is applied
+	FVector2D IntermediatePoint = EndPointMiddlePointHalf + (LineEndPointMiddlePoint.GetSafeNormal() * Displacement);
 
+	float RotationAngle = UMyStaticLibrary::GetNormalDistribution(0.f, TerrainSettings.TrackGenerationSettings.Curviness, -1.f, 1.f) * 30.f;
+
+	float Angle = RotationAngle * (UKismetMathLibrary::GetPI() / 180.f);	// convert to radians
+
+	ControlPoint2.X = FMath::Cos(Angle) * (IntermediatePoint.X - TrackInfo.TrackExitPoint.X) -
+		FMath::Sin(Angle) * (IntermediatePoint.Y - TrackInfo.TrackExitPoint.Y) + TrackInfo.TrackExitPoint.X;
+	ControlPoint2.Y = FMath::Sin(Angle) * (IntermediatePoint.X - TrackInfo.TrackExitPoint.X) +
+		FMath::Cos(Angle) * (IntermediatePoint.Y - TrackInfo.TrackExitPoint.Y) + TrackInfo.TrackExitPoint.Y;
+
+	float AverageElevation = PreviousTrackInfo.TrackExitPointElevation + (TrackInfo.TrackExitPointElevation - PreviousTrackInfo.TrackExitPointElevation) / 2.f;
+	ControlPoint2.Z = UMyStaticLibrary::GetNormalDistribution(AverageElevation, TerrainSettings.TrackGenerationSettings.Hilliness);
+
+	OUTControlPointOne = ControlPoint1;
+	OUTControlPointTwo = ControlPoint2;
 
 }
 
@@ -788,21 +809,18 @@ int32 ATerrainManager::GetTrackPointsForSector(const FIntVector2D Sector, FVecto
 
 void ATerrainManager::GenerateTrackMesh(const FIntVector2D Sector, const FVector StartPoint, const FVector EndPoint, TArray<FRuntimeMeshVertexSimple>& OUTVertexBuffer, TArray<int32>& OUTTriangleBuffer, TArray<FTrackSegment>& TrackSegments)
 {
-	// convert FVector2D to FVector
-	/*FVector TrackStartPoint = StartPoint;
+	if (!TrackMap.Contains(Sector))
+	{
+		UE_LOG(LogTemp, Error, TEXT("Could not find track info for sector %s in TrackMap."), *Sector.ToString());
+		return;
+	}
 
-	FVector TrackEndPoint = EndPoint;*/
-
-	UE_LOG(LogTemp, Error, TEXT("Elevation from GenerateTrackMesh for Sector %s"), *Sector.ToString());
-	UE_LOG(LogTemp, Warning, TEXT("StartPoint Elevation: %f --- EndPoint Elevation: %f"), StartPoint.Z, EndPoint.Z);
-
+	FSectorTrackInfo TrackInfo = TrackMap.FindRef(Sector);
 
 	float HalfHeight = EndPoint.Z - ((EndPoint.Z - StartPoint.Z) / 2.f);
 
-	// TODO calculate elevation of control points
-	// calculate control points
-	FVector ControlPoint1 = FVector(TerrainSettings.TileEdgeSize/2, TerrainSettings.TileEdgeSize/2, HalfHeight);
-	FVector ControlPoint2 = FVector(TerrainSettings.TileEdgeSize/2, TerrainSettings.TileEdgeSize/2, HalfHeight);
+	FVector ControlPoint1 = TrackInfo.FirstBezierControlPoint;
+	FVector ControlPoint2 = TrackInfo.SecondBezierControlPoint;
 
 	FVector BezierPoints[4];
 	BezierPoints[0] = StartPoint;
