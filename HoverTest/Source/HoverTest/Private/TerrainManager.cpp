@@ -845,12 +845,40 @@ void ATerrainManager::GenerateTrackMesh(const FIntVector2D Sector, const FVector
 		FVector Y0;
 		FVector Y1;
 		FVector Normal;
-		if (i == PointsOnTrack.Num() - 1)
+		if (i == 0)
 		{
-			// make call to TrackMap and get end point Height from there
+			// since the points on the bézier curve get approximated, we need to 'guess' on what border of the tile the entry point lies
+			int32 TileSize = TerrainSettings.TileEdgeSize;
+			FVector Pt = PointsOnTrack[i];		// shorter writing
+			// we calculate the normal via crossproduct to ensure the same normal orientation as in previous steps
 
-			// do this same routine for the entry point
-
+			// bottom?
+			if (Pt.X < (0.25 * TileSize) && Pt.Y >(0.25 * TileSize) && Pt.Y < (0.75 * TileSize))
+			{
+				Normal = FVector::CrossProduct(FVector(1, 0, 0), FVector(0, 0, 1)).GetSafeNormal();
+			}
+			// right?
+			else if (Pt.X < (0.75 * TileSize) && Pt.X >(0.25 * TileSize) && Pt.Y >(0.75 * TileSize))
+			{
+				Normal = FVector::CrossProduct(FVector(0, -1, 0), FVector(0, 0, 1)).GetSafeNormal();
+			}
+			// top?
+			else if (Pt.X > (0.75 * TileSize) && Pt.Y > (0.25 * TileSize) && Pt.Y < (0.75 * TileSize))
+			{
+				Normal = FVector::CrossProduct(FVector(-1, 0, 0), FVector(0, 0, 1)).GetSafeNormal();
+			}
+			// left?
+			else if (Pt.X >(0.25 * TileSize) && Pt.X < (0.75 * TileSize) && Pt.Y < (0.25 * TileSize))
+			{
+				Normal = FVector::CrossProduct(FVector(0, 1, 0), FVector(0, 0, 1)).GetSafeNormal();
+			}
+			else
+			{
+				UE_LOG(LogTemp, Error, TEXT("Could not guess on which border the first point on the bézier curve lies."));
+			}
+		}
+		else if (i == PointsOnTrack.Num() - 1)
+		{
 			// since the points on the bézier curve get approximated, we need to 'guess' on what border of the tile the last point lies
 			int32 TileSize = TerrainSettings.TileEdgeSize;
 			FVector Pt = PointsOnTrack[i];		// shorter writing

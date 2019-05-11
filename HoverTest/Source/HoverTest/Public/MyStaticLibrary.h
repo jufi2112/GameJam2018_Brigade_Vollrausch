@@ -274,17 +274,34 @@ struct FTrackSegment
 		 */
 
 		if (IsLastSegmentOnTrack) { return; }
+		FVector2D X3X2 = DefiningPoints[3] - DefiningPoints[2];
+		FVector2D X0X1 = DefiningPoints[0] - DefiningPoints[1];
 
 		for (int32 i = PointsOnTrackSegment.Num() - 1; i >= 0; --i)
 		{
 			FVector2D Pt = FVector2D(PointsOnTrackSegment[i].X, PointsOnTrackSegment[i].Y);
 			// don't filter out points 'left' and 'right' but only those behind X3X2 and in front of X0X1
-			float DistancePtBaseLine = CalculateMinimumDistancePointLine(Pt, DefiningPoints[0], DefiningPoints[1]);
+			/*float DistancePtBaseLine = CalculateMinimumDistancePointLine(Pt, DefiningPoints[0], DefiningPoints[1]);
 			float DistancePtEndLine = CalculateMinimumDistancePointLine(Pt, DefiningPoints[3], DefiningPoints[2]);
 			float DistanceX0X3 = FVector2D::Distance(DefiningPoints[0], DefiningPoints[3]);
 			float DistanceX1X2 = FVector2D::Distance(DefiningPoints[1], DefiningPoints[2]);
-			float MaxDistance = FMath::Max<float>(DistanceX0X3, DistanceX1X2);
-			if (IsFirstSegmentOnTrack)
+			float MaxDistance = FMath::Max<float>(DistanceX0X3, DistanceX1X2);*/
+
+			// start comment here
+
+			// point lies between X0X1 and X3X2 if det(X3X2, X2Pt) (== DetA) and det(X0X1, X1Pt) (== DetB) have different signs
+			float DetA = FVector2D::CrossProduct(X3X2, Pt - DefiningPoints[2]);
+			float DetB = FVector2D::CrossProduct(X0X1, Pt - DefiningPoints[1]);
+
+			if ((DetA > 0 && DetB > 0) || (DetA < 0 && DetB < 0))
+			{
+				PointsOnTrackSegment.RemoveAt(i);
+				continue;
+			}
+
+			// end comment here
+
+			/*if (IsFirstSegmentOnTrack)
 			{
 				if (DistancePtBaseLine > MaxDistance)
 				{
@@ -295,7 +312,7 @@ struct FTrackSegment
 			else if (DistancePtBaseLine > MaxDistance || DistancePtEndLine > MaxDistance)
 			{
 				PointsOnTrackSegment.RemoveAt(i);
-			}
+			}*/
 		}
 		return;
 
