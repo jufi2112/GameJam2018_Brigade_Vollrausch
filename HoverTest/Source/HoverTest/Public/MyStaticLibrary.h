@@ -185,6 +185,11 @@ struct FTrackSegment
 	float EndLineHeight = 0.f;
 
 	/**
+	 * size of a terrain tile edge
+	 */
+	float TileEdgeSize = 0.f;
+
+	/**
 	 * @DEPRECATED, use other constructor!
 	 */
 	FTrackSegment()
@@ -198,7 +203,7 @@ struct FTrackSegment
 		UE_LOG(LogTemp, Error, TEXT("Using wrong FTrackSegment constructor"));
 	}
 
-	FTrackSegment(const FVector Point1, const FVector Point2, const FVector Point3, const FVector Point4)
+	FTrackSegment(const FVector Point1, const FVector Point2, const FVector Point3, const FVector Point4, const float TileEdgeSize)
 	{
 		DefiningPoints.Add(FVector2D(Point1.X, Point1.Y));
 		DefiningPoints.Add(FVector2D(Point2.X, Point2.Y));
@@ -207,6 +212,8 @@ struct FTrackSegment
 
 		BaseLineHeight = Point1.Z;
 		EndLineHeight = Point3.Z;
+
+		this->TileEdgeSize = TileEdgeSize;
 	}
 
 	/**
@@ -289,11 +296,67 @@ struct FTrackSegment
 
 			// start comment here
 
-			// point lies between X0X1 and X3X2 if det(X3X2, X2Pt) (== DetA) and det(X0X1, X1Pt) (== DetB) have different signs
+			/**
+			 * filter out points that are within our bounding rectangle, but not within the track segment's start and end line (these points get handled by the next / previous track segment)
+			 * point lies between X0X1 and X3X2 if det(X3X2, X2Pt) (== DetA) and det(X0X1, X1Pt) (== DetB) have different signs
+			 */
 			float DetA = FVector2D::CrossProduct(X3X2, Pt - DefiningPoints[2]);
 			float DetB = FVector2D::CrossProduct(X0X1, Pt - DefiningPoints[1]);
 
 			if ((DetA > 0 && DetB > 0) || (DetA < 0 && DetB < 0))
+			{
+				PointsOnTrackSegment.RemoveAt(i);
+				continue;
+			}
+
+			/**
+			 * this section should help fix the terrain discontinuity on borders if one tile defines a track constraint that the other tile does not define
+			 */
+
+			// only continue if current point lies on one of the tile's borders
+			if (!(FMath::IsNearlyZero(Pt.X) || FMath::IsNearlyEqual(Pt.X, TileEdgeSize) || FMath::IsNearlyZero(Pt.Y) || FMath::IsNearlyEqual(Pt.Y, TileEdgeSize))) { continue; }
+
+			float MinDistance = 0.f;
+
+			if (IsFirstSegmentOnTrack || IsLastSegmentOnTrack)
+			{
+				// X0X1 (or X3X2) will lie on border
+				int32 Index1 = -1;
+				int32 Index2 = -1;
+				if (IsFirstSegmentOnTrack)
+				{
+					Index1 = 0;
+					Index2 = 1;
+				}
+				if (IsLastSegmentOnTrack)
+				{
+					Index1 = 3;
+					Index2 = 2;
+				}
+				// calculate minimum distance between point and line segment
+				MinDistance = FMath::Min<float>
+					(
+						FVector2D::Distance(Pt, DefiningPoints[Index1]),
+						FVector2D::Distance(Pt, DefiningPoints[Index2])
+					);
+			}
+			else
+			{
+				MinDistance = FMath::Min3<float>
+					(
+						FVector2D::Distance(Pt, DefiningPoints[0]),
+						FVector2D::Distance(Pt, DefiningPoints[1]),
+						FVector2D::Distance(Pt, DefiningPoints[2])
+					);
+				MinDistance = FMath::Min<float>
+					(
+						MinDistance,
+						FVector2D::Distance(Pt, DefiningPoints[3])
+					);
+			}
+			
+			// if minimum distance is greater than UnitSize, we know there is at least one other point between the current point and the defining point, so we can remove the current point from the constraints
+			if (MinDistance > UnitSize)
 			{
 				PointsOnTrackSegment.RemoveAt(i);
 				continue;
