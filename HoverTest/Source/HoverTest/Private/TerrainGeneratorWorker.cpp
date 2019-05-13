@@ -30,8 +30,6 @@ uint32 TerrainGeneratorWorker::Run()
 	{
 		if (InputQueue->Dequeue(TerrainJob))
 		{
-			//UMyStaticLibrary::CreateComplexMeshData(TerrainSettings, TerrainJob.MeshData);
-			//UE_LOG(LogTemp, Error, TEXT("No terrain generation functions implemented yet!"));
 			FDEM DEM = FDEM
 			(
 				TerrainSettings.FractalNoiseTerrainSettings.H, 
@@ -79,8 +77,6 @@ uint32 TerrainGeneratorWorker::Run()
 			TArray<ATerrainTile*> AdjacentTiles;
 			TerrainManager->GetAdjacentTiles(TerrainJob.TerrainTile->GetCurrentSector(), AdjacentTiles, true);
 
-			//UE_LOG(LogTemp, Warning, TEXT("Found %i relevant adjacent tiles"), AdjacentTiles.Num());
-
 			for (ATerrainTile* Tile : AdjacentTiles)
 			{
 				if (!Tile->GetVerticesOnBorderSet()) { continue; }
@@ -102,7 +98,6 @@ uint32 TerrainGeneratorWorker::Run()
 							DefiningPoints[3].Z = Tile->GetBottomLeftCorner().Z;
 							bTopLeftCorner = true;
 						}
-						//UE_LOG(LogTemp, Warning, TEXT("Found a top tile (tile %s) with %i constraints"), *Tile->GetCurrentSector().ToString(), Verts.Num());
 						continue;
 					}
 					// bottom tile?
@@ -120,7 +115,6 @@ uint32 TerrainGeneratorWorker::Run()
 							DefiningPoints[1].Z = Tile->GetTopRightCorner().Z;
 							bBottomRightCorner = true;
 						}
-						//UE_LOG(LogTemp, Warning, TEXT("Found a bottom tile (tile %s) with %i constraints"), *Tile->GetCurrentSector().ToString(), Verts.Num());
 						continue;
 					}
 					// right tile?
@@ -138,7 +132,6 @@ uint32 TerrainGeneratorWorker::Run()
 							DefiningPoints[2].Z = Tile->GetTopLeftCorner().Z;
 							bTopRightCorner = true;
 						}
-						//UE_LOG(LogTemp, Warning, TEXT("Found a right tile (tile %s) with %i constraints"), *Tile->GetCurrentSector().ToString(), Verts.Num());
 						continue;
 					}
 					// left tile?
@@ -156,7 +149,6 @@ uint32 TerrainGeneratorWorker::Run()
 							DefiningPoints[3].Z = Tile->GetTopRightCorner().Z;
 							bTopLeftCorner = true;
 						}
-						//UE_LOG(LogTemp, Warning, TEXT("Found a left tile (tile %s) with %i constraints"), *Tile->GetCurrentSector().ToString(), Verts.Num());
 						continue;
 					}
 				}
@@ -229,25 +221,10 @@ uint32 TerrainGeneratorWorker::Run()
 				TrackConstraints.Append(PointsOnTrack);
 			}
 
-			//// calculate track constraints in TrackSegments
-			//for (FTrackSegment Segment : TrackSegments)
-			//{
-			//	TArray<FVector> PointsOnTrack;
-			//	Segment.CalculatePointsOnTrack(UnitSize, TerrainSettings.TrackGenerationSettings.bUseTightTrackBoundingBox, PointsOnTrack);
-			//	TrackConstraints.Append(PointsOnTrack);
-			//}
-
 			DEM.MidpointDisplacementBottomUp(&Constraints, &BorderConstraints, &TrackConstraints);
 			DEM.TriangleEdge(&DefiningPoints, 0, TerrainSettings.FractalNoiseTerrainSettings.TriangleEdgeIterations);// , TerrainJob.MeshData);
 			DEM.CopyBufferToMeshData(TerrainJob.MeshData);
 			DEM.CalculateBorderVertexNormals();
-
-			/*UE_LOG(LogTemp, Error, TEXT("DEM constraints array log for tile %s in sector %s"), *TerrainJob.TerrainTile->GetName(), *TerrainJob.TerrainTile->GetCurrentSector().ToString());
-			UE_LOG(LogTemp, Warning, TEXT("#VerticesTopBorder: %i"), DEM.VerticesTopBorder.Num());
-			UE_LOG(LogTemp, Warning, TEXT("#VerticesBottomBorder: %i"), DEM.VerticesBottomBorder.Num());
-			UE_LOG(LogTemp, Warning, TEXT("#VerticesLeftBorder: %i"), DEM.VerticesLeftBorder.Num());
-			UE_LOG(LogTemp, Warning, TEXT("#VerticesRightBorder: %i"), DEM.VerticesRightBorder.Num());
-			UE_LOG(LogTemp, Error, TEXT("Finished"));*/
 
 			TerrainJob.TerrainTile->SetVerticesLeftBorder(DEM.VerticesLeftBorder);
 			TerrainJob.TerrainTile->SetVerticesRightBorder(DEM.VerticesRightBorder);
@@ -258,10 +235,6 @@ uint32 TerrainGeneratorWorker::Run()
 			TerrainJob.TerrainTile->SetTopRightCorner(DEM.TopRightCorner);
 			TerrainJob.TerrainTile->SetTopLeftCorner(DEM.TopLeftCorner);
 			TerrainJob.TerrainTile->AllVerticesOnBorderSet();
-
-			/*UMyStaticLibrary::SaveBuffersToFile(TerrainJob.MeshData[0].VertexBuffer, TerrainJob.MeshData[0].TriangleBuffer);
-			DEM.SaveDEMToFile();*/
-
 
 			TerrainManager->FinishedJobQueue.Enqueue(TerrainJob);
 		}

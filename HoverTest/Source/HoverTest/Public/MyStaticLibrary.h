@@ -190,6 +190,11 @@ struct FTrackSegment
 	float TileEdgeSize = 0.f;
 
 	/**
+	 * error tolerance when calculating if a point lies between the defining points
+	 */
+	float ErrorTolerance = 0.f;
+
+	/**
 	 * @DEPRECATED, use other constructor!
 	 */
 	FTrackSegment()
@@ -203,7 +208,7 @@ struct FTrackSegment
 		UE_LOG(LogTemp, Error, TEXT("Using wrong FTrackSegment constructor"));
 	}
 
-	FTrackSegment(const FVector Point1, const FVector Point2, const FVector Point3, const FVector Point4, const float TileEdgeSize)
+	FTrackSegment(const FVector Point1, const FVector Point2, const FVector Point3, const FVector Point4, const float TileEdgeSize, const float IncludeErrorTolerance)
 	{
 		DefiningPoints.Add(FVector2D(Point1.X, Point1.Y));
 		DefiningPoints.Add(FVector2D(Point2.X, Point2.Y));
@@ -214,6 +219,7 @@ struct FTrackSegment
 		EndLineHeight = Point3.Z;
 
 		this->TileEdgeSize = TileEdgeSize;
+		this->ErrorTolerance = IncludeErrorTolerance;
 	}
 
 	/**
@@ -280,30 +286,22 @@ struct FTrackSegment
 		 *				X0--------------------X1
 		 */
 
-		if (IsLastSegmentOnTrack) { return; }
-		FVector2D X3X2 = DefiningPoints[3] - DefiningPoints[2];
-		FVector2D X0X1 = DefiningPoints[0] - DefiningPoints[1];
+		//if (IsLastSegmentOnTrack) { return; }
+		FVector2D X2X3 = DefiningPoints[3] - DefiningPoints[2];
+		FVector2D X1X0 = DefiningPoints[0] - DefiningPoints[1];
 
 		for (int32 i = PointsOnTrackSegment.Num() - 1; i >= 0; --i)
 		{
 			FVector2D Pt = FVector2D(PointsOnTrackSegment[i].X, PointsOnTrackSegment[i].Y);
-			// don't filter out points 'left' and 'right' but only those behind X3X2 and in front of X0X1
-			/*float DistancePtBaseLine = CalculateMinimumDistancePointLine(Pt, DefiningPoints[0], DefiningPoints[1]);
-			float DistancePtEndLine = CalculateMinimumDistancePointLine(Pt, DefiningPoints[3], DefiningPoints[2]);
-			float DistanceX0X3 = FVector2D::Distance(DefiningPoints[0], DefiningPoints[3]);
-			float DistanceX1X2 = FVector2D::Distance(DefiningPoints[1], DefiningPoints[2]);
-			float MaxDistance = FMath::Max<float>(DistanceX0X3, DistanceX1X2);*/
-
-			// start comment here
-
 			/**
 			 * filter out points that are within our bounding rectangle, but not within the track segment's start and end line (these points get handled by the next / previous track segment)
-			 * point lies between X0X1 and X3X2 if det(X3X2, X2Pt) (== DetA) and det(X0X1, X1Pt) (== DetB) have different signs
+			 * point lies between X1X0 and X2X3 if det(X2X3, X2Pt) (== DetA) and det(X1X0, X1Pt) (== DetB) have different signs
 			 */
-			float DetA = FVector2D::CrossProduct(X3X2, Pt - DefiningPoints[2]);
-			float DetB = FVector2D::CrossProduct(X0X1, Pt - DefiningPoints[1]);
+			float DetA = FVector2D::CrossProduct(X2X3, Pt - DefiningPoints[2]);
+			float DetB = FVector2D::CrossProduct(X1X0, Pt - DefiningPoints[1]);
 
-			if ((DetA > 0 && DetB > 0) || (DetA < 0 && DetB < 0))
+			// since sometimes the determinant of a point lying on the same line as the defining points is not 0 but somewhere close to it, an error tolerance is introduced 
+			if ((DetA > ErrorTolerance && DetB > ErrorTolerance) || (DetA < -ErrorTolerance && DetB < -ErrorTolerance))
 			{
 				PointsOnTrackSegment.RemoveAt(i);
 				continue;
@@ -314,68 +312,54 @@ struct FTrackSegment
 			 */
 
 			// only continue if current point lies on one of the tile's borders
-			if (!(FMath::IsNearlyZero(Pt.X) || FMath::IsNearlyEqual(Pt.X, TileEdgeSize) || FMath::IsNearlyZero(Pt.Y) || FMath::IsNearlyEqual(Pt.Y, TileEdgeSize))) { continue; }
-
-			float MinDistance = 0.f;
-
-			if (IsFirstSegmentOnTrack || IsLastSegmentOnTrack)
+			if (FMath::IsNearlyZero(Pt.X) || FMath::IsNearlyEqual(Pt.X, TileEdgeSize) || FMath::IsNearlyZero(Pt.Y) || FMath::IsNearlyEqual(Pt.Y, TileEdgeSize))
 			{
-				// X0X1 (or X3X2) will lie on border
-				int32 Index1 = -1;
-				int32 Index2 = -1;
-				if (IsFirstSegmentOnTrack)
+				float MinDistance = 0.f;
+
+				if (IsFirstSegmentOnTrack || IsLastSegmentOnTrack)
 				{
-					Index1 = 0;
-					Index2 = 1;
+					// X1X0 (or X2X3) will lie on border
+					int32 Index1 = -1;
+					int32 Index2 = -1;
+					if (IsFirstSegmentOnTrack)
+					{
+						Index1 = 0;
+						Index2 = 1;
+					}
+					if (IsLastSegmentOnTrack)
+					{
+						Index1 = 3;
+						Index2 = 2;
+					}
+					// calculate minimum distance between point and line segment
+					MinDistance = FMath::Min<float>
+						(
+							FVector2D::Distance(Pt, DefiningPoints[Index1]),
+							FVector2D::Distance(Pt, DefiningPoints[Index2])
+						);
 				}
-				if (IsLastSegmentOnTrack)
+				else
 				{
-					Index1 = 3;
-					Index2 = 2;
+					MinDistance = FMath::Min3<float>
+						(
+							FVector2D::Distance(Pt, DefiningPoints[0]),
+							FVector2D::Distance(Pt, DefiningPoints[1]),
+							FVector2D::Distance(Pt, DefiningPoints[2])
+						);
+					MinDistance = FMath::Min<float>
+						(
+							MinDistance,
+							FVector2D::Distance(Pt, DefiningPoints[3])
+						);
 				}
-				// calculate minimum distance between point and line segment
-				MinDistance = FMath::Min<float>
-					(
-						FVector2D::Distance(Pt, DefiningPoints[Index1]),
-						FVector2D::Distance(Pt, DefiningPoints[Index2])
-					);
-			}
-			else
-			{
-				MinDistance = FMath::Min3<float>
-					(
-						FVector2D::Distance(Pt, DefiningPoints[0]),
-						FVector2D::Distance(Pt, DefiningPoints[1]),
-						FVector2D::Distance(Pt, DefiningPoints[2])
-					);
-				MinDistance = FMath::Min<float>
-					(
-						MinDistance,
-						FVector2D::Distance(Pt, DefiningPoints[3])
-					);
-			}
-			
-			// if minimum distance is greater than UnitSize, we know there is at least one other point between the current point and the defining point, so we can remove the current point from the constraints
-			if (MinDistance > UnitSize)
-			{
-				PointsOnTrackSegment.RemoveAt(i);
-				continue;
-			}
 
-			// end comment here
-
-			/*if (IsFirstSegmentOnTrack)
-			{
-				if (DistancePtBaseLine > MaxDistance)
+				// if minimum distance is greater than UnitSize, we know there is at least one other point between the current point and the defining point, so we can remove the current point from the constraints
+				if (MinDistance > UnitSize)
 				{
 					PointsOnTrackSegment.RemoveAt(i);
 					continue;
 				}
 			}
-			else if (DistancePtBaseLine > MaxDistance || DistancePtEndLine > MaxDistance)
-			{
-				PointsOnTrackSegment.RemoveAt(i);
-			}*/
 		}
 		return;
 
@@ -415,9 +399,6 @@ struct FTrackSegment
 	 */
 	float InterpolatePointElevation(const FVector2D Point)
 	{
-		/*float Offset = -50.f;
-		return (BaseLineHeight < EndLineHeight) ? (BaseLineHeight + Offset) : (EndLineHeight + Offset);*/
-		// for now, use lowest value
 		// calculate distance from point to base line (not segment, because points outside the track need to get the same elevation as points inside the track
 		float DistanceToBaseLine = CalculateMinimumDistancePointLine(Point, DefiningPoints[0], DefiningPoints[1]);
 
@@ -475,46 +456,6 @@ struct FTrackSegment
 		return Numerator / Denominator;
 	}
 };
-
-///**
-//* struct for a float based index system (x and y components of position) used in the DEM
-//* specially constructed so that the == method could be overloaded by using FMath::IsNearlyEqual
-//*/
-//USTRUCT()
-//struct FComparableFloat
-//{
-//	GENERATED_USTRUCT_BODY()
-//
-//	float Width;
-//	float Height;
-//
-//	FComparableFloat(float width, float height)
-//	{
-//		Width = width;
-//		Height = height;
-//	}
-//
-//	FComparableFloat()
-//	{
-//		Width = 0.f;
-//		Height = 0.f;
-//	}
-//
-//	FORCEINLINE bool operator==(const FComparableFloat& Other) const
-//	{
-//		return (FMath::IsNearlyEqual(Width, Other.Width)) && (FMath::IsNearlyEqual(Height, Other.Height));
-//	}
-//
-//	FORCEINLINE bool operator!=(const FComparableFloat& Other) const
-//	{
-//		return (Width != Other.Width) || (Height != Other.Height);
-//	}
-//
-//	FORCEINLINE uint32 GetTypeHash(const FComparableFloat& ComparableFloat)
-//	{
-//		return FCrc::MemCrc32(&ComparableFloat, sizeof(FComparableFloat));
-//	}
-//};
 
 /**
  * struct for fractal noise terrain generation settings
@@ -638,6 +579,12 @@ struct FTrackGenerationSettings
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float Hilliness = 2000.f;
+
+	/**
+	 * error tolerance for calculation if a point is inside the quad defined by a track segment's start and end line 
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float PointInsideErrorTolerance = 200.f;
 };
 
 

@@ -965,7 +965,7 @@ void ATerrainManager::GenerateTrackMesh(const FIntVector2D Sector, const FVector
 			OUTTriangleBuffer.Add(Num - 1);
 			OUTTriangleBuffer.Add(Num - 3);
 
-			TrackSegments.Add(FTrackSegment(OUTVertexBuffer[Num - 5].Position, OUTVertexBuffer[Num - 4].Position, OUTVertexBuffer[Num - 1].Position, OUTVertexBuffer[Num - 2].Position, TerrainSettings.TileEdgeSize));
+			TrackSegments.Add(FTrackSegment(OUTVertexBuffer[Num - 5].Position, OUTVertexBuffer[Num - 4].Position, OUTVertexBuffer[Num - 1].Position, OUTVertexBuffer[Num - 2].Position, TerrainSettings.TileEdgeSize, TerrainSettings.TrackGenerationSettings.PointInsideErrorTolerance));
 		}
 	}
 }
