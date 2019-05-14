@@ -5,6 +5,7 @@
 #include "Runtime/Engine/Classes/Engine/World.h"
 #include "TerrainGeneratorWorker.h"
 #include "Engine/Classes/Kismet/KismetMathLibrary.h"
+#include "HoverTestGameModeProceduralLevel.h"
 
 
 // Sets default values
@@ -18,6 +19,13 @@ ATerrainManager::ATerrainManager()
 void ATerrainManager::BeginPlay()
 {
 	Super::BeginPlay();
+	
+	GameMode = Cast<AHoverTestGameModeProceduralLevel>(GetWorld()->GetAuthGameMode());
+
+	if (!GameMode)
+	{
+		UE_LOG(LogTemp, Error, TEXT("Could not cast game mode to AHoverTestGameModeProceduralLevel"));
+	}
 
 	// create threads
 	FString ThreadName = "TerrainGeneratorWorkerThread";
@@ -448,6 +456,11 @@ void ATerrainManager::Tick(float DeltaTime)
 		// TODO check if we need a limit on mesh data (Job) memory usage
 		if (PendingTerrainJobQueue.Dequeue(Job))
 		{
+			if (!bHasTileBeenAddedToQueue)
+			{
+				bHasTileBeenAddedToQueue = true;
+			}
+			TilesInProcessCounter++;
 			TerrainCreationQueue[i].Enqueue(Job);
 		}
 	}
@@ -458,6 +471,7 @@ void ATerrainManager::Tick(float DeltaTime)
 		FTerrainJob Job;
 		if (FinishedJobQueue.Dequeue(Job))
 		{
+			TilesInProcessCounter--;
 			if (Job.TerrainTile == nullptr)
 			{
 				UE_LOG(LogTemp, Error, TEXT("TerrainTile pointer in Job is nullptr!"));
@@ -498,6 +512,17 @@ void ATerrainManager::Tick(float DeltaTime)
 			}
 		}
 	}
+
+	// check if we can spawn the player
+	if (bHasTileBeenAddedToQueue && TilesInProcessCounter == 0 && RemainingPlayersToSpawn > 0)
+	{
+		RemainingPlayersToSpawn--;
+		// notify gamemode to spawn player
+		if (GameMode)
+		{
+			GameMode->SpawnPlayerFromTerrainManager();
+		}
+	}
 }
 
 void ATerrainManager::CreateAndInitializeTiles(int32 NumberOfTilesToCreate)
@@ -518,6 +543,8 @@ void ATerrainManager::CreateAndInitializeTiles(int32 NumberOfTilesToCreate)
 
 	}
 }
+
+// TODO write function like this but for a given sector
 
 void ATerrainManager::AddActorToTrack(AActor * ActorToTrack)
 {
@@ -832,6 +859,23 @@ void ATerrainManager::GenerateTrackMesh(const FIntVector2D Sector, const FVector
 	// calculate mesh
 	TArray<FVector> PointsOnTrack;
 	FVector::EvaluateBezier(BezierPoints, TerrainSettings.TrackGenerationSettings.TrackResolution, PointsOnTrack);
+
+	// check if we can set the player spawn point
+	if (Sector == FIntVector2D(0, 0))
+	{
+		if (PointsOnTrack.Num() > 3)
+		{
+			FTransform Transform;
+			Transform.SetLocation(PointsOnTrack[1]);
+			Transform.SetRotation((PointsOnTrack[2] - PointsOnTrack[1]).Rotation().Quaternion());
+			Transform.SetScale3D(FVector(1.f, 1.f, 1.f));
+
+			if (GameMode)
+			{
+				GameMode->SetPlayerSpawn(Transform);
+			}
+		}
+	}
 
 	for (int32 i = 0; i < PointsOnTrack.Num(); ++i)
 	{

@@ -9,6 +9,7 @@
 #include "TerrainManager.generated.h"
 
 class ATerrainTile;
+class AHoverTestGameModeProceduralLevel;
 
 UCLASS()
 class HOVERTEST_API ATerrainManager : public AActor
@@ -171,6 +172,30 @@ private:
 	 */
 	UFUNCTION()
 	void CalculateBezierControlPoints(const FIntVector2D Sector, const FSectorTrackInfo TrackInfo, FVector& OUTControlPointOne, FVector& OUTControlPointTwo);
+
+	/**
+	 * bool to check if at least one tile has been added to the terrain creation queue
+	 * this is used to check if we can spawn the player (i.e. if all tiles that needed to be created at game start have been created and drawn)
+	 */
+	UPROPERTY()
+	bool bHasTileBeenAddedToQueue = false;
+
+	/**
+	 * counter that keeps track on how many tiles were added to the terrain creation queue and how many tiles are already processed
+	 * used in combination with bHasTileBeenAddedToQueue to check if all initially needed tiles have been created
+	 */
+	UPROPERTY()
+	int32 TilesInProcessCounter = 0;
+
+	/**
+	 * bool to make sure only one player gets spawned
+	 */
+	UPROPERTY()
+	int32 RemainingPlayersToSpawn = 1;
+
+	UPROPERTY()
+	AHoverTestGameModeProceduralLevel* GameMode = nullptr;
+
 
 
 
