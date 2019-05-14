@@ -182,7 +182,10 @@ bool AHoverTestGameModeBase::IsCorrectNextCheckpointForHovercraft(ACheckpoint * 
 	//// this case should not appear -> missed finish line
 	//if (HovercraftLastCheckpointIndex == (NumberOfCheckpointsOnTrack - 1) && CheckpointIndex == 0) { return true; }
 	// general case
-	if (HovercraftLastCheckpointIndex == (CheckpointIndex - 1)) { return true; }
+	if (HovercraftLastCheckpointIndex == (CheckpointIndex - 1)) 
+	{ 
+		return true; 
+	}
 	else
 	{
 		return false;
