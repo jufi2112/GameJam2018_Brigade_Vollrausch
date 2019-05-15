@@ -13,6 +13,17 @@
 class ATerrainTile;
 
 /**
+ * enum to differ what type of input device is used
+ */
+UENUM(BlueprintType)
+enum class EControllerType : uint8
+{
+	ECT_Keyboard UMETA(DisplayName = "Keyboard"),
+	ECT_XBox UMETA(DisplayName = "XBox"),
+	ECT_None UMETA(DisplayName = "None")
+};
+
+/**
  * struct that defines an integer vector in 2D space, since Unreal decides to not come up with such a thing by default
  */
 USTRUCT(BlueprintType)

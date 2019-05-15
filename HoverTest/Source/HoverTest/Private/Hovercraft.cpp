@@ -41,10 +41,12 @@ void AHovercraft::BeginPlay()
 	if (PC)
 	{
 		bIsPlayerControlled = true;
+		UE_LOG(LogTemp, Warning, TEXT("PlayerControlled"));
 	}
 	else
 	{
 		bIsPlayerControlled = false;
+		UE_LOG(LogTemp, Warning, TEXT("Not player controlled"));
 	}
 
 }
@@ -409,6 +411,16 @@ UTerrainTrackerComponent * AHovercraft::GetTerrainTrackerComponent() const
 	return TerrainTrackerComponent;
 }
 
+void AHovercraft::ToggleShowControls()
+{
+	bShowControls = !bShowControls;
+}
+
+bool AHovercraft::GetShowControls() const
+{
+	return bShowControls;
+}
+
 void AHovercraft::SetResetCurveReference(UCurveFloat * CurveReference)
 {
 	ResetCurve = CurveReference;
@@ -536,5 +548,10 @@ void AHovercraft::SetupPlayerInputComponent(UInputComponent* PlayerInputComponen
 	
 	// setup input bindings in blueprint for soft references
 
+}
+
+void AHovercraft::SetIsPlayerControlled(bool IsPlayerControlled)
+{
+	bIsPlayerControlled = IsPlayerControlled;
 }
 

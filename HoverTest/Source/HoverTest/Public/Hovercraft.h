@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Pawn.h"
+#include "MyStaticLibrary.h"
 #include "Hovercraft.generated.h"
 
 class UStaticMeshComponent;
@@ -15,14 +16,6 @@ class UMaterialInstanceDynamic;
 class UMaterialInterface;
 class UCameraComponent;
 class UTerrainTrackerComponent;
-
-UENUM(BlueprintType)
-enum class EControllerType : uint8
-{
-	ECT_Keyboard UMETA(DisplayName="Keyboard"),
-	ECT_XBox UMETA(DisplayName="XBox"),
-	ECT_None UMETA(DisplayName="None")
-};
 
 UCLASS()
 class HOVERTEST_API AHovercraft : public APawn
@@ -100,6 +93,9 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, Category = Controls)
 	EControllerType ControllerType = EControllerType::ECT_Keyboard;
+
+	UPROPERTY(VisibleAnywhere, Category = Controls)
+	bool bShowControls = true;
 
 private:
 	TArray<bool> IsFallingArray;
@@ -270,5 +266,14 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	UTerrainTrackerComponent* GetTerrainTrackerComponent() const;
+
+	UFUNCTION(BlueprintCallable)
+	void ToggleShowControls();
+
+	UFUNCTION(BlueprintCallable)
+	bool GetShowControls() const;
+
+	UFUNCTION(BlueprintCallable)
+	void SetIsPlayerControlled(bool IsPlayerControlled);
 
 };

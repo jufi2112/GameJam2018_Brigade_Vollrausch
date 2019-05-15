@@ -107,12 +107,12 @@ void AHoverTestGameModeProceduralLevel::DefaultPawnFinishedTransition()
 				{
 					PC->Possess(Pawn);
 					PC->AfterDelay();
-					TerrainManager->AddActorToTrack(Actor);
 				}
 
 				AHovercraft* HC = Cast<AHovercraft>(Actor);
 				if (HC)
 				{
+					HC->SetIsPlayerControlled(true);
 					// link Hovercraft's TerrainTrackerComponent with TerrainManager
 					UTerrainTrackerComponent* TTC = HC->GetTerrainTrackerComponent();
 					if (TTC)

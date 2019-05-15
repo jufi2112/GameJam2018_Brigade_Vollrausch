@@ -60,14 +60,6 @@ protected:
 	// array of all used threads
 	TArray<FRunnableThread*> Threads;
 
-	// the sector where the next track segment should be created (not yet created)
-	UPROPERTY()
-	FIntVector2D NextTrackSector = FIntVector2D();
-
-	// the sector where the current last track segment is located (already created)
-	UPROPERTY()
-	FIntVector2D CurrentTrackSector = FIntVector2D();
-
 	// hashmap that stores all already calculated track information for every processed sector
 	//UPROPERTY()
 	TMap<FIntVector2D, FSectorTrackInfo> TrackMap;
@@ -95,6 +87,14 @@ protected:
 
 	UPROPERTY()
 	FIntVector2D BottomRightCorner;
+
+	// the sector where the next track segment should be created (not yet created)
+	UPROPERTY()
+	FIntVector2D NextTrackSector = FIntVector2D();
+
+	// the sector where the current last track segment is located (already created)
+	UPROPERTY()
+	FIntVector2D CurrentTrackSector = FIntVector2D();
 
 
 private:

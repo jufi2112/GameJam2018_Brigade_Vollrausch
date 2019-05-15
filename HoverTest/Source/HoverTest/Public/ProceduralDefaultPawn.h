@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Pawn.h"
+#include "MyStaticLibrary.h"
 #include "ProceduralDefaultPawn.generated.h"
 
 UCLASS()
@@ -49,6 +50,9 @@ protected:
 	UPROPERTY()
 	float TransitionDeltaToStop = 0.f;
 
+	UPROPERTY(VisibleAnywhere, Category = Controls)
+	EControllerType ControllerType = EControllerType::ECT_Keyboard;
+
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
@@ -61,4 +65,8 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable)
 	void StartTransition(const FVector Target, const float Speed, const float DeltaToStop);
+
+	// returns ECT_None if pawn is controlled by AI rather than by a player
+	UFUNCTION(BlueprintCallable, Category = Controls)
+	EControllerType GetControllerType() const;
 };

@@ -72,3 +72,8 @@ void AProceduralDefaultPawn::StartTransition(const FVector Target, const float S
 	}
 }
 
+EControllerType AProceduralDefaultPawn::GetControllerType() const
+{
+	return ControllerType;
+}
+

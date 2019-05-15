@@ -43,12 +43,15 @@ void ATerrainManager::BeginPlay()
 		);
 	}
 
-	CurrentTrackSector = FIntVector2D();
-	NextTrackSector = FIntVector2D();
-	TopLeftCorner = FIntVector2D();
-	TopRightCorner = FIntVector2D();
-	BottomLeftCorner = FIntVector2D();
-	BottomRightCorner = FIntVector2D();
+	/**
+	 * evil code that will make the game run in the editor, but not in a packaged game
+	 */
+	//CurrentTrackSector = FIntVector2D();
+	//NextTrackSector = FIntVector2D();
+	//TopLeftCorner = FIntVector2D();
+	//TopRightCorner = FIntVector2D();
+	//BottomLeftCorner = FIntVector2D();
+	//BottomRightCorner = FIntVector2D();
 
 }
 
@@ -182,7 +185,7 @@ FSectorTrackInfo ATerrainManager::CalculateNewNextTrackSector()
 	FSectorTrackInfo TrackInfo = FSectorTrackInfo();
 
 	// check if this is the first track we create -> all directions possible
-	if (NextTrackSector == CurrentTrackSector && CurrentTrackSector == FIntVector2D())
+	if (NextTrackSector == FIntVector2D(0, 0) && CurrentTrackSector == FIntVector2D(0, 0))
 	{
 		PossibleSectors.Add(LeftDirection);
 		PossibleSectors.Add(UpDirection);
