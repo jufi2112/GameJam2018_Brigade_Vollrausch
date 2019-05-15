@@ -14,6 +14,7 @@
 #include "Classes/Materials/MaterialInstanceDynamic.h"
 #include "Camera/CameraComponent.h"
 #include "Classes/Components/PostProcessComponent.h"
+#include "TerrainTrackerComponent.h"
 
 
 // Sets default values
@@ -22,6 +23,7 @@ AHovercraft::AHovercraft()
  	// Set this pawn to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
 
+	TerrainTrackerComponent = CreateDefaultSubobject<UTerrainTrackerComponent>(TEXT("TerrainTracker"));
 }
 
 // Called when the game starts or when spawned
@@ -348,10 +350,11 @@ void AHovercraft::ToggleDrawDebugTraces()
 	GetWorld()->DebugDrawTraceTag = DebugTraceToDraw;
 }
 
-bool AHovercraft::GetStaticMeshLocation(FVector& Location)
+bool AHovercraft::GetStaticMeshLocation(FVector& Location, float& Yaw)
 {
 	if (!StaticMesh) { return false; }
 	Location = StaticMesh->GetComponentLocation();
+	Yaw = StaticMesh->GetComponentRotation().Yaw;
 	return true;
 }
 
@@ -399,6 +402,11 @@ float AHovercraft::ResetLapTimer()
 float AHovercraft::GetLapTime() const
 {
 	return LapTime;
+}
+
+UTerrainTrackerComponent * AHovercraft::GetTerrainTrackerComponent() const
+{
+	return TerrainTrackerComponent;
 }
 
 void AHovercraft::SetResetCurveReference(UCurveFloat * CurveReference)

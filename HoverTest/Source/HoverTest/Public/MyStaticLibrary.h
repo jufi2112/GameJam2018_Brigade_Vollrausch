@@ -493,7 +493,7 @@ struct FFractalNoiseTerrainSettings
 	 * space dimension used in random displacement calculation
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float n = 3.f;
+	float n = 1.f;
 
 	/**
 	 * approximation of Hurst's parameter
@@ -506,13 +506,13 @@ struct FFractalNoiseTerrainSettings
 	 * used to tune the non-linear interpolation curve in the midpoint displacement process
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float I = -2.f;
+	float I = -0.5;
 
 	/**
 	 * used to tune the non-linear interpolation curve in the midpoint displacement bottom-up process
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float I_bu = 5.f;
+	float I_bu = 0.5f;
 
 	/**
 	 * number of iterations for the triangle edge algorithms
@@ -535,20 +535,20 @@ struct FTrackGenerationSettings
 	 * a higher number creates a smoother mesh, but also increases performance costs
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	int32 TrackResolution = 30;
+	int32 TrackResolution = 20;
 
 	/**
 	 * the overall track width in cm
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float TrackWidth = 500;
+	float TrackWidth = 1500;
 
 	/**
 	 * if enabled, tries to only add those points as track constraints that lie on a track segment, otherwise all points in a rectangle around the track segment get added as constraints
 	 * disable to save performance
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	bool bUseTightTrackBoundingBox = true;
+	bool bUseTightTrackBoundingBox = false;
 
 	/**
 	 * parameter that controls the maximum elevation difference (in cm) between the track's starting and end point in one tile
@@ -594,7 +594,7 @@ struct FTrackGenerationSettings
 	 * error tolerance for calculation if a point is inside the quad defined by a track segment's start and end line 
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float PointInsideErrorTolerance = 200.f;
+	float PointInsideErrorTolerance = 50.f;
 };
 
 
@@ -605,6 +605,44 @@ USTRUCT(BlueprintType)
 struct FTerrainSettings
 {
 	GENERATED_USTRUCT_BODY()
+
+	/**
+	 * Spawn elevation of the player above the track (in cm)
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float PlayerSpawnElevationOffset = 100.f;
+
+	/**
+	 * Track segment to spawn player at (0-based)
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "0", UIMin = "0"))
+	int32 TrackSegmentToSpawnPlayerAt = 0;
+
+	/**
+	 * Offset for track segment to spawn player at
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float TrackSegmentToSpawnPlayerAtOffset = 200.f;
+
+	/**
+	 * interpolation speed for the transition of the default pawn to the Hovercraft's location after all tiles are created
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float TransitionInterpolationSpeed = 10.f;
+
+	/**
+	 * offset above the Hovercraft's location where the transition should stop (in cm)
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float TransitionElevationOffset = 5000.f;
+
+	/**
+	 * delta between target position and current position at which transition should stop (in cm)
+	 * used because the interpolation needs a lot of time to actually reach the target position
+	 * when using 0.f, expect to wait a long time before the pawn is switched
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float TransitionDeltaToStop = 100.f;
 
 	/**
 	 * to be removed
@@ -659,7 +697,7 @@ struct FTerrainSettings
 
 	// the edge length of a quadratic tile in cm
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	int32 TileEdgeSize = 131072;
+	int32 TileEdgeSize = 65536;
 
 	// shall async collision cooking be used
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
@@ -675,11 +713,11 @@ struct FTerrainSettings
 
 	// height in cm at which a transition from low terrain material to medium terrain material should occur
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float TerrainMaterialTransitionLowMediumElevation = 10000.f;
+	float TerrainMaterialTransitionLowMediumElevation = -3000.f;
 
 	// height in cm at which a transition from medium terrain material to high terrain material should occur
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float TerrainMaterialTransitionMediumHighElevation = 17000.f;
+	float TerrainMaterialTransitionMediumHighElevation = 80000.f;
 
 	// variation of the transition elevation medium high parameter (in cm)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
@@ -687,7 +725,7 @@ struct FTerrainSettings
 
 	// variation of the transition elevation low medium parameter (in cm)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float TransitionElevationVariationLowMedium = 1000.f;
+	float TransitionElevationVariationLowMedium = 500.f;
 
 	/** 
 	 * array of materials that should be applied to the terrain

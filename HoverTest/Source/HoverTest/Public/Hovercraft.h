@@ -14,6 +14,7 @@ class UCurveFloat;
 class UMaterialInstanceDynamic;
 class UMaterialInterface;
 class UCameraComponent;
+class UTerrainTrackerComponent;
 
 UENUM(BlueprintType)
 enum class EControllerType : uint8
@@ -126,6 +127,9 @@ private:
 	UPROPERTY()
 	USceneComponent* LeftRotationPoint = nullptr;
 
+	UPROPERTY()
+	UTerrainTrackerComponent* TerrainTrackerComponent = nullptr;
+
 	UFUNCTION()
 	void OnResetComplete();
 
@@ -236,7 +240,7 @@ public:
 	void ToggleDrawDebugTraces();
 
 	UFUNCTION()
-	bool GetStaticMeshLocation(FVector& Location);
+	bool GetStaticMeshLocation(FVector& Location, float& Yaw);
 
 	// returns the hovercrafts speed in km/h
 	UFUNCTION(BlueprintCallable)
@@ -264,6 +268,7 @@ public:
 	UFUNCTION(BlueprintCallable)
 	float GetLapTime() const;
 
-
+	UFUNCTION(BlueprintCallable)
+	UTerrainTrackerComponent* GetTerrainTrackerComponent() const;
 
 };

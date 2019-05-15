@@ -31,9 +31,10 @@ void AHovercraftPlayerController::AfterDelay()
 
 	if (Pawn)
 	{
-		if (!Pawn->GetStaticMeshLocation(ResetPosition))
+		if (!Pawn->GetStaticMeshLocation(ResetPosition, ResetYaw))
 		{
 			ResetPosition = FVector(0, 0, 0);
+			ResetYaw = 0.f;
 		}
 	}
 	else
@@ -48,8 +49,8 @@ void AHovercraftPlayerController::BeginPlay()
 
 	ResetPosition = FVector(0.f, 0.f, 0.f);
 	// execute after one second
-	if (GetWorld())
+	/*if (GetWorld())
 	{
 		GetWorld()->GetTimerManager().SetTimer(StartDelayTimerHandle, this, &AHovercraftPlayerController::AfterDelay, 1.f, false);
-	}
+	}*/
 }

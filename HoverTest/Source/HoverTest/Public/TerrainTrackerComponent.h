@@ -28,20 +28,37 @@ protected:
 	virtual void BeginPlay() override;
 
 	UPROPERTY()
-		ATerrainManager* TerrainManager = nullptr;
+	ATerrainManager* TerrainManager = nullptr;
 
-	// the sector the actor is currently in
+	// the sector the actor is currently located in
 	UPROPERTY()
-		FIntVector2D CurrentSector;
+	FIntVector2D CurrentSector;
+
+	/**
+	 * if the tracker component should track
+	 */
+	UPROPERTY()
+	bool bShouldTrack = false;
 
 public:
 	// Called every frame
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
-	/** gets the TerrainManager actor that is placed in the level
-	* can return a nullptr if there is not exactly one TerrainManager in the level
-	*/
-	UFUNCTION()
-		ATerrainManager* GetWorldTerrainManager();
+	/**
+	 * called from the gamemode
+	 */
+	UFUNCTION(BlueprintCallable)
+	void SetTerrainManager(ATerrainManager* TerrainManagerToSet);
 
+	/**
+	 * activates tracking
+	 */
+	UFUNCTION(BlueprintCallable)
+	void ActivateTracking();
+
+	/**
+	 * deactivates tracking
+	 */
+	UFUNCTION(BlueprintCallable)
+	void DeactivateTracking();
 };

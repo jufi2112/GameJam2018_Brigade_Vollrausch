@@ -18,7 +18,7 @@ UTerrainTrackerComponent::UTerrainTrackerComponent()
 
 void UTerrainTrackerComponent::OnUnregister()
 {
-	if (TerrainManager)
+	if (TerrainManager && bShouldTrack)
 	{
 		TerrainManager->RemoveTrackedActor(GetOwner());
 		CurrentSector = TerrainManager->CalculateSectorFromLocation(GetOwner()->GetActorLocation());
@@ -32,16 +32,6 @@ void UTerrainTrackerComponent::BeginPlay()
 	Super::BeginPlay();
 
 	// ...
-	TerrainManager = GetWorldTerrainManager();
-	if (TerrainManager)
-	{
-		// register parent actor at terrain manager so it gets tracked
-		TerrainManager->AddActorToTrack(GetOwner());
-		CurrentSector = TerrainManager->CalculateSectorFromLocation(GetOwner()->GetActorLocation());
-
-	}
-
-
 
 }
 
@@ -53,7 +43,7 @@ void UTerrainTrackerComponent::TickComponent(float DeltaTime, ELevelTick TickTyp
 
 	// ...
 	// on each tick, check if the parent actor changed sector
-	if (TerrainManager)
+	if (TerrainManager && bShouldTrack)
 	{
 		FIntVector2D SectorThisTick = TerrainManager->CalculateSectorFromLocation(GetOwner()->GetActorLocation());
 		//UE_LOG(LogTemp, Warning, TEXT("Sector this tick: %s"), *SectorThisTick.ToString());
@@ -67,18 +57,34 @@ void UTerrainTrackerComponent::TickComponent(float DeltaTime, ELevelTick TickTyp
 	}
 }
 
-ATerrainManager * UTerrainTrackerComponent::GetWorldTerrainManager()
+void UTerrainTrackerComponent::SetTerrainManager(ATerrainManager * TerrainManagerToSet)
 {
-	TArray<AActor*> FoundManagers;
-	UGameplayStatics::GetAllActorsOfClass(GetWorld(), ATerrainManager::StaticClass(), FoundManagers);
-	// if there is more than one TerrainManager (or none at all) we can't operate
-	if (FoundManagers.Num() != 1)
-	{
-		UE_LOG(LogTemp, Error, TEXT("Make sure there is exactly one TerrainManager in the level!"));
-		return nullptr;
-	}
-	ATerrainManager* Manager = Cast<ATerrainManager>(FoundManagers[0]);
-	return Manager;
+	TerrainManager = TerrainManagerToSet;
+}
 
+void UTerrainTrackerComponent::ActivateTracking()
+{
+	if (!bShouldTrack)
+	{
+		bShouldTrack = true;
+		if (TerrainManager)
+		{
+			TerrainManager->AddActorToTrack(GetOwner());
+			CurrentSector = TerrainManager->CalculateSectorFromLocation(GetOwner()->GetActorLocation());
+		}
+	}
+}
+
+void UTerrainTrackerComponent::DeactivateTracking()
+{
+	if (bShouldTrack)
+	{
+		bShouldTrack = false;
+		if (TerrainManager)
+		{
+			TerrainManager->RemoveTrackedActor(GetOwner());
+			CurrentSector = TerrainManager->CalculateSectorFromLocation(GetOwner()->GetActorLocation());
+		}
+	}
 }
 

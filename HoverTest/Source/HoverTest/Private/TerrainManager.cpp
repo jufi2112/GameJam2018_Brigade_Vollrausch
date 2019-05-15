@@ -520,7 +520,7 @@ void ATerrainManager::Tick(float DeltaTime)
 		// notify gamemode to spawn player
 		if (GameMode)
 		{
-			GameMode->SpawnPlayerFromTerrainManager();
+			GameMode->SpawnPlayerFromTerrainManager(TerrainSettings.TransitionElevationOffset, TerrainSettings.TransitionInterpolationSpeed, TerrainSettings.TransitionDeltaToStop);
 		}
 	}
 }
@@ -543,8 +543,6 @@ void ATerrainManager::CreateAndInitializeTiles(int32 NumberOfTilesToCreate)
 
 	}
 }
-
-// TODO write function like this but for a given sector
 
 void ATerrainManager::AddActorToTrack(AActor * ActorToTrack)
 {
@@ -614,6 +612,66 @@ void ATerrainManager::AddActorToTrack(AActor * ActorToTrack)
 	}
 }
 
+void ATerrainManager::BuildTerrainAroundSector(const FIntVector2D Sector)
+{
+	// calculate the sectors around the given sector that need coverage
+	TArray<FIntVector2D> SectorsThatNeedCoverage = CalculateSectorsNeededAroundGivenSector(Sector);
+
+	// it is intended to only call this method when the game starts, i.e. there are no currently existing tiles, but better check nonetheless
+	for (const ATerrainTile* Tile : TilesInUse)
+	{
+		int32 RemovedItems = SectorsThatNeedCoverage.Remove(Tile->GetCurrentSector());
+	}
+
+	CalculateTrackPath(SectorsThatNeedCoverage);
+
+	// use free tiles to cover sectors
+	while (SectorsThatNeedCoverage.Num() > 0 && FreeTiles.Num() > 0)
+	{
+		FIntVector2D Sec = SectorsThatNeedCoverage.Pop();
+		ATerrainTile* Tile = FreeTiles.Pop();
+
+		Tile->UpdateTilePosition(TerrainSettings, Sec);
+		// don't increase associated actor count
+
+		FTerrainJob Job;
+		Job.TerrainTile = Tile;
+		PendingTerrainJobQueue.Enqueue(Job);
+
+		TilesInUse.Add(Tile);
+	}
+
+	// check if we need to create additional tiles to cover the sectors
+	if (SectorsThatNeedCoverage.Num() > 0)
+	{
+		CreateAndInitializeTiles(SectorsThatNeedCoverage.Num());
+		while (SectorsThatNeedCoverage.Num() > 0 && FreeTiles.Num() > 0)
+		{
+			FIntVector2D Sec = SectorsThatNeedCoverage.Pop();
+			ATerrainTile* Tile = FreeTiles.Pop();
+
+			Tile->UpdateTilePosition(TerrainSettings, Sec);
+			// don't increase associated actor count
+
+			FTerrainJob Job;
+			Job.TerrainTile = Tile;
+			PendingTerrainJobQueue.Enqueue(Job);
+
+			TilesInUse.Add(Tile);
+		}
+
+		if (SectorsThatNeedCoverage.Num() != 0)
+		{
+			UE_LOG(LogTemp, Error, TEXT("Something went wrong in %s, not all sectors could get assigned a tile to"), *GetName());
+		}
+		// check if something went wrong and we created too many free tiles
+		if (FreeTiles.Num() != 0)
+		{
+			UE_LOG(LogTemp, Error, TEXT("Something went wrong in %s, too many free tiles were created to cover sectors"), *GetName());
+		}
+	}
+}
+
 void ATerrainManager::RemoveTrackedActor(AActor * ActorToRemove)
 {
 	if (ActorToRemove == nullptr) { return; }
@@ -632,7 +690,7 @@ void ATerrainManager::RemoveTrackedActor(AActor * ActorToRemove)
 	{
 		if (Sectors.Remove(Tile->GetCurrentSector()) > 0)
 		{
-			if (Tile->RemoveAssociatedActor() == 0)
+			if (Tile->RemoveAssociatedActor() <= 0)
 			{
 				Tile->FreeTile();
 				TilesToFree.Add(Tile);
@@ -717,7 +775,7 @@ void ATerrainManager::HandleTrackedActorChangedSector(AActor * TrackedActor, FIn
 		if (SectorsNeededAtPreviousPosition.Remove(Tile->GetCurrentSector()) > 0)
 		{
 			// if these tiles aren't needed by any other actor aswell -> free them
-			if (Tile->RemoveAssociatedActor() == 0)
+			if (Tile->RemoveAssociatedActor() <= 0)
 			{
 				Tile->FreeTile();
 				TilesToFree.Add(Tile);
@@ -863,12 +921,19 @@ void ATerrainManager::GenerateTrackMesh(const FIntVector2D Sector, const FVector
 	// check if we can set the player spawn point
 	if (Sector == FIntVector2D(0, 0))
 	{
-		if (PointsOnTrack.Num() > 3)
+		if (PointsOnTrack.Num() > 3 && TerrainSettings.TrackSegmentToSpawnPlayerAt < (PointsOnTrack.Num() -1))
 		{
+			FVector SpawnLocation = PointsOnTrack[TerrainSettings.TrackSegmentToSpawnPlayerAt];
+			FVector SpawnDirection = PointsOnTrack[TerrainSettings.TrackSegmentToSpawnPlayerAt + 1] - PointsOnTrack[TerrainSettings.TrackSegmentToSpawnPlayerAt];
+			SpawnLocation += (UKismetMathLibrary::GetForwardVector(SpawnDirection.Rotation()) * TerrainSettings.TrackSegmentToSpawnPlayerAtOffset);
+			SpawnLocation.Z += TerrainSettings.PlayerSpawnElevationOffset;
+			FQuat SpawnRotation = SpawnDirection.Rotation().Quaternion();
+			FVector SpawnScaling = FVector(1.f, 1.f, 1.f);
+
 			FTransform Transform;
-			Transform.SetLocation(PointsOnTrack[1]);
-			Transform.SetRotation((PointsOnTrack[2] - PointsOnTrack[1]).Rotation().Quaternion());
-			Transform.SetScale3D(FVector(1.f, 1.f, 1.f));
+			Transform.SetLocation(SpawnLocation);
+			Transform.SetRotation(SpawnRotation);
+			Transform.SetScale3D(SpawnScaling);
 
 			if (GameMode)
 			{

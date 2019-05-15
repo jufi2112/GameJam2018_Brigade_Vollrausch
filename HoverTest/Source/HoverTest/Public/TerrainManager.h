@@ -223,6 +223,12 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void AddActorToTrack(AActor* ActorToTrack);
 
+	/**
+	 * creates terrain around the given sector, used on game start to build terrain before a player is spawned
+	 */
+	UFUNCTION(BlueprintCallable)
+	void BuildTerrainAroundSector(const FIntVector2D Sector);
+
 	// removes the specified actor from the list of actors that are tracked, i.e. no terrain is generated around this actor anymore
 	UFUNCTION(BlueprintCallable)
 	void RemoveTrackedActor(AActor* ActorToRemove);

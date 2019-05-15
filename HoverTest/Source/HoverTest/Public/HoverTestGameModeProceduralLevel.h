@@ -6,6 +6,8 @@
 #include "HoverTestGameModeBase.h"
 #include "HoverTestGameModeProceduralLevel.generated.h"
 
+class ATerrainManager;
+
 /**
  * 
  */
@@ -24,9 +26,11 @@ public:
 
 	/**
 	 * Called from the terrain manager when all necessary tiles are created and the player can be spawned
+	 * the actual spawn functionality is provided by DefaultPawnFinishedTransition()
+	 * this function initiates the transition of the default pawn to the Hovercraft pawn's location (for a smooth feeling)
 	 */
 	UFUNCTION()
-	void SpawnPlayerFromTerrainManager();
+	void SpawnPlayerFromTerrainManager(const float TransitionElevationOffset, const float TransitionSpeed, const float DeltaToStop);
 
 	/**
 	 * The player pawn class
@@ -40,6 +44,12 @@ public:
 	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	//APlayerController* PC = nullptr;
 
+	/**
+	 * function called when the default pawn finished transition to the player pawn
+	 */
+	UFUNCTION()
+	void DefaultPawnFinishedTransition();
+
 
 private:
 
@@ -48,5 +58,17 @@ private:
 	 */
 	UPROPERTY()
 	FTransform PlayerSpawn = FTransform();
+
+	/**
+	 * Reference to the terrain manager
+	 */
+	UPROPERTY()
+	ATerrainManager* TerrainManager = nullptr;
+
+	/**
+	 * bool that indicates if the player controller possesses the Hovercraft pawn
+	 */
+	UPROPERTY()
+	bool bControllerPossessesHovercraftPawn = false;
 	
 };
