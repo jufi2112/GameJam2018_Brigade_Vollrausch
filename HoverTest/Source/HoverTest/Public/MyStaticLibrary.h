@@ -206,6 +206,11 @@ struct FTrackSegment
 	float ErrorTolerance = 0.f;
 
 	/**
+	 * offset between track and terrain, used in elevation interpolation
+	 */
+	float ElevationOffset = 0.f;
+
+	/**
 	 * @DEPRECATED, use other constructor!
 	 */
 	FTrackSegment()
@@ -219,7 +224,7 @@ struct FTrackSegment
 		UE_LOG(LogTemp, Error, TEXT("Using wrong FTrackSegment constructor"));
 	}
 
-	FTrackSegment(const FVector Point1, const FVector Point2, const FVector Point3, const FVector Point4, const float TileEdgeSize, const float IncludeErrorTolerance)
+	FTrackSegment(const FVector Point1, const FVector Point2, const FVector Point3, const FVector Point4, const float TileEdgeSize, const float IncludeErrorTolerance, const float TrackElevationOffset)
 	{
 		DefiningPoints.Add(FVector2D(Point1.X, Point1.Y));
 		DefiningPoints.Add(FVector2D(Point2.X, Point2.Y));
@@ -231,6 +236,7 @@ struct FTrackSegment
 
 		this->TileEdgeSize = TileEdgeSize;
 		this->ErrorTolerance = IncludeErrorTolerance;
+		ElevationOffset = TrackElevationOffset;
 	}
 
 	/**
@@ -429,7 +435,7 @@ struct FTrackSegment
 
 		float Alpha = DistanceToBaseLine / (DistanceToBaseLine + DistanceToEndLine);
 
-		return (FMath::Lerp<float, float>(BaseLineHeight, EndLineHeight, Alpha) - 50.f);
+		return (FMath::Lerp<float, float>(BaseLineHeight, EndLineHeight, Alpha) - ElevationOffset);
 	}
 
 	/**
@@ -563,7 +569,7 @@ struct FTrackGenerationSettings
 
 	/**
 	 * parameter that controls the maximum elevation difference (in cm) between the track's starting and end point in one tile
-	 * used as threshold values for an uniform probability distribution
+	 * multiplied with result of normal distribution to obtain final elevation of track exit point in relation to track entry point
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float MaximumElevationDifference = 20000.f;
@@ -577,10 +583,9 @@ struct FTrackGenerationSettings
 
 	/**
 	 * the height in cm the terrain mesh should lie beneath the track mesh
-	 * @DEPRECATED will not be used
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float HeightTerrainBeneathTrack = 10.f;
+	float TrackElevationOffset = 10.f;
 
 	/**
 	 * The mean value of the normal distribution for calculating the second bezier control point.
@@ -602,10 +607,22 @@ struct FTrackGenerationSettings
 	float Hilliness = 2000.f;
 
 	/**
+	 * mean value for elevation difference between track entry and exit point
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float Steepness_Mean = 0.f;
+
+	/**
+	 * standard deviation for elevation difference between track entry and exit point
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float Steepness_Deviation = 0.2f;
+
+	/**
 	 * error tolerance for calculation if a point is inside the quad defined by a track segment's start and end line 
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float PointInsideErrorTolerance = 50.f;
+	float PointInsideErrorTolerance = 100.f;
 };
 
 

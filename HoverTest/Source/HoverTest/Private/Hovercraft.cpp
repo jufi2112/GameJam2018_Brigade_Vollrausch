@@ -41,12 +41,10 @@ void AHovercraft::BeginPlay()
 	if (PC)
 	{
 		bIsPlayerControlled = true;
-		UE_LOG(LogTemp, Warning, TEXT("PlayerControlled"));
 	}
 	else
 	{
 		bIsPlayerControlled = false;
-		UE_LOG(LogTemp, Warning, TEXT("Not player controlled"));
 	}
 
 }

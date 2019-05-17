@@ -357,10 +357,13 @@ void ATerrainManager::AdjustQuad()
 
 bool ATerrainManager::CalculateTrackExitPointElevation(const FIntVector2D Sector, const FSectorTrackInfo TrackInfo, float& OUTExitPointElevation)
 {
+	UE_LOG(LogTemp, Error, TEXT("Track exit point elevations for sector %s"), *Sector.ToString());
 	if (Sector == FIntVector2D(0, 0))
 	{
 		// very first sector, use default elevation for entry point height
-		OUTExitPointElevation = TerrainSettings.TrackGenerationSettings.DefaultEntryPointHeight + FMath::RandRange(-TerrainSettings.TrackGenerationSettings.MaximumElevationDifference, TerrainSettings.TrackGenerationSettings.MaximumElevationDifference);
+		OUTExitPointElevation = TerrainSettings.TrackGenerationSettings.DefaultEntryPointHeight + (UMyStaticLibrary::GetNormalDistribution(TerrainSettings.TrackGenerationSettings.Steepness_Mean, TerrainSettings.TrackGenerationSettings.Steepness_Deviation, -1.f, 1.f) * TerrainSettings.TrackGenerationSettings.MaximumElevationDifference);
+		UE_LOG(LogTemp, Warning, TEXT("Exit point elevation is %f"), OUTExitPointElevation);
+		//OUTExitPointElevation = TerrainSettings.TrackGenerationSettings.DefaultEntryPointHeight + FMath::RandRange(-TerrainSettings.TrackGenerationSettings.MaximumElevationDifference, TerrainSettings.TrackGenerationSettings.MaximumElevationDifference);
 		return true;
 	}
 	const FSectorTrackInfo PreviousTrackInfo = TrackMap.FindRef(TrackInfo.PreviousTrackSector);
@@ -370,7 +373,9 @@ bool ATerrainManager::CalculateTrackExitPointElevation(const FIntVector2D Sector
 		return false;
 	}
 	// calculate exit elevation: exit elevation <-- start elevation + Random[-MaximumElevationDifference, MaximumElevationDifference]
-	OUTExitPointElevation = PreviousTrackInfo.TrackExitPointElevation + FMath::RandRange(-TerrainSettings.TrackGenerationSettings.MaximumElevationDifference, TerrainSettings.TrackGenerationSettings.MaximumElevationDifference);
+	OUTExitPointElevation = PreviousTrackInfo.TrackExitPointElevation + (UMyStaticLibrary::GetNormalDistribution(TerrainSettings.TrackGenerationSettings.Steepness_Mean, TerrainSettings.TrackGenerationSettings.Steepness_Deviation, -1.f, 1.f) * TerrainSettings.TrackGenerationSettings.MaximumElevationDifference);
+	UE_LOG(LogTemp, Warning, TEXT("Exit point elevation is %f"), OUTExitPointElevation);
+	//OUTExitPointElevation = PreviousTrackInfo.TrackExitPointElevation + FMath::RandRange(-TerrainSettings.TrackGenerationSettings.MaximumElevationDifference, TerrainSettings.TrackGenerationSettings.MaximumElevationDifference);
 	return true;
 
 }
@@ -404,6 +409,9 @@ void ATerrainManager::CalculateBezierControlPoints(const FIntVector2D Sector, co
 		ControlPoint1 = EntryPoint + Vector;
 	}
 
+	UE_LOG(LogTemp, Error, TEXT("Bezier control points for sector %s"), *Sector.ToString());
+	UE_LOG(LogTemp, Warning, TEXT("First control point %s"), *ControlPoint1.ToString());
+
 	/**
 	 * calculation of control point 2 follows instructions given by Michael Franke in 'Dynamische Streckengenerierung und deren Einbettung in ein Terrain' in 2011
 	 */
@@ -427,6 +435,8 @@ void ATerrainManager::CalculateBezierControlPoints(const FIntVector2D Sector, co
 
 	float AverageElevation = PreviousTrackInfo.TrackExitPointElevation + (TrackInfo.TrackExitPointElevation - PreviousTrackInfo.TrackExitPointElevation) / 2.f;
 	ControlPoint2.Z = UMyStaticLibrary::GetNormalDistribution(AverageElevation, TerrainSettings.TrackGenerationSettings.Hilliness);
+
+	UE_LOG(LogTemp, Warning, TEXT("Second control point %s"), *ControlPoint2.ToString());
 
 	OUTControlPointOne = ControlPoint1;
 	OUTControlPointTwo = ControlPoint2;
@@ -1077,7 +1087,7 @@ void ATerrainManager::GenerateTrackMesh(const FIntVector2D Sector, const FVector
 			OUTTriangleBuffer.Add(Num - 1);
 			OUTTriangleBuffer.Add(Num - 3);
 
-			TrackSegments.Add(FTrackSegment(OUTVertexBuffer[Num - 5].Position, OUTVertexBuffer[Num - 4].Position, OUTVertexBuffer[Num - 1].Position, OUTVertexBuffer[Num - 2].Position, TerrainSettings.TileEdgeSize, TerrainSettings.TrackGenerationSettings.PointInsideErrorTolerance));
+			TrackSegments.Add(FTrackSegment(OUTVertexBuffer[Num - 5].Position, OUTVertexBuffer[Num - 4].Position, OUTVertexBuffer[Num - 1].Position, OUTVertexBuffer[Num - 2].Position, TerrainSettings.TileEdgeSize, TerrainSettings.TrackGenerationSettings.PointInsideErrorTolerance, TerrainSettings.TrackGenerationSettings.TrackElevationOffset));
 		}
 	}
 }
