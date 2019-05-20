@@ -7,6 +7,7 @@
 #include "HoverTestGameModeProceduralLevel.generated.h"
 
 class ATerrainManager;
+class AProceduralCheckpoint;
 
 /**
  * 
@@ -49,6 +50,8 @@ public:
 	 */
 	UFUNCTION()
 	void DefaultPawnFinishedTransition();
+
+	void HandlePlayerHovercraftCheckpointOverlap(AHovercraft * Hovercraft, AHovercraftPlayerController* PlayerController, AProceduralCheckpoint * Checkpoint);
 
 
 private:

@@ -6,6 +6,7 @@
 #include "GameFramework/Actor.h"
 #include "MyStaticLibrary.h"
 #include "Runtime/Core/Public/Containers/Queue.h"
+#include "ProceduralCheckpoint.h"
 #include "TerrainManager.generated.h"
 
 class ATerrainTile;
@@ -57,6 +58,9 @@ protected:
 	// queue for pending terrain jobs
 	TQueue<FTerrainJob, EQueueMode::Spsc> PendingTerrainJobQueue;
 
+	// queue for pending checkpoint spawns
+	TQueue<FCheckpointSpawnJob, EQueueMode::Spsc> PendingCheckpointSpawnQueue;
+
 	// array of all used threads
 	TArray<FRunnableThread*> Threads;
 
@@ -95,6 +99,12 @@ protected:
 	// the sector where the current last track segment is located (already created)
 	UPROPERTY()
 	FIntVector2D CurrentTrackSector = FIntVector2D();
+
+	/**
+	 * Next available check point ID
+	 */
+	UPROPERTY()
+	uint32 NextAvailableCheckPointID = 1;
 
 
 private:
@@ -286,4 +296,7 @@ public:
 	 */
 	UFUNCTION()
 	void RecalculateTileForSector(const FIntVector2D Sector);
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Setup")
+	TSubclassOf<AProceduralCheckpoint> CheckpointClassToSpawn;
 };

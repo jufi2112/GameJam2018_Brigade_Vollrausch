@@ -20,6 +20,7 @@ public:
 
 private:
 
+	UPROPERTY()
 	UShapeComponent* CollisionShape = nullptr;
 
 protected:

@@ -553,3 +553,13 @@ void AHovercraft::SetIsPlayerControlled(bool IsPlayerControlled)
 	bIsPlayerControlled = IsPlayerControlled;
 }
 
+void AHovercraft::SetNewProceduralCheckpointID(const uint32 NewID)
+{
+	CurrentProceduralCheckpointID = NewID;
+}
+
+uint32 AHovercraft::GetCurrentProceduralCheckpointID() const
+{
+	return CurrentProceduralCheckpointID;
+}
+

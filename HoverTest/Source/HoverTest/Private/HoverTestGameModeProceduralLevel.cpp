@@ -99,7 +99,9 @@ void AHoverTestGameModeProceduralLevel::DefaultPawnFinishedTransition()
 				UE_LOG(LogTemp, Error, TEXT("Could not retrieve player controller as AHovercraftPlayerController in %s!"), *GetName());
 				return;
 			}
-			AActor* Actor = World->SpawnActor(PlayerPawnClass, &PlayerSpawn, FActorSpawnParameters());
+			FActorSpawnParameters SpawnParameters;
+			SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+			AActor* Actor = World->SpawnActor(PlayerPawnClass, &PlayerSpawn, SpawnParameters);
 			if (Actor)
 			{
 				APawn* Pawn = Cast<APawn>(Actor);
@@ -135,5 +137,20 @@ void AHoverTestGameModeProceduralLevel::DefaultPawnFinishedTransition()
 		{
 			UE_LOG(LogTemp, Error, TEXT("Could not retrieve game world in GameMode %s"), *GetName());
 		}
+	}
+}
+
+void AHoverTestGameModeProceduralLevel::HandlePlayerHovercraftCheckpointOverlap(AHovercraft * Hovercraft, AHovercraftPlayerController * PlayerController, AProceduralCheckpoint * Checkpoint)
+{
+	if (!Hovercraft || !PlayerController || !Checkpoint || !TerrainManager)
+	{
+		return;
+	}
+
+	if (Checkpoint->GetCheckpointID() > Hovercraft->GetCurrentProceduralCheckpointID())
+	{
+		Hovercraft->SetNewProceduralCheckpointID(Checkpoint->GetCheckpointID());
+		PlayerController->SetResetPosition(Checkpoint->GetActorLocation());
+		PlayerController->SetResetYaw(Checkpoint->GetActorRotation().Yaw);
 	}
 }

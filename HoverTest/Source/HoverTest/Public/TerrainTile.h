@@ -9,6 +9,7 @@
 #include "TerrainTile.generated.h"
 
 class URuntimeMeshComponent;
+class AProceduralCheckpoint;
 
 UCLASS()
 class HOVERTEST_API ATerrainTile : public AActor
@@ -23,9 +24,21 @@ protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
+	/**
+	 * pointer to the checkpoint contained in this tile
+	 */
+	UPROPERTY()
+	AProceduralCheckpoint* Checkpoint = nullptr;
+
 public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
+
+	UFUNCTION()
+	void SetCheckpointReference(AProceduralCheckpoint* CheckpointToSet);
+
+	UFUNCTION()
+	AProceduralCheckpoint* GetCheckpointReference() const;
 
 	// to be called only once directly after terrain tile is created
 	UFUNCTION()

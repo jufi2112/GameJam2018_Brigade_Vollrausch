@@ -97,6 +97,8 @@ protected:
 	UPROPERTY(VisibleAnywhere, Category = Controls)
 	bool bShowControls = true;
 
+	uint32 CurrentProceduralCheckpointID = 0;
+
 private:
 	TArray<bool> IsFallingArray;
 
@@ -275,5 +277,11 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	void SetIsPlayerControlled(bool IsPlayerControlled);
+
+	UFUNCTION()
+	void SetNewProceduralCheckpointID(const uint32 NewID);
+
+	UFUNCTION()
+	uint32 GetCurrentProceduralCheckpointID() const;
 
 };

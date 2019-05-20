@@ -4,6 +4,7 @@
 #include "RuntimeMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Runtime/Engine/Classes/Engine/World.h"
+#include "ProceduralCheckpoint.h"
 
 
 // Sets default values
@@ -30,6 +31,16 @@ void ATerrainTile::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
+}
+
+void ATerrainTile::SetCheckpointReference(AProceduralCheckpoint * CheckpointToSet)
+{
+	Checkpoint = CheckpointToSet;
+}
+
+AProceduralCheckpoint * ATerrainTile::GetCheckpointReference() const
+{
+	return Checkpoint;
 }
 
 void ATerrainTile::SetupTile(FTerrainSettings TerrainSettings, FIntVector2D Sector)
@@ -158,6 +169,12 @@ void ATerrainTile::FreeTile()
 		}
 		/*TerrainMesh->ClearMeshSection(0);
 		TrackMesh->ClearMeshSection(0);*/
+	}
+
+	if (Checkpoint && Checkpoint->IsValidLowLevel())
+	{
+		Checkpoint->Destroy();
+		Checkpoint = nullptr;
 	}
 
 	// better safe than sorry

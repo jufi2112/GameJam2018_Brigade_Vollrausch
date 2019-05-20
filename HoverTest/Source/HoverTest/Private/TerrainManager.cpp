@@ -134,6 +134,9 @@ void ATerrainManager::CalculateTrackPath(const TArray<FIntVector2D> SectorsToCre
 			CalculateTrackExitPointElevation(CurrentTrackSector, TrackInfo, TrackInfo.TrackExitPointElevation);	
 			CalculateBezierControlPoints(CurrentTrackSector, TrackInfo, TrackInfo.FirstBezierControlPoint, TrackInfo.SecondBezierControlPoint);
 
+			TrackInfo.CheckpointID = NextAvailableCheckPointID;
+			NextAvailableCheckPointID++;
+
 			// add to TrackMap
 			TrackMap.Add(CurrentTrackSector, TrackInfo);
 		}
@@ -522,6 +525,39 @@ void ATerrainManager::Tick(float DeltaTime)
 					}
 				}
 				Job.TerrainTile->UpdateMeshData(TerrainSettings, Job.MeshData);
+			}
+		}
+	}
+
+	// check if we need to spawn checkpoints
+	while (!PendingCheckpointSpawnQueue.IsEmpty())
+	{
+		FCheckpointSpawnJob SpawnJob;
+		if (PendingCheckpointSpawnQueue.Dequeue(SpawnJob))
+		{
+			UWorld* World = GetWorld();
+			if (World)
+			{
+				AActor* Actor = World->SpawnActor(CheckpointClassToSpawn, &SpawnJob.CheckpointTransform, FActorSpawnParameters());
+				AProceduralCheckpoint* Checkpoint = Cast<AProceduralCheckpoint>(Actor);
+				if (Checkpoint)
+				{
+					Checkpoint->SetCheckpointID(SpawnJob.CheckpointID);
+					Checkpoint->SetActorScale3D(FVector(1.f, TerrainSettings.TrackGenerationSettings.TrackWidth / 100.f, 1.f));
+					// search tile that is responsible for the sector and add checkpoint reference
+					for (ATerrainTile* Tile : TilesInUse)
+					{
+						if (Tile->GetCurrentSector() == SpawnJob.CheckpointSector)
+						{
+							Tile->SetCheckpointReference(Checkpoint);
+							break;
+						}
+					}
+				}
+				else
+				{
+					UE_LOG(LogTemp, Error, TEXT("Spawned Checkpoint could not be cast to AProceduralCheckpoint in %s"), *GetName());
+				}
 			}
 		}
 	}
@@ -926,10 +962,25 @@ void ATerrainManager::GenerateTrackMesh(const FIntVector2D Sector, const FVector
 	BezierPoints[2] = ControlPoint2;
 	BezierPoints[3] = EndPoint;
 
-
 	// calculate mesh
 	TArray<FVector> PointsOnTrack;
 	FVector::EvaluateBezier(BezierPoints, TerrainSettings.TrackGenerationSettings.TrackResolution, PointsOnTrack);
+#
+	// check if we should spawn a checkpoint
+	if (TrackInfo.CheckpointID != -1 && PointsOnTrack.Num() >= 2)
+	{
+		FVector SpawnLocation = FVector(Sector.X * TerrainSettings.TileEdgeSize + PointsOnTrack[0].X, Sector.Y * TerrainSettings.TileEdgeSize + PointsOnTrack[0].Y, PointsOnTrack[0].Z);
+		FVector SpawnDirection = PointsOnTrack[1] - PointsOnTrack[0];
+		FQuat SpawnRotation = SpawnDirection.Rotation().Quaternion();
+		FVector SpawnScaling = FVector(1.f, 1.f, 1.f);
+		FTransform Transform;
+		Transform.SetLocation(SpawnLocation);
+		Transform.SetRotation(SpawnRotation);
+		Transform.SetScale3D(SpawnScaling);
+
+		// actors need to be spawned in the game thread
+		PendingCheckpointSpawnQueue.Enqueue(FCheckpointSpawnJob(TrackInfo.CheckpointID, Transform, Sector));
+	}
 
 	// check if we can set the player spawn point
 	if (Sector == FIntVector2D(0, 0))
@@ -954,6 +1005,9 @@ void ATerrainManager::GenerateTrackMesh(const FIntVector2D Sector, const FVector
 			}
 		}
 	}
+
+	/* spawn checkpoint at position of entry point */
+
 
 	for (int32 i = 0; i < PointsOnTrack.Num(); ++i)
 	{

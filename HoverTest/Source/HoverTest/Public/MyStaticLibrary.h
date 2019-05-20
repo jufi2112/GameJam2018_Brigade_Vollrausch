@@ -91,6 +91,42 @@ struct FIntVector2D
 };
 
 /**
+ * struct that contains a checkpoint spawn job
+ */
+USTRUCT()
+struct FCheckpointSpawnJob
+{
+	GENERATED_USTRUCT_BODY()
+
+	// the checkpoint's ID
+	int32 CheckpointID = -1;
+
+	// the checkpoint's transform
+	UPROPERTY()
+	FTransform CheckpointTransform = FTransform();
+
+	// the sector the checkpoint should be created for
+	UPROPERTY()
+	FIntVector2D CheckpointSector = FIntVector2D();
+
+	/**
+	 * @DEPRECATED, use other constructor
+	 */
+	FCheckpointSpawnJob()
+	{
+
+	}
+
+	FCheckpointSpawnJob(const uint32 ID, const FTransform& Transform, const FIntVector2D Sector)
+	{
+		CheckpointID = ID;
+		CheckpointTransform = Transform;
+		CheckpointSector = Sector;
+	}
+
+};
+
+/**
  * struct that is used to store track information for each sector
  */
 USTRUCT()
@@ -128,6 +164,13 @@ struct FSectorTrackInfo
 	// second bézier control point
 	UPROPERTY()
 	FVector SecondBezierControlPoint = FVector();
+
+	/**
+	 * The ID of the checkpoint in this sector
+	 * if no track exists, there is no track and the ID is -1
+	 */
+	UPROPERTY()
+	int32 CheckpointID = -1;
 
 	// sector has no track
 	FSectorTrackInfo()
