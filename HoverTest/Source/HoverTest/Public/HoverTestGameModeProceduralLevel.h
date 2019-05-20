@@ -8,6 +8,7 @@
 
 class ATerrainManager;
 class AProceduralCheckpoint;
+class AProceduralDefaultPawn;
 
 /**
  * 
@@ -53,6 +54,21 @@ public:
 
 	void HandlePlayerHovercraftCheckpointOverlap(AHovercraft * Hovercraft, AHovercraftPlayerController* PlayerController, AProceduralCheckpoint * Checkpoint);
 
+	UFUNCTION()
+	ATerrainManager* GetTerrainManager() const;
+
+	/**
+	 * Switches the player controller's controlled pawn from hovercraft to default pawn and sets default pawn's location to the location provided
+	 */
+	UFUNCTION()
+	void SwitchToDefaultPawn(APawn* CurrentPawn, const FVector DefaultPawnLocation);
+
+	/**
+	 * Switches the player controller's controlled pawn from the default pawn to the hovercraft pawn
+	 */
+	UFUNCTION()
+	void SwitchToPlayerPawn();
+
 
 private:
 
@@ -67,6 +83,18 @@ private:
 	 */
 	UPROPERTY()
 	ATerrainManager* TerrainManager = nullptr;
+
+	/**
+	 * Reference to default pawn
+	 */
+	UPROPERTY()
+	AProceduralDefaultPawn* DefaultPawnReference = nullptr;
+
+	/**
+	 * Reference to player pawn
+	 */
+	UPROPERTY()
+	APawn* PlayerPawn = nullptr;
 
 	/**
 	 * bool that indicates if the player controller possesses the Hovercraft pawn

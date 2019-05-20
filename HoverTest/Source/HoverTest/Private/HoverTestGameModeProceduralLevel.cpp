@@ -68,6 +68,7 @@ void AHoverTestGameModeProceduralLevel::SpawnPlayerFromTerrainManager(const floa
 			AProceduralDefaultPawn* DefaultPawn = Cast<AProceduralDefaultPawn>(PC->GetPawn());
 			if (DefaultPawn)
 			{
+				DefaultPawnReference = DefaultPawn;
 				DefaultPawn->StartTransition(PlayerSpawn.GetLocation() + FVector(0.f, 0.f, TransitionElevationOffset), TransitionSpeed, DeltaToStop);
 			}
 			else
@@ -86,7 +87,6 @@ void AHoverTestGameModeProceduralLevel::DefaultPawnFinishedTransition()
 {
 	if (!bControllerPossessesHovercraftPawn)
 	{
-		bControllerPossessesHovercraftPawn = true;
 		if (!PlayerPawnClass || !TerrainManager) { return; }
 		//APlayerController* PC = UGameplayStatics::CreatePlayer(this, -1, true);
 		//UE_LOG(LogTemp, Warning, TEXT("Created PlayerController %s"), *PC->GetName());
@@ -108,6 +108,7 @@ void AHoverTestGameModeProceduralLevel::DefaultPawnFinishedTransition()
 				if (Pawn)
 				{
 					PC->Possess(Pawn);
+					bControllerPossessesHovercraftPawn = true;
 					PC->AfterDelay();
 				}
 
@@ -152,5 +153,51 @@ void AHoverTestGameModeProceduralLevel::HandlePlayerHovercraftCheckpointOverlap(
 		Hovercraft->SetNewProceduralCheckpointID(Checkpoint->GetCheckpointID());
 		PlayerController->SetResetPosition(Checkpoint->GetActorLocation());
 		PlayerController->SetResetYaw(Checkpoint->GetActorRotation().Yaw);
+	}
+}
+
+ATerrainManager * AHoverTestGameModeProceduralLevel::GetTerrainManager() const
+{
+	return TerrainManager;
+}
+
+void AHoverTestGameModeProceduralLevel::SwitchToDefaultPawn(APawn* CurrentPawn, const FVector DefaultPawnLocation)
+{
+	if (!DefaultPawnReference) { return; }
+	if (bControllerPossessesHovercraftPawn)
+	{
+		UWorld* World = GetWorld();
+		if (World)
+		{
+			AHovercraftPlayerController* PC = Cast<AHovercraftPlayerController>(World->GetFirstPlayerController());
+			if (PC)
+			{
+				// save reference to calling pawn so we can switch back to it later
+				PlayerPawn = CurrentPawn;
+				DefaultPawnReference->SetActorLocation(DefaultPawnLocation);
+				PC->Possess(DefaultPawnReference);
+				bControllerPossessesHovercraftPawn = false;
+			}
+		}
+
+
+	}
+}
+
+void AHoverTestGameModeProceduralLevel::SwitchToPlayerPawn()
+{
+	if (!PlayerPawn) { return; }
+	if (!bControllerPossessesHovercraftPawn)
+	{
+		UWorld* World = GetWorld();
+		if (World)
+		{
+			AHovercraftPlayerController* PC = Cast<AHovercraftPlayerController>(World->GetFirstPlayerController());
+			if (PC)
+			{
+				PC->Possess(PlayerPawn);
+				bControllerPossessesHovercraftPawn = true;
+			}
+		}
 	}
 }

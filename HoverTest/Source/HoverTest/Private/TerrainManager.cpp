@@ -418,8 +418,10 @@ void ATerrainManager::CalculateBezierControlPoints(const FIntVector2D Sector, co
 	/**
 	 * calculation of control point 2 follows instructions given by Michael Franke in 'Dynamische Streckengenerierung und deren Einbettung in ein Terrain' in 2011
 	 */
-	float RandomNumber = UMyStaticLibrary::GetNormalDistribution(TerrainSettings.TrackGenerationSettings.CURVINESS_MEAN, TerrainSettings.TrackGenerationSettings.Curviness, 0.f, 1.f);
+	//float RandomNumber = UMyStaticLibrary::GetNormalDistribution(TerrainSettings.TrackGenerationSettings.CURVINESS_MEAN, TerrainSettings.TrackGenerationSettings.Curviness, 0.f, 1.f);
+	float RandomNumber = UMyStaticLibrary::GetNormalDistribution(TerrainSettings.TrackGenerationSettings.CURVINESS_MEAN, TerrainSettings.TrackGenerationSettings.CurvinessDisplacement, -0.5f, 0.5f);
 	float Displacement = RandomNumber * (TerrainSettings.TileEdgeSize / 4.f);
+	UE_LOG(LogTemp, Warning, TEXT("Second control point displacement: %f"), Displacement);
 	// vector from middle point to track exit point
 	FVector2D LineEndPointMiddlePoint = TrackInfo.TrackExitPoint - MiddlePoint;
 	// point halfway between middle point and track exit point
@@ -427,7 +429,9 @@ void ATerrainManager::CalculateBezierControlPoints(const FIntVector2D Sector, co
 	// control point before rotation is applied
 	FVector2D IntermediatePoint = EndPointMiddlePointHalf + (LineEndPointMiddlePoint.GetSafeNormal() * Displacement);
 
-	float RotationAngle = UMyStaticLibrary::GetNormalDistribution(0.f, TerrainSettings.TrackGenerationSettings.Curviness, -1.f, 1.f) * 30.f;
+	float RotationAngle = UMyStaticLibrary::GetNormalDistribution(0.f, TerrainSettings.TrackGenerationSettings.CurvinessRotation, -1.f, 1.f) * TerrainSettings.TrackGenerationSettings.MaximumRotationAngle;
+
+	UE_LOG(LogTemp, Warning, TEXT("Second control point rotation angle: %f"), RotationAngle);
 
 	float Angle = RotationAngle * (UKismetMathLibrary::GetPI() / 180.f);	// convert to radians
 
@@ -1158,6 +1162,24 @@ void ATerrainManager::RecalculateTileForSector(const FIntVector2D Sector)
 			return;
 		}
 	}	
+}
+
+bool ATerrainManager::IsLocationCoveredByTile(const FVector Location)
+{
+	const FIntVector2D SectorNeeded = CalculateSectorFromLocation(Location);
+	bool bIsSectorCovered = false;
+
+	// check if sector is covered by a tile
+	for (const ATerrainTile* Tile : TilesInUse)
+	{
+		if (Tile->GetCurrentSector() == SectorNeeded)
+		{
+			bIsSectorCovered = true;
+			break;
+		}
+	}
+
+	return bIsSectorCovered;
 }
 
 // Creates a FRuntimeMeshVertexSimple from the given Vertex

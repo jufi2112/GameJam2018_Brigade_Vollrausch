@@ -48,6 +48,7 @@ protected:
 
 	void InitializeThrusters();
 
+	UPROPERTY()
 	TArray<UHoverThruster*> HoverThrusters;
 
 	// Should the Hovercraft hover?
@@ -175,6 +176,10 @@ public:
 	// returns ECT_None if pawn is controlled by AI rather than by a player
 	UFUNCTION(BlueprintCallable, Category = Controls)
 	EControllerType GetControllerType() const;
+
+	// applies the given reset values
+	UFUNCTION(BlueprintCallable)
+	void ApplyResetValues(const FVector ResetLocation, const FRotator ResetRotation);
 
 	// Called to bind functionality to input
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;

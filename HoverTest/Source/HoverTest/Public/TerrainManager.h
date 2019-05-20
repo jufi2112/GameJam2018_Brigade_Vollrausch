@@ -299,4 +299,12 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Setup")
 	TSubclassOf<AProceduralCheckpoint> CheckpointClassToSpawn;
+
+	/**
+	 * checks if a tile is present at the given location
+	 * @param Location The location to check for existence of a tile
+	 * @return Whether a tile is present at the given location or not
+	 */
+	UFUNCTION(BlueprintCallable)
+	bool IsLocationCoveredByTile(const FVector Location);
 };

@@ -632,16 +632,28 @@ struct FTrackGenerationSettings
 
 	/**
 	 * The mean value of the normal distribution for calculating the second bezier control point.
-	 * Defaults to 0.5f
+	 * Defaults to 0.f
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float CURVINESS_MEAN = 0.5f;
+	float CURVINESS_MEAN = 0.0f;
 
 	/**
-	 * the curviness of the track, will be used as standard deviation in a normal distribution with mean CURVINESS_MEAN
+	 * the curviness of the track for the displacement calculation, will be used as standard deviation in a normal distribution with mean CURVINESS_MEAN
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float Curviness = 0.2f;
+	float CurvinessDisplacement = 0.2f;
+
+	/**
+	 * the curviness of the track for the rotation calculation
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float CurvinessRotation = 0.4f;
+
+	/**
+	 * The maximum angle the second bezier control point should be rotated by
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float MaximumRotationAngle = 45.f;
 
 	/**
 	 * quality of being hilly, used as standard deviation in a normal distribution with the average elevation between track entry and exit point as mean
@@ -1141,6 +1153,22 @@ public:
 		{
 			return FMath::Clamp<float>(d(gen), Min, Max);
 		}
+	}
+
+	/**
+	 * Calculates distance from the first point in the array to the last point in the array
+	 * @param Traverse Array containing all points in the traverse in the right order
+	 * @return The distance from the first point in the array to the last point
+	 */
+	static float CalculateTraverseDistance(const TArray<FVector>& Traverse)
+	{
+		float TraverseLength = 0.f;
+		for (int32 i = 0; i < Traverse.Num() - 1; ++i)
+		{
+			TraverseLength += FVector::Distance(Traverse[i], Traverse[i + 1]);
+		}
+
+		return TraverseLength;
 	}
 
 

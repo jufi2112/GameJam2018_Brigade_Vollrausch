@@ -15,6 +15,8 @@
 #include "Camera/CameraComponent.h"
 #include "Classes/Components/PostProcessComponent.h"
 #include "TerrainTrackerComponent.h"
+#include "HoverTestGameModeProceduralLevel.h"
+#include "TerrainManager.h"
 
 
 // Sets default values
@@ -298,14 +300,45 @@ void AHovercraft::ResetHovercraft(USceneComponent* AzimuthGimbal)
 	StaticMesh->SetPhysicsLinearVelocity(FVector(0.f, 0.f, 0.f));
 	StaticMesh->SetPhysicsAngularVelocity(FVector(0.f, 0.f, 0.f));
 
-	// apply values
-	SetActorLocation(ResetLocation);
-	SetActorRotation(ResetRotation);
+	// TODO
+	// check if we are in procedural level (e.g. by checking gamemode castable to procedural game mode)
+	UWorld* World = GetWorld();
+	if (World)
+	{
+		AHoverTestGameModeProceduralLevel* GameMode = Cast<AHoverTestGameModeProceduralLevel>(World->GetAuthGameMode());
+		if (GameMode)
+		{
+			// check if location where we want to reset is covered by a tile
+			ATerrainManager* TerrainManager = GameMode->GetTerrainManager();
+			if (TerrainManager)
+			{
+				if (TerrainManager->IsLocationCoveredByTile(ResetLocation))
+				{
+					// apply values
+					ApplyResetValues(ResetLocation, ResetRotation);
+				}
+				else
+				{
+					// switch over to procedural pawn
+					GameMode->SwitchToDefaultPawn(this, ResetLocation);
+					//wait until tiles are created, switch back to hovercraft and apply values
+				}
+			}
+		}
+		else
+		{
+			// apply values
+			ApplyResetValues(ResetLocation, ResetRotation);
+		}
+	}
+	else
+	{
+		// apply values
+		ApplyResetValues(ResetLocation, ResetRotation);
+	}
 
-	bIsResetting = true;
+	// apply values
 	
-	//SetActorEnableCollision(false);
-	GetWorld()->GetTimerManager().SetTimer(ResetTimerHandle, this, &AHovercraft::OnResetComplete, TimeNeededForReset, false);
 
 
 	//// set old AzimuthGimbal and SpringArm rotations
@@ -537,6 +570,17 @@ EControllerType AHovercraft::GetControllerType() const
 	{
 		return ControllerType;
 	}
+}
+
+void AHovercraft::ApplyResetValues(const FVector ResetLocation, const FRotator ResetRotation)
+{
+	SetActorLocation(ResetLocation);
+	SetActorRotation(ResetRotation);
+
+	bIsResetting = true;
+
+	//SetActorEnableCollision(false);
+	GetWorld()->GetTimerManager().SetTimer(ResetTimerHandle, this, &AHovercraft::OnResetComplete, TimeNeededForReset, false);
 }
 
 // Called to bind functionality to input
