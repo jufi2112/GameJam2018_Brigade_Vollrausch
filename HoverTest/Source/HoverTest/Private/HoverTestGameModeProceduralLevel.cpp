@@ -10,6 +10,31 @@
 #include "HovercraftPlayerController.h"
 #include "ProceduralDefaultPawn.h"
 
+AHoverTestGameModeProceduralLevel::AHoverTestGameModeProceduralLevel()
+{
+	PrimaryActorTick.bStartWithTickEnabled = false;
+	PrimaryActorTick.bCanEverTick = true;
+}
+
+void AHoverTestGameModeProceduralLevel::Tick(float DeltaTime)
+{
+	Super::Tick(DeltaTime);
+	if (bInformHovercraftAfterTicks)
+	{
+		TicksAfterWhichToInformHovercraft--;
+		if (TicksAfterWhichToInformHovercraft <= 0)
+		{
+			AHovercraft* HC = Cast<AHovercraft>(PlayerPawn);
+			if (HC)
+			{
+				HC->OnMultipointTransitionResetComplete();
+				bInformHovercraftAfterTicks = false;
+				SetActorTickEnabled(false);
+			}
+		}
+	}
+}
+
 void AHoverTestGameModeProceduralLevel::BeginPlay()
 {
 	Super::BeginPlay();
@@ -141,6 +166,37 @@ void AHoverTestGameModeProceduralLevel::DefaultPawnFinishedTransition()
 	}
 }
 
+void AHoverTestGameModeProceduralLevel::DefaultPawnFinishedMultipointTransition()
+{
+	if (!PlayerPawn)
+	{
+		UE_LOG(LogTemp, Error, TEXT("No valid player pawn found in DefaultPawnFinishedMultipointTransition in %s"), *GetName());
+		return;
+	}
+	if (!bControllerPossessesHovercraftPawn)
+	{
+		UWorld* World = GetWorld();
+		if (World)
+		{
+			AHovercraftPlayerController* PC = Cast<AHovercraftPlayerController>(World->GetFirstPlayerController());
+			if (PC)
+			{
+				PC->Possess(PlayerPawn);
+				bControllerPossessesHovercraftPawn = true;
+				AHovercraft* HC = Cast<AHovercraft>(PlayerPawn);
+				if (HC)
+				{
+					// apply reset values
+					HC->ApplyResetValues(PlayerResetLocation, PlayerResetRotation);
+					SetActorTickEnabled(true);
+					bInformHovercraftAfterTicks = true;
+					TicksAfterWhichToInformHovercraft = 2;
+				}
+			}
+		}
+	}
+}
+
 void AHoverTestGameModeProceduralLevel::HandlePlayerHovercraftCheckpointOverlap(AHovercraft * Hovercraft, AHovercraftPlayerController * PlayerController, AProceduralCheckpoint * Checkpoint)
 {
 	if (!Hovercraft || !PlayerController || !Checkpoint || !TerrainManager)
@@ -161,9 +217,9 @@ ATerrainManager * AHoverTestGameModeProceduralLevel::GetTerrainManager() const
 	return TerrainManager;
 }
 
-void AHoverTestGameModeProceduralLevel::SwitchToDefaultPawn(APawn* CurrentPawn, const FVector DefaultPawnLocation)
+void AHoverTestGameModeProceduralLevel::SwitchToDefaultPawnAndStartMultipointTransition(APawn* CurrentPawn, const FVector DefaultPawnTargetLocation, const FRotator ResetRotation)
 {
-	if (!DefaultPawnReference) { return; }
+	if (!DefaultPawnReference || !TerrainManager) { return; }
 	if (bControllerPossessesHovercraftPawn)
 	{
 		UWorld* World = GetWorld();
@@ -174,13 +230,16 @@ void AHoverTestGameModeProceduralLevel::SwitchToDefaultPawn(APawn* CurrentPawn, 
 			{
 				// save reference to calling pawn so we can switch back to it later
 				PlayerPawn = CurrentPawn;
-				DefaultPawnReference->SetActorLocation(DefaultPawnLocation);
+				DefaultPawnReference->SetActorLocation(CurrentPawn->GetActorLocation());
 				PC->Possess(DefaultPawnReference);
+				// start transition in default pawn
+				DefaultPawnReference->StartMultipointTransition(PlayerPawn->GetActorLocation(), DefaultPawnTargetLocation + FVector(0.f, 0.f, TerrainManager->GetTerrainSettingsTransitionElevationOffset()), TerrainManager->GetTerrainSettingsTransitionInterpolationSpeed(), TerrainManager->GetTerrainSettingsTransitionDeltaToStop());
 				bControllerPossessesHovercraftPawn = false;
+
+				PlayerResetLocation = DefaultPawnTargetLocation;
+				PlayerResetRotation = ResetRotation;
 			}
 		}
-
-
 	}
 }
 
@@ -201,3 +260,10 @@ void AHoverTestGameModeProceduralLevel::SwitchToPlayerPawn()
 		}
 	}
 }
+
+void AHoverTestGameModeProceduralLevel::AllowDefaultPawnToTransitionToEndLocation()
+{
+	if (!DefaultPawnReference) { return; }
+	DefaultPawnReference->AllowMultipointTransitionZoomToEndPoint();
+}
+

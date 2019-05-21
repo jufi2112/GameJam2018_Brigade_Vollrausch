@@ -55,36 +55,31 @@ void ATerrainManager::BeginPlay()
 
 }
 
-TArray<FIntVector2D> ATerrainManager::CalculateSectorsNeededAroundGivenLocation(FVector Location)
+void ATerrainManager::CalculateSectorsNeededAroundGivenLocation(const FVector Location, TArray<FIntVector2D>& OUTSectorsNeeded)
 {
-	TArray<FIntVector2D> Sectors;
-
 	FIntVector2D BaseSector = CalculateSectorFromLocation(Location);
 
 	for (int x = -TerrainSettings.TilesToBeCreatedAroundActorRadius; x <= TerrainSettings.TilesToBeCreatedAroundActorRadius; ++x)
 	{
 		for (int y = -TerrainSettings.TilesToBeCreatedAroundActorRadius; y <= TerrainSettings.TilesToBeCreatedAroundActorRadius; ++y)
 		{
-			Sectors.Add(FIntVector2D(BaseSector.X + x, BaseSector.Y + y));
+			OUTSectorsNeeded.Add(FIntVector2D(BaseSector.X + x, BaseSector.Y + y));
 		}
 	}
-
-	return Sectors;
+	return;
 }
 
-TArray<FIntVector2D> ATerrainManager::CalculateSectorsNeededAroundGivenSector(FIntVector2D Sector)
+void ATerrainManager::CalculateSectorsNeededAroundGivenSector(const FIntVector2D Sector, TArray<FIntVector2D>& OUTSectorsNeeded)
 {
-	TArray<FIntVector2D> Sectors;
-
 	for (int x = -TerrainSettings.TilesToBeCreatedAroundActorRadius; x <= TerrainSettings.TilesToBeCreatedAroundActorRadius; ++x)
 	{
 		for (int y = -TerrainSettings.TilesToBeCreatedAroundActorRadius; y <= TerrainSettings.TilesToBeCreatedAroundActorRadius; ++y)
 		{
-			Sectors.Add(FIntVector2D(Sector.X + x, Sector.Y + y));
+			OUTSectorsNeeded.Add(FIntVector2D(Sector.X + x, Sector.Y + y));
 		}
 	}
 
-	return Sectors;
+	return;
 }
 
 void ATerrainManager::CalculateTrackPath(const TArray<FIntVector2D> SectorsToCreate)
@@ -498,6 +493,11 @@ void ATerrainManager::Tick(float DeltaTime)
 			}
 			else
 			{
+				if (bShouldCheckSectorsNeedCoverageForReset)
+				{
+					SectorsNeedCoverageForReset.Remove(Job.TerrainTile->GetCurrentSector());
+				}
+				SectorsCurrentlyProcessed.AddUnique(Job.TerrainTile->GetCurrentSector());
 				/* check if we need to recalculate the tile 'behind' our track start point to match the border elevations */
 				if (!bRecalculatedTileBehindStartPoint && Job.TerrainTile->GetCurrentSector() == FIntVector2D(0, 0))
 				{
@@ -576,6 +576,26 @@ void ATerrainManager::Tick(float DeltaTime)
 			GameMode->SpawnPlayerFromTerrainManager(TerrainSettings.TransitionElevationOffset, TerrainSettings.TransitionInterpolationSpeed, TerrainSettings.TransitionDeltaToStop);
 		}
 	}
+
+	if (bShouldCheckSectorsNeedCoverageForReset)
+	{
+		if (SectorsNeedCoverageForReset.Num() == 0)
+		{
+			// notify game mode
+			UWorld* World = GetWorld();
+			if (World)
+			{
+				AHoverTestGameModeProceduralLevel* GameMode = Cast<AHoverTestGameModeProceduralLevel>(World->GetAuthGameMode());
+				if (GameMode)
+				{
+					GameMode->AllowDefaultPawnToTransitionToEndLocation();
+					bShouldCheckSectorsNeedCoverageForReset = false;
+					// just in case
+					SectorsNeedCoverageForReset.Empty();
+				}
+			}
+		}
+	}
 }
 
 void ATerrainManager::CreateAndInitializeTiles(int32 NumberOfTilesToCreate)
@@ -605,7 +625,8 @@ void ATerrainManager::AddActorToTrack(AActor * ActorToTrack)
 	if (bGenerateTerrainOnActorRegister)
 	{
 		// calculate the sectors the actor needs covered
-		TArray<FIntVector2D> SectorsThatNeedCoverage = CalculateSectorsNeededAroundGivenLocation(ActorToTrack->GetActorLocation());
+		TArray<FIntVector2D> SectorsThatNeedCoverage;
+		CalculateSectorsNeededAroundGivenLocation(ActorToTrack->GetActorLocation(), SectorsThatNeedCoverage);
 
 		// iterate all existing tiles and check if they already cover the sectors the actor needs covered
 		for (ATerrainTile* Tile : TilesInUse)
@@ -668,12 +689,13 @@ void ATerrainManager::AddActorToTrack(AActor * ActorToTrack)
 void ATerrainManager::BuildTerrainAroundSector(const FIntVector2D Sector)
 {
 	// calculate the sectors around the given sector that need coverage
-	TArray<FIntVector2D> SectorsThatNeedCoverage = CalculateSectorsNeededAroundGivenSector(Sector);
+	TArray<FIntVector2D> SectorsThatNeedCoverage;
+	CalculateSectorsNeededAroundGivenSector(Sector, SectorsThatNeedCoverage);
 
-	// it is intended to only call this method when the game starts, i.e. there are no currently existing tiles, but better check nonetheless
+	// check if some sectors are already covered
 	for (const ATerrainTile* Tile : TilesInUse)
 	{
-		int32 RemovedItems = SectorsThatNeedCoverage.Remove(Tile->GetCurrentSector());
+		SectorsThatNeedCoverage.Remove(Tile->GetCurrentSector());
 	}
 
 	CalculateTrackPath(SectorsThatNeedCoverage);
@@ -736,7 +758,8 @@ void ATerrainManager::RemoveTrackedActor(AActor * ActorToRemove)
 	}
 
 	// free Tiles associated with this actor
-	TArray<FIntVector2D> Sectors = CalculateSectorsNeededAroundGivenLocation(ActorToRemove->GetActorLocation());
+	TArray<FIntVector2D> Sectors;
+	CalculateSectorsNeededAroundGivenLocation(ActorToRemove->GetActorLocation(), Sectors);
 	TArray<ATerrainTile*> TilesToFree;
 
 	for (ATerrainTile* Tile : TilesInUse)
@@ -745,6 +768,7 @@ void ATerrainManager::RemoveTrackedActor(AActor * ActorToRemove)
 		{
 			if (Tile->RemoveAssociatedActor() <= 0)
 			{
+				SectorsCurrentlyProcessed.Remove(Tile->GetCurrentSector());
 				Tile->FreeTile();
 				TilesToFree.Add(Tile);
 			}
@@ -813,8 +837,11 @@ void ATerrainManager::HandleTrackedActorChangedSector(AActor * TrackedActor, FIn
 	// my rhymes are lit
 
 	// identify sectors that are no longer needed by this actor
-	TArray<FIntVector2D> SectorsNeededAtNewPosition = CalculateSectorsNeededAroundGivenSector(NewSector);
-	TArray<FIntVector2D> SectorsNeededAtPreviousPosition = CalculateSectorsNeededAroundGivenSector(PreviousSector);
+	TArray<FIntVector2D> SectorsNeededAtNewPosition;
+	TArray<FIntVector2D> SectorsNeededAtPreviousPosition; 
+
+	CalculateSectorsNeededAroundGivenSector(NewSector, SectorsNeededAtNewPosition);
+	CalculateSectorsNeededAroundGivenSector(PreviousSector, SectorsNeededAtPreviousPosition);
 
 	for (const FIntVector2D Vec : SectorsNeededAtNewPosition)
 	{
@@ -830,6 +857,7 @@ void ATerrainManager::HandleTrackedActorChangedSector(AActor * TrackedActor, FIn
 			// if these tiles aren't needed by any other actor aswell -> free them
 			if (Tile->RemoveAssociatedActor() <= 0)
 			{
+				SectorsCurrentlyProcessed.Remove(Tile->GetCurrentSector());
 				Tile->FreeTile();
 				TilesToFree.Add(Tile);
 			}
@@ -847,8 +875,8 @@ void ATerrainManager::HandleTrackedActorChangedSector(AActor * TrackedActor, FIn
 	TilesToFree.Empty();
 
 	// identify new sectors needed for the new actor location
-	SectorsNeededAtNewPosition = CalculateSectorsNeededAroundGivenSector(NewSector);
-	SectorsNeededAtPreviousPosition = CalculateSectorsNeededAroundGivenSector(PreviousSector);
+	CalculateSectorsNeededAroundGivenSector(NewSector, SectorsNeededAtNewPosition);
+	CalculateSectorsNeededAroundGivenSector(PreviousSector, SectorsNeededAtPreviousPosition);
 
 	for (const FIntVector2D Sector : SectorsNeededAtPreviousPosition)
 	{
@@ -971,10 +999,20 @@ void ATerrainManager::GenerateTrackMesh(const FIntVector2D Sector, const FVector
 	FVector::EvaluateBezier(BezierPoints, TerrainSettings.TrackGenerationSettings.TrackResolution, PointsOnTrack);
 #
 	// check if we should spawn a checkpoint
-	if (TrackInfo.CheckpointID != -1 && PointsOnTrack.Num() >= 2)
+	if (TrackInfo.CheckpointID != -1 && PointsOnTrack.Num() >= 3)
 	{
-		FVector SpawnLocation = FVector(Sector.X * TerrainSettings.TileEdgeSize + PointsOnTrack[0].X, Sector.Y * TerrainSettings.TileEdgeSize + PointsOnTrack[0].Y, PointsOnTrack[0].Z);
-		FVector SpawnDirection = PointsOnTrack[1] - PointsOnTrack[0];
+		FVector SpawnLocation;
+		FVector SpawnDirection;
+		if (Sector == FIntVector2D(0, 0))
+		{
+			SpawnLocation = FVector(Sector.X * TerrainSettings.TileEdgeSize + PointsOnTrack[1].X, Sector.Y * TerrainSettings.TileEdgeSize + PointsOnTrack[1].Y, PointsOnTrack[1].Z);
+			SpawnDirection = PointsOnTrack[2] - PointsOnTrack[1];
+		}
+		else
+		{
+			SpawnLocation = FVector(Sector.X * TerrainSettings.TileEdgeSize + PointsOnTrack[0].X, Sector.Y * TerrainSettings.TileEdgeSize + PointsOnTrack[0].Y, PointsOnTrack[0].Z);
+			SpawnDirection = PointsOnTrack[1] - PointsOnTrack[0];
+		}
 		FQuat SpawnRotation = SpawnDirection.Rotation().Quaternion();
 		FVector SpawnScaling = FVector(1.f, 1.f, 1.f);
 		FTransform Transform;
@@ -1009,9 +1047,6 @@ void ATerrainManager::GenerateTrackMesh(const FIntVector2D Sector, const FVector
 			}
 		}
 	}
-
-	/* spawn checkpoint at position of entry point */
-
 
 	for (int32 i = 0; i < PointsOnTrack.Num(); ++i)
 	{
@@ -1167,10 +1202,11 @@ void ATerrainManager::RecalculateTileForSector(const FIntVector2D Sector)
 bool ATerrainManager::IsLocationCoveredByTile(const FVector Location)
 {
 	const FIntVector2D SectorNeeded = CalculateSectorFromLocation(Location);
-	bool bIsSectorCovered = false;
+	//bool bIsSectorCovered = false;
 
 	// check if sector is covered by a tile
-	for (const ATerrainTile* Tile : TilesInUse)
+	return SectorsCurrentlyProcessed.Contains(SectorNeeded);
+	/*for (const ATerrainTile* Tile : TilesInUse)
 	{
 		if (Tile->GetCurrentSector() == SectorNeeded)
 		{
@@ -1179,7 +1215,41 @@ bool ATerrainManager::IsLocationCoveredByTile(const FVector Location)
 		}
 	}
 
-	return bIsSectorCovered;
+	return bIsSectorCovered;*/
+}
+
+float ATerrainManager::GetTerrainSettingsTransitionElevationOffset() const
+{
+	return TerrainSettings.TransitionElevationOffset;
+}
+
+float ATerrainManager::GetTerrainSettingsTransitionInterpolationSpeed() const
+{
+	return TerrainSettings.TransitionInterpolationSpeed;
+}
+
+float ATerrainManager::GetTerrainSettingsTransitionDeltaToStop() const
+{
+	return TerrainSettings.TransitionDeltaToStop;
+}
+
+void ATerrainManager::BeginTileGenerationForReset(const FVector Location)
+{
+	bRecalculatedTileBehindStartPoint = false;
+	// calculate tiles needed around the given sector
+	SectorsNeedCoverageForReset.Empty();
+	CalculateSectorsNeededAroundGivenLocation(Location, SectorsNeedCoverageForReset);
+
+	// remove those that are already processed
+	for (const FIntVector2D Vec : SectorsCurrentlyProcessed)
+	{
+		SectorsNeedCoverageForReset.Remove(Vec);
+	}
+
+	// create tiles
+	BuildTerrainAroundSector(CalculateSectorFromLocation(Location));
+
+	bShouldCheckSectorsNeedCoverageForReset = true;
 }
 
 // Creates a FRuntimeMeshVertexSimple from the given Vertex

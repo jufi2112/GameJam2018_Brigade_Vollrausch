@@ -34,13 +34,13 @@ void AProceduralDefaultPawn::Tick(float DeltaTime)
 
 		if (FVector::Distance(GetActorLocation(), NewPosition) <= TransitionDeltaToStop)
 		{
-			bTransitionInProcess = false;
 			// notify game mode that transition is finished
 			if (GetWorld())
 			{
 				AHoverTestGameModeProceduralLevel* GameMode = Cast<AHoverTestGameModeProceduralLevel>(GetWorld()->GetAuthGameMode());
 				if (GameMode)
 				{
+					bTransitionInProcess = false;
 					GameMode->DefaultPawnFinishedTransition();
 					SetActorTransform(SpawnTransform);
 				}
@@ -49,6 +49,87 @@ void AProceduralDefaultPawn::Tick(float DeltaTime)
 		else
 		{
 			SetActorLocation(NewPosition);
+		}
+	}
+	else
+	{
+		// check if multipoint transition is in process
+		if (bIsMultipointTransitionInProcess)
+		{
+			// check if we are at transition from start point to intermediate point at spawn elevation
+			if (!bHasMultipointTransitionReachedIntermediatePointAtSpawnElevation)
+			{
+				FVector NewPosition = FMath::VInterpTo(GetActorLocation(), MultipointTransitionIntermediatePointAtStartCoordinates, DeltaTime, MultipointTransitionSpeed);
+
+				if (FVector::Distance(GetActorLocation(), NewPosition) <= MultipointTransitionDeltaToStop)
+				{
+					SetActorLocation(NewPosition);
+					bHasMultipointTransitionReachedIntermediatePointAtSpawnElevation = true;
+					// just in case
+					bHasMultipointTransitionReachedTargetPointAtSpawnElevation = false;
+				}
+				else
+				{
+					SetActorLocation(NewPosition);
+				}
+			}
+			// check if we are at transition from intermediate point at spawn elevation to target end point at spawn elevation
+			else if (!bHasMultipointTransitionReachedTargetPointAtSpawnElevation)
+			{
+				FVector NewPosition = FMath::VInterpTo(GetActorLocation(), MultipointTransitionIntermediatePointAtFinalCoordinates, DeltaTime, MultipointTransitionSpeed);
+
+				if (FVector::Distance(GetActorLocation(), NewPosition) <= MultipointTransitionDeltaToStop)
+				{
+					SetActorLocation(NewPosition);
+					bHasMultipointTransitionReachedTargetPointAtSpawnElevation = true;
+					// just in case
+					bHasMultipointTransitionReachedIntermediatePointAtSpawnElevation = true;
+				}
+				else
+				{
+					SetActorLocation(NewPosition);
+				}
+			}
+			else if (bHasMultipointTransitionReachedTargetPointAtSpawnElevation && bHasMultipointTransitionReachedIntermediatePointAtSpawnElevation)
+			{
+				// we are at transition to target end point
+
+				// check if we are allowed to zoom to end point
+				if (bIsMultipointTransitionAllowedToZoomToEndPoint)
+				{
+					FVector NewPosition = FMath::VInterpTo(GetActorLocation(), MultipointTransitionTargetEndPoint, DeltaTime, MultipointTransitionSpeed);
+
+					if (FVector::Distance(GetActorLocation(), NewPosition) <= MultipointTransitionDeltaToStop)
+					{
+						// notify game mode that multipoint transition is finished
+						UWorld* World = GetWorld();
+						if (World)
+						{
+							AHoverTestGameModeProceduralLevel* GameMode = Cast<AHoverTestGameModeProceduralLevel>(World->GetAuthGameMode());
+							if (GameMode)
+							{
+								// we reached the target end point, so reset all variables used
+								bIsMultipointTransitionInProcess = false;
+								bHasMultipointTransitionReachedIntermediatePointAtSpawnElevation = false;
+								bHasMultipointTransitionReachedTargetPointAtSpawnElevation = false;
+								bIsMultipointTransitionAllowedToZoomToEndPoint = false;
+								MultipointTransitionIntermediatePointAtStartCoordinates = FVector();
+								MultipointTransitionTargetEndPoint = FVector();
+								MultipointTransitionIntermediatePointAtFinalCoordinates = FVector();
+
+								// notify game mode
+								GameMode->DefaultPawnFinishedMultipointTransition();
+								// reset transform
+								SetActorTransform(SpawnTransform);
+							}
+						}
+					}
+					else
+					{
+						SetActorLocation(NewPosition);
+					}
+				}
+			}
 		}
 	}
 
@@ -75,5 +156,26 @@ void AProceduralDefaultPawn::StartTransition(const FVector Target, const float S
 EControllerType AProceduralDefaultPawn::GetControllerType() const
 {
 	return ControllerType;
+}
+
+void AProceduralDefaultPawn::StartMultipointTransition(const FVector TargetStartLocation, const FVector TargetEndLocation, const float Speed, const float DeltaToStop)
+{
+	// first set current location to TargetStartLocation
+	SetActorLocation(TargetStartLocation);
+	MultipointTransitionTargetEndPoint = TargetEndLocation;
+	MultipointTransitionIntermediatePointAtStartCoordinates = FVector(TargetStartLocation.X, TargetStartLocation.Y, SpawnTransform.GetLocation().Z);
+	MultipointTransitionIntermediatePointAtFinalCoordinates = FVector(TargetEndLocation.X, TargetEndLocation.Y, SpawnTransform.GetLocation().Z);
+	bIsMultipointTransitionInProcess = true;
+	bHasMultipointTransitionReachedIntermediatePointAtSpawnElevation = false;
+	bHasMultipointTransitionReachedTargetPointAtSpawnElevation = false;
+	// allow this if all tiles are loaded around needed location
+	bIsMultipointTransitionAllowedToZoomToEndPoint = false;
+	MultipointTransitionSpeed = Speed;
+	MultipointTransitionDeltaToStop = DeltaToStop;
+}
+
+void AProceduralDefaultPawn::AllowMultipointTransitionZoomToEndPoint()
+{
+	bIsMultipointTransitionAllowedToZoomToEndPoint = true;
 }
 

@@ -17,6 +17,7 @@
 #include "TerrainTrackerComponent.h"
 #include "HoverTestGameModeProceduralLevel.h"
 #include "TerrainManager.h"
+#include "Classes/GameFramework/SpringArmComponent.h"
 
 
 // Sets default values
@@ -253,22 +254,9 @@ bool AHovercraft::GetIsFalling()
 	return Falling;
 }
 
-void AHovercraft::ResetHovercraft(USceneComponent* AzimuthGimbal)
+void AHovercraft::ResetHovercraft(USpringArmComponent* SpringArmComponent)
 {
-	if (!StaticMesh || !AzimuthGimbal) { return; }
-	if (bIsResetting) { return; }
-
-	// Reset Hovercraft
-
-	//// get AzimuthGimbal location
-	//FVector AzimuthGimbalLocation = AzimuthGimbal->GetComponentLocation();
-	//AzimuthGimbalLocation.Z += ResetHeightModificator;
-
-	//// get current AzimuthGimbal rotation
-	//FRotator AzimuthGimbalRotator = AzimuthGimbal->GetComponentRotation();
-
-	//// set roll values to 0
-	//AzimuthGimbalRotator.Roll = 0.f;
+	if (!StaticMesh || bIsResetting || !SpringArmComponent) { return; }
 
 	// transform hovercraft
 
@@ -300,7 +288,6 @@ void AHovercraft::ResetHovercraft(USceneComponent* AzimuthGimbal)
 	StaticMesh->SetPhysicsLinearVelocity(FVector(0.f, 0.f, 0.f));
 	StaticMesh->SetPhysicsAngularVelocity(FVector(0.f, 0.f, 0.f));
 
-	// TODO
 	// check if we are in procedural level (e.g. by checking gamemode castable to procedural game mode)
 	UWorld* World = GetWorld();
 	if (World)
@@ -319,9 +306,14 @@ void AHovercraft::ResetHovercraft(USceneComponent* AzimuthGimbal)
 				}
 				else
 				{
+					// disable camera lag
+					SpringArmComponent->bEnableCameraLag = false;
+					SAC = SpringArmComponent;
 					// switch over to procedural pawn
-					GameMode->SwitchToDefaultPawn(this, ResetLocation);
-					//wait until tiles are created, switch back to hovercraft and apply values
+					GameMode->SwitchToDefaultPawnAndStartMultipointTransition(this, ResetLocation, ResetRotation);
+					// notify terrain manager
+					TerrainManager->BeginTileGenerationForReset(ResetLocation);
+
 				}
 			}
 		}
@@ -336,15 +328,12 @@ void AHovercraft::ResetHovercraft(USceneComponent* AzimuthGimbal)
 		// apply values
 		ApplyResetValues(ResetLocation, ResetRotation);
 	}
+}
 
-	// apply values
-	
-
-
-	//// set old AzimuthGimbal and SpringArm rotations
-	//AzimuthGimbal->SetWorldLocation(AzimuthGimbalLocation);
-	//AzimuthGimbal->SetWorldRotation(AzimuthGimbalRotator);
-
+void AHovercraft::OnMultipointTransitionResetComplete()
+{
+	if (!SAC) { return; }
+	SAC->bEnableCameraLag = true;
 }
 
 void AHovercraft::ToggleShouldHover()

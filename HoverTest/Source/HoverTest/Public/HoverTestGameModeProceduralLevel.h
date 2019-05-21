@@ -21,7 +21,11 @@ class HOVERTEST_API AHoverTestGameModeProceduralLevel : public AHoverTestGameMod
 	
 public:
 
+	AHoverTestGameModeProceduralLevel();
+
 	virtual void BeginPlay() override;
+
+	virtual void Tick(float DeltaTime) override;
 
 	UFUNCTION()
 	void SetPlayerSpawn(const FTransform Transform);
@@ -52,6 +56,12 @@ public:
 	UFUNCTION()
 	void DefaultPawnFinishedTransition();
 
+	/**
+	 * function called when the default pawn finished multipoint transition
+	 */
+	UFUNCTION()
+	void DefaultPawnFinishedMultipointTransition();
+
 	void HandlePlayerHovercraftCheckpointOverlap(AHovercraft * Hovercraft, AHovercraftPlayerController* PlayerController, AProceduralCheckpoint * Checkpoint);
 
 	UFUNCTION()
@@ -59,9 +69,10 @@ public:
 
 	/**
 	 * Switches the player controller's controlled pawn from hovercraft to default pawn and sets default pawn's location to the location provided
+	 * ! ONLY cass this function if the player hovercraft should be resetted !
 	 */
 	UFUNCTION()
-	void SwitchToDefaultPawn(APawn* CurrentPawn, const FVector DefaultPawnLocation);
+	void SwitchToDefaultPawnAndStartMultipointTransition(APawn* CurrentPawn, const FVector DefaultPawnTargetLocation, const FRotator ResetRotation);
 
 	/**
 	 * Switches the player controller's controlled pawn from the default pawn to the hovercraft pawn
@@ -69,6 +80,11 @@ public:
 	UFUNCTION()
 	void SwitchToPlayerPawn();
 
+	/**
+	 * called to allow the default pawn to transition to the multipoint target location
+	 */
+	UFUNCTION()
+	void AllowDefaultPawnToTransitionToEndLocation();
 
 private:
 
@@ -101,5 +117,22 @@ private:
 	 */
 	UPROPERTY()
 	bool bControllerPossessesHovercraftPawn = false;
+
+	/**
+	 * player reset location to apply after multipoint transition finished
+	 */
+	UPROPERTY()
+	FVector PlayerResetLocation = FVector();
+
+	/**
+	 * player reset rotation to apply after multipoint transition finished
+	 */
+	UPROPERTY()
+	FRotator PlayerResetRotation = FRotator();
+
+	UPROPERTY()
+	bool bInformHovercraftAfterTicks = false;
+
+	uint32 TicksAfterWhichToInformHovercraft = 2;
 	
 };

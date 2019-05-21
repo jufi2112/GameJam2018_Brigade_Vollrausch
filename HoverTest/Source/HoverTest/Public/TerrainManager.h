@@ -42,7 +42,7 @@ protected:
 	* the function does not check if sectors may already be covered by tiles
 	*/
 	UFUNCTION(BlueprintCallable)
-	TArray<FIntVector2D> CalculateSectorsNeededAroundGivenLocation(FVector Location);
+	void CalculateSectorsNeededAroundGivenLocation(const FVector Location, TArray<FIntVector2D>& OUTSectorsNeeded);
 
 	/**
 	* returns an array containing all sectors around the given sector that should be covered with tiles according to TilesToBeCreatedAroundActorRadius in FTerrainSettings
@@ -50,7 +50,7 @@ protected:
 	* the sector provided to the function will also get included in the return array
 	*/
 	UFUNCTION(BlueprintCallable)
-	TArray<FIntVector2D> CalculateSectorsNeededAroundGivenSector(FIntVector2D Sector);
+	void CalculateSectorsNeededAroundGivenSector(const FIntVector2D Sector, TArray<FIntVector2D>& OUTNeededSectors);
 
 	// array of queues, where each queue is an input queue for a thread
 	TArray<TQueue<FTerrainJob, EQueueMode::Spsc>> TerrainCreationQueue;
@@ -105,6 +105,24 @@ protected:
 	 */
 	UPROPERTY()
 	uint32 NextAvailableCheckPointID = 1;
+
+	/**
+	 * array that contains sectors that need coverage before the player can be resetted
+	 */
+	UPROPERTY()
+	TArray<FIntVector2D> SectorsNeedCoverageForReset;
+
+	/**
+	 * if the terrain manager should check if the SectorsNeedCoverageForReset array is empty after removing jobs from the FinishedJobQueue
+	 */
+	UPROPERTY()
+	bool bShouldCheckSectorsNeedCoverageForReset = false;
+
+	/**
+	 * array that contains all currently processed tiles
+	 */
+	UPROPERTY()
+	TArray<FIntVector2D> SectorsCurrentlyProcessed;
 
 
 private:
@@ -307,4 +325,22 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable)
 	bool IsLocationCoveredByTile(const FVector Location);
+
+	UFUNCTION(BlueprintCallable)
+	float GetTerrainSettingsTransitionElevationOffset() const;
+
+	UFUNCTION(BlueprintCallable)
+	float GetTerrainSettingsTransitionInterpolationSpeed() const;
+
+	UFUNCTION(BlueprintCallable)
+	float GetTerrainSettingsTransitionDeltaToStop() const;
+
+	/**
+	* called to begin tile generation around given location
+	* notifies game mode if all necessary tiles are created
+	* ! ONLY to be called when resetting the player pawn to the given sector !
+	* @param Location The location to create tiles around
+	*/
+	UFUNCTION()
+	void BeginTileGenerationForReset(const FVector Location);
 };

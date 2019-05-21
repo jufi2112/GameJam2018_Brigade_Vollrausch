@@ -16,6 +16,7 @@ class UMaterialInstanceDynamic;
 class UMaterialInterface;
 class UCameraComponent;
 class UTerrainTrackerComponent;
+class USpringArmComponent;
 
 UCLASS()
 class HOVERTEST_API AHovercraft : public APawn
@@ -153,6 +154,9 @@ private:
 	UFUNCTION()
 	void HandlePostProcessStuff();
 
+	UPROPERTY()
+	USpringArmComponent* SAC = nullptr;
+
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
@@ -228,7 +232,10 @@ public:
 	float RotationForce = 12000000.f;
 
 	UFUNCTION(BlueprintCallable, Category = Movement)
-	void ResetHovercraft(USceneComponent* AzimuthGimbal);
+	void ResetHovercraft(USpringArmComponent* SpringArmComponent);
+
+	UFUNCTION()
+	void OnMultipointTransitionResetComplete();
 
 	UFUNCTION(BlueprintCallable, Category = Movement)
 	void ToggleShouldHover();
@@ -288,5 +295,4 @@ public:
 
 	UFUNCTION()
 	uint32 GetCurrentProceduralCheckpointID() const;
-
 };
