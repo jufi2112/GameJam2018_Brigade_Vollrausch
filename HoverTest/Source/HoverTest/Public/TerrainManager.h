@@ -224,6 +224,21 @@ private:
 	UPROPERTY()
 	AHoverTestGameModeProceduralLevel* GameMode = nullptr;
 
+	/**
+	 * calculates points that lie on the bezier curve defined by the parameters in TrackInfo
+	 * @param Sector The sector for which the bezier curve should be calculated
+	 * @param TrackInfo The track info 
+	 * @param OUTPointsOnBezierCurve Out array containing points that lie on the bezier curve
+	 */
+	UFUNCTION()
+	void CalculatePointsOnBezierCurve(const FIntVector2D Sector, const FSectorTrackInfo TrackInfo, TArray<FVector>& OUTPointsOnBezierCurve);
+
+	/**
+	 * calculates Y0 and Y1 for last track segment
+	 */
+	UFUNCTION()
+	void CalculateY0Y1(const TArray<FVector>& PointsOnTrack, const float ExitPointElevation, FVector& OUTY0, FVector& OUTY1);
+
 
 
 
@@ -305,7 +320,7 @@ public:
 	 * @param OUTVertexBuffer A vertex buffer where the generated triangle points should be stored
 	 * @param OUTTriangleBuffer A triangle buffer where the generated triangle point order should be stored
 	 */
-	void GenerateTrackMesh(const FIntVector2D Sector, const FVector StartPoint, const FVector EndPoint, TArray<FRuntimeMeshVertexSimple>& OUTVertexBuffer, TArray<int32>& OUTTriangleBuffer, TArray<FTrackSegment>& TrackSegments);
+	void GenerateTrackMesh(const FIntVector2D Sector, TArray<FRuntimeMeshVertexSimple>& OUTVertexBuffer, TArray<int32>& OUTTriangleBuffer, TArray<FTrackSegment>& OUTTrackSegments);
 
 	/**
 	 * used to recalculate the tile for the given sector
@@ -343,4 +358,7 @@ public:
 	*/
 	UFUNCTION()
 	void BeginTileGenerationForReset(const FVector Location);
+
+	UFUNCTION()
+	bool ContainsSectorTrack(const FIntVector2D Sector) const;
 };

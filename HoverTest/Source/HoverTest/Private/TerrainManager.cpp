@@ -132,6 +132,12 @@ void ATerrainManager::CalculateTrackPath(const TArray<FIntVector2D> SectorsToCre
 			TrackInfo.CheckpointID = NextAvailableCheckPointID;
 			NextAvailableCheckPointID++;
 
+			// calculate points on bezier curve
+			CalculatePointsOnBezierCurve(CurrentTrackSector, TrackInfo, TrackInfo.PointsOnBezierCurve);
+
+			// Calculate Y0 and Y1
+			CalculateY0Y1(TrackInfo.PointsOnBezierCurve, TrackInfo.TrackExitPointElevation, TrackInfo.Y0Position, TrackInfo.Y1Position);
+
 			// add to TrackMap
 			TrackMap.Add(CurrentTrackSector, TrackInfo);
 		}
@@ -355,24 +361,24 @@ void ATerrainManager::AdjustQuad()
 
 bool ATerrainManager::CalculateTrackExitPointElevation(const FIntVector2D Sector, const FSectorTrackInfo TrackInfo, float& OUTExitPointElevation)
 {
-	UE_LOG(LogTemp, Error, TEXT("Track exit point elevations for sector %s"), *Sector.ToString());
+	//UE_LOG(LogTemp, Error, TEXT("Track exit point elevations for sector %s"), *Sector.ToString());
 	if (Sector == FIntVector2D(0, 0))
 	{
 		// very first sector, use default elevation for entry point height
 		OUTExitPointElevation = TerrainSettings.TrackGenerationSettings.DefaultEntryPointHeight + (UMyStaticLibrary::GetNormalDistribution(TerrainSettings.TrackGenerationSettings.Steepness_Mean, TerrainSettings.TrackGenerationSettings.Steepness_Deviation, -1.f, 1.f) * TerrainSettings.TrackGenerationSettings.MaximumElevationDifference);
-		UE_LOG(LogTemp, Warning, TEXT("Exit point elevation is %f"), OUTExitPointElevation);
+		//UE_LOG(LogTemp, Warning, TEXT("Exit point elevation is %f"), OUTExitPointElevation);
 		//OUTExitPointElevation = TerrainSettings.TrackGenerationSettings.DefaultEntryPointHeight + FMath::RandRange(-TerrainSettings.TrackGenerationSettings.MaximumElevationDifference, TerrainSettings.TrackGenerationSettings.MaximumElevationDifference);
 		return true;
 	}
 	const FSectorTrackInfo PreviousTrackInfo = TrackMap.FindRef(TrackInfo.PreviousTrackSector);
 	if (!TrackMap.Contains(TrackInfo.PreviousTrackSector))
 	{
-		UE_LOG(LogTemp, Error, TEXT("Could not find previous track sector %s in function CalculateTrackExitPointElevation for sector %s"), *TrackInfo.PreviousTrackSector.ToString(), *Sector.ToString());
+		//UE_LOG(LogTemp, Error, TEXT("Could not find previous track sector %s in function CalculateTrackExitPointElevation for sector %s"), *TrackInfo.PreviousTrackSector.ToString(), *Sector.ToString());
 		return false;
 	}
 	// calculate exit elevation: exit elevation <-- start elevation + Random[-MaximumElevationDifference, MaximumElevationDifference]
 	OUTExitPointElevation = PreviousTrackInfo.TrackExitPointElevation + (UMyStaticLibrary::GetNormalDistribution(TerrainSettings.TrackGenerationSettings.Steepness_Mean, TerrainSettings.TrackGenerationSettings.Steepness_Deviation, -1.f, 1.f) * TerrainSettings.TrackGenerationSettings.MaximumElevationDifference);
-	UE_LOG(LogTemp, Warning, TEXT("Exit point elevation is %f"), OUTExitPointElevation);
+	//UE_LOG(LogTemp, Warning, TEXT("Exit point elevation is %f"), OUTExitPointElevation);
 	//OUTExitPointElevation = PreviousTrackInfo.TrackExitPointElevation + FMath::RandRange(-TerrainSettings.TrackGenerationSettings.MaximumElevationDifference, TerrainSettings.TrackGenerationSettings.MaximumElevationDifference);
 	return true;
 
@@ -407,8 +413,8 @@ void ATerrainManager::CalculateBezierControlPoints(const FIntVector2D Sector, co
 		ControlPoint1 = EntryPoint + Vector;
 	}
 
-	UE_LOG(LogTemp, Error, TEXT("Bezier control points for sector %s"), *Sector.ToString());
-	UE_LOG(LogTemp, Warning, TEXT("First control point %s"), *ControlPoint1.ToString());
+	//UE_LOG(LogTemp, Error, TEXT("Bezier control points for sector %s"), *Sector.ToString());
+	//UE_LOG(LogTemp, Warning, TEXT("First control point %s"), *ControlPoint1.ToString());
 
 	/**
 	 * calculation of control point 2 follows instructions given by Michael Franke in 'Dynamische Streckengenerierung und deren Einbettung in ein Terrain' in 2011
@@ -416,7 +422,7 @@ void ATerrainManager::CalculateBezierControlPoints(const FIntVector2D Sector, co
 	//float RandomNumber = UMyStaticLibrary::GetNormalDistribution(TerrainSettings.TrackGenerationSettings.CURVINESS_MEAN, TerrainSettings.TrackGenerationSettings.Curviness, 0.f, 1.f);
 	float RandomNumber = UMyStaticLibrary::GetNormalDistribution(TerrainSettings.TrackGenerationSettings.CURVINESS_MEAN, TerrainSettings.TrackGenerationSettings.CurvinessDisplacement, -0.5f, 0.5f);
 	float Displacement = RandomNumber * (TerrainSettings.TileEdgeSize / 4.f);
-	UE_LOG(LogTemp, Warning, TEXT("Second control point displacement: %f"), Displacement);
+	//UE_LOG(LogTemp, Warning, TEXT("Second control point displacement: %f"), Displacement);
 	// vector from middle point to track exit point
 	FVector2D LineEndPointMiddlePoint = TrackInfo.TrackExitPoint - MiddlePoint;
 	// point halfway between middle point and track exit point
@@ -426,7 +432,7 @@ void ATerrainManager::CalculateBezierControlPoints(const FIntVector2D Sector, co
 
 	float RotationAngle = UMyStaticLibrary::GetNormalDistribution(0.f, TerrainSettings.TrackGenerationSettings.CurvinessRotation, -1.f, 1.f) * TerrainSettings.TrackGenerationSettings.MaximumRotationAngle;
 
-	UE_LOG(LogTemp, Warning, TEXT("Second control point rotation angle: %f"), RotationAngle);
+	//UE_LOG(LogTemp, Warning, TEXT("Second control point rotation angle: %f"), RotationAngle);
 
 	float Angle = RotationAngle * (UKismetMathLibrary::GetPI() / 180.f);	// convert to radians
 
@@ -438,11 +444,95 @@ void ATerrainManager::CalculateBezierControlPoints(const FIntVector2D Sector, co
 	float AverageElevation = PreviousTrackInfo.TrackExitPointElevation + (TrackInfo.TrackExitPointElevation - PreviousTrackInfo.TrackExitPointElevation) / 2.f;
 	ControlPoint2.Z = UMyStaticLibrary::GetNormalDistribution(AverageElevation, TerrainSettings.TrackGenerationSettings.Hilliness);
 
-	UE_LOG(LogTemp, Warning, TEXT("Second control point %s"), *ControlPoint2.ToString());
+	//UE_LOG(LogTemp, Warning, TEXT("Second control point %s"), *ControlPoint2.ToString());
 
 	OUTControlPointOne = ControlPoint1;
 	OUTControlPointTwo = ControlPoint2;
 
+}
+
+void ATerrainManager::CalculatePointsOnBezierCurve(const FIntVector2D Sector, const FSectorTrackInfo TrackInfo, TArray<FVector>& OUTPointsOnBezierCurve)
+{
+	FSectorTrackInfo PreviousTrackInfo = TrackMap.FindRef(TrackInfo.PreviousTrackSector);
+
+	FVector BezierPoints[4];
+
+	if (Sector == FIntVector2D(0, 0))
+	{
+		BezierPoints[0] = FVector(TrackInfo.TrackEntryPoint, TerrainSettings.TrackGenerationSettings.DefaultEntryPointHeight);
+	}
+	else
+	{
+		BezierPoints[0] = FVector(TrackInfo.TrackEntryPoint, PreviousTrackInfo.TrackExitPointElevation);
+	}
+
+	BezierPoints[1] = TrackInfo.FirstBezierControlPoint;
+	BezierPoints[2] = TrackInfo.SecondBezierControlPoint;
+	BezierPoints[3] = FVector(TrackInfo.TrackExitPoint, TrackInfo.TrackExitPointElevation);
+
+
+	FVector::EvaluateBezier(BezierPoints, TerrainSettings.TrackGenerationSettings.TrackResolution, OUTPointsOnBezierCurve);
+}
+
+void ATerrainManager::CalculateY0Y1(const TArray<FVector>& PointsOnTrack, const float ExitPointElevation, FVector& OUTY0, FVector& OUTY1)
+{
+	// calculate last track segment
+	/**
+	 *			Last Track Segment:	(border is at top, track middle line goes from W0 to X0, Z0Y0 is left track border, Z1Y1 is right track border)
+	 *
+	 *			Y0--------------------X0--------------------Y1
+	 *			|					  |						|
+	 *			|					  | 					|
+	 *			|					  | 					|
+	 *			H0					  |						H1
+	 *			|					  |						|
+	 *			|					  |						|
+	 *			Z0--------------------W0--------------------Z1
+	 *
+	 * H0 and H1 are helper points that lie on the respective line (Z0Y0 or Z1Y1)
+	 */
+	FVector W0 = PointsOnTrack[PointsOnTrack.Num() - 2];
+	FVector X0 = PointsOnTrack[PointsOnTrack.Num() - 1];
+	FVector W0X0 = X0 - W0;
+	FVector Normal = FVector::CrossProduct(W0X0, FVector(0.f, 0.f, 1.f)).GetSafeNormal();
+
+	FVector Z0 = W0 + (TerrainSettings.TrackGenerationSettings.TrackWidth / 2.f) * Normal;
+	FVector Z1 = W0 + (-TerrainSettings.TrackGenerationSettings.TrackWidth / 2.f) * Normal;
+
+	FVector H0 = Z0 + W0X0.GetSafeNormal();
+	FVector H1 = Z1 + W0X0.GetSafeNormal();
+
+	// calculate intersection point of lines Z0H0 / Z1H1 and tile border with Points PointA and PointB
+	FVector2D PointA;
+	FVector2D PointB;
+	// guess tile border
+	float TileSize = TerrainSettings.TileEdgeSize;
+	switch (UMyStaticLibrary::GuessTileBorder(X0, TileSize))
+	{
+		case ETileBorder::ETB_Bottom:
+			PointA = FVector2D(0.f, 0.f);
+			PointB = FVector2D(0.f, TileSize);
+			break;
+		case ETileBorder::ETB_Top:
+			PointA = FVector2D(TileSize, 0.f);
+			PointB = FVector2D(TileSize, TileSize);
+			break;
+		case ETileBorder::ETB_Left:
+			PointA = FVector2D(0.f, 0.f);
+			PointB = FVector2D(TileSize, 0.f);
+			break;
+		case ETileBorder::ETB_Right:
+			PointA = FVector2D(0.f, TileSize);
+			PointB = FVector2D(TileSize, TileSize);
+			break;
+	}
+	FVector2D IntersectionZ0H0;
+	FVector2D IntersectionZ1H1;
+	UMyStaticLibrary::CalculateIntersectionPoint(FVector2D(Z0.X, Z0.Y), FVector2D(H0.X, H0.Y), PointA, PointB, IntersectionZ0H0);
+	UMyStaticLibrary::CalculateIntersectionPoint(FVector2D(Z1.X, Z1.Y), FVector2D(H1.X, H1.Y), PointA, PointB, IntersectionZ1H1);
+	OUTY0 = FVector(IntersectionZ0H0, ExitPointElevation);
+	OUTY1 = FVector(IntersectionZ1H1, ExitPointElevation);
+	return;
 }
 
 // Called every frame
@@ -966,14 +1056,21 @@ int32 ATerrainManager::GetTrackPointsForSector(const FIntVector2D Sector, FVecto
 				return -1;
 			}
 
-			OUTTrackEntryPoint = FVector(TrackInfo.TrackEntryPoint, PreviousTrackInfo.TrackExitPointElevation);
+			if (Sector == FIntVector2D(0, 0))
+			{
+				OUTTrackEntryPoint = FVector(TrackInfo.TrackEntryPoint, TerrainSettings.TrackGenerationSettings.DefaultEntryPointHeight);
+			}
+			else
+			{
+				OUTTrackEntryPoint = FVector(TrackInfo.TrackEntryPoint, PreviousTrackInfo.TrackExitPointElevation);
+			}
 			OUTTrackExitPoint = FVector(TrackInfo.TrackExitPoint, TrackInfo.TrackExitPointElevation);
 			return 1;
 		}
 	}
 }
 
-void ATerrainManager::GenerateTrackMesh(const FIntVector2D Sector, const FVector StartPoint, const FVector EndPoint, TArray<FRuntimeMeshVertexSimple>& OUTVertexBuffer, TArray<int32>& OUTTriangleBuffer, TArray<FTrackSegment>& TrackSegments)
+void ATerrainManager::GenerateTrackMesh(const FIntVector2D Sector, TArray<FRuntimeMeshVertexSimple>& OUTVertexBuffer, TArray<int32>& OUTTriangleBuffer, TArray<FTrackSegment>& OUTTrackSegments)
 {
 	if (!TrackMap.Contains(Sector))
 	{
@@ -982,21 +1079,21 @@ void ATerrainManager::GenerateTrackMesh(const FIntVector2D Sector, const FVector
 	}
 
 	FSectorTrackInfo TrackInfo = TrackMap.FindRef(Sector);
+	FSectorTrackInfo PreviousTrackInfo = TrackMap.FindRef(TrackInfo.PreviousTrackSector);
 
-	float HalfHeight = EndPoint.Z - ((EndPoint.Z - StartPoint.Z) / 2.f);
+	//float HalfHeight = TrackInfo.TrackExitPointElevation - ((TrackInfo.TrackExitPointElevation - PreviousTrackInfo.TrackExitPointElevation) / 2.f);
+		//EndPoint.Z - ((EndPoint.Z - StartPoint.Z) / 2.f);
 
-	FVector ControlPoint1 = TrackInfo.FirstBezierControlPoint;
-	FVector ControlPoint2 = TrackInfo.SecondBezierControlPoint;
 
-	FVector BezierPoints[4];
-	BezierPoints[0] = StartPoint;
-	BezierPoints[1] = ControlPoint1;
-	BezierPoints[2] = ControlPoint2;
-	BezierPoints[3] = EndPoint;
+	/*FVector BezierPoints[4]; 
+	BezierPoints[1] = TrackInfo.FirstBezierControlPoint;
+	BezierPoints[2] = TrackInfo.SecondBezierControlPoint;
+
+	GetTrackPointsForSector(Sector, BezierPoints[0], BezierPoints[3]);*/
 
 	// calculate mesh
-	TArray<FVector> PointsOnTrack;
-	FVector::EvaluateBezier(BezierPoints, TerrainSettings.TrackGenerationSettings.TrackResolution, PointsOnTrack);
+	TArray<FVector> PointsOnTrack = TrackInfo.PointsOnBezierCurve;
+	//FVector::EvaluateBezier(BezierPoints, TerrainSettings.TrackGenerationSettings.TrackResolution, PointsOnTrack);
 #
 	// check if we should spawn a checkpoint
 	if (TrackInfo.CheckpointID != -1 && PointsOnTrack.Num() >= 3)
@@ -1062,75 +1159,81 @@ void ATerrainManager::GenerateTrackMesh(const FIntVector2D Sector, const FVector
 		FVector Normal;
 		if (i == 0)
 		{
-			// since the points on the bézier curve get approximated, we need to 'guess' on what border of the tile the entry point lies
 			int32 TileSize = TerrainSettings.TileEdgeSize;
 			FVector Pt = PointsOnTrack[i];		// shorter writing
-			// we calculate the normal via crossproduct to ensure the same normal orientation as in previous steps
 
-			// bottom?
-			if (Pt.X < (0.25 * TileSize) && Pt.Y >(0.25 * TileSize) && Pt.Y < (0.75 * TileSize))
+			// calculate bezier points when calculating control points
+
+			if (Sector == FIntVector2D(0, 0))
 			{
-				Normal = FVector::CrossProduct(FVector(1, 0, 0), FVector(0, 0, 1)).GetSafeNormal();
-			}
-			// right?
-			else if (Pt.X < (0.75 * TileSize) && Pt.X >(0.25 * TileSize) && Pt.Y >(0.75 * TileSize))
-			{
-				Normal = FVector::CrossProduct(FVector(0, -1, 0), FVector(0, 0, 1)).GetSafeNormal();
-			}
-			// top?
-			else if (Pt.X > (0.75 * TileSize) && Pt.Y > (0.25 * TileSize) && Pt.Y < (0.75 * TileSize))
-			{
-				Normal = FVector::CrossProduct(FVector(-1, 0, 0), FVector(0, 0, 1)).GetSafeNormal();
-			}
-			// left?
-			else if (Pt.X >(0.25 * TileSize) && Pt.X < (0.75 * TileSize) && Pt.Y < (0.25 * TileSize))
-			{
-				Normal = FVector::CrossProduct(FVector(0, 1, 0), FVector(0, 0, 1)).GetSafeNormal();
+				switch (UMyStaticLibrary::GuessTileBorder(Pt, TileSize))
+				{
+					case ETileBorder::ETB_Bottom:
+						Normal = FVector::CrossProduct(FVector(1, 0, 0), FVector(0, 0, 1)).GetSafeNormal();
+						break;
+					case ETileBorder::ETB_Right:
+						Normal = FVector::CrossProduct(FVector(0, -1, 0), FVector(0, 0, 1)).GetSafeNormal();
+						break;
+					case ETileBorder::ETB_Top:
+						Normal = FVector::CrossProduct(FVector(-1, 0, 0), FVector(0, 0, 1)).GetSafeNormal();
+						break;
+					case ETileBorder::ETB_Left:
+						Normal = FVector::CrossProduct(FVector(0, 1, 0), FVector(0, 0, 1)).GetSafeNormal();
+						break;
+					case ETileBorder::ETB_Invalid:
+						UE_LOG(LogTemp, Error, TEXT("Could not guess on which border the first point on the bézier curve lies."));
+						break;
+				}
+
+				Y0 = PointsOnTrack[i] + (TerrainSettings.TrackGenerationSettings.TrackWidth / 2.f) * Normal;
+				Y1 = PointsOnTrack[i] + (-TerrainSettings.TrackGenerationSettings.TrackWidth / 2.f) * Normal;
+
 			}
 			else
 			{
-				UE_LOG(LogTemp, Error, TEXT("Could not guess on which border the first point on the bézier curve lies."));
+				// load intersection points from TrackInfo (Y0 and Y1 values from previous tile)
+				Y0 = PreviousTrackInfo.Y0Position;
+				Y1 = PreviousTrackInfo.Y1Position;
+
+				// 'guess' on what border of the tile the entry point lies
+				switch (UMyStaticLibrary::GuessTileBorder(Pt, TileSize))
+				{
+					case ETileBorder::ETB_Bottom:
+						Y0.X = 0.f;
+						Y1.X = 0.f;
+						break;
+					case ETileBorder::ETB_Right:
+						Y0.Y = TileSize;
+						Y1.Y = TileSize;
+						break;
+					case ETileBorder::ETB_Top:
+						Y0.X = TileSize;
+						Y1.X = TileSize;
+						break;
+					case ETileBorder::ETB_Left:
+						Y0.Y = 0.f;
+						Y1.Y = 0.f;
+						break;
+					case ETileBorder::ETB_Invalid:
+						UE_LOG(LogTemp, Error, TEXT("Could not guess on which border the first point on the bézier curve lies."));
+						break;
+				}
 			}
 		}
 		else if (i == PointsOnTrack.Num() - 1)
 		{
-			// since the points on the bézier curve get approximated, we need to 'guess' on what border of the tile the last point lies
-			int32 TileSize = TerrainSettings.TileEdgeSize;
-			FVector Pt = PointsOnTrack[i];		// shorter writing
-			// we calculate the normal via crossproduct to ensure the same normal orientation as in previous steps
-			
-			// bottom?
-			if (Pt.X < (0.25 * TileSize) && Pt.Y >(0.25 * TileSize) && Pt.Y < (0.75 * TileSize))
-			{
-				Normal = FVector::CrossProduct(FVector(-1, 0, 0), FVector(0, 0, 1)).GetSafeNormal();
-			}
-			// right?
-			else if (Pt.X < (0.75 * TileSize) && Pt.X >(0.25 * TileSize) && Pt.Y > (0.75 * TileSize))
-			{
-				Normal = FVector::CrossProduct(FVector(0, 1, 0), FVector(0, 0, 1)).GetSafeNormal();
-			}
-			// top?
-			else if (Pt.X > (0.75 * TileSize) && Pt.Y > (0.25 * TileSize) && Pt.Y < (0.75 * TileSize))
-			{
-				Normal = FVector::CrossProduct(FVector(1, 0, 0), FVector(0, 0, 1)).GetSafeNormal();
-			}
-			// left?
-			else if (Pt.X > (0.25 * TileSize) && Pt.X < (0.75 * TileSize) && Pt.Y < (0.25 * TileSize))
-			{
-				Normal = FVector::CrossProduct(FVector(0, -1, 0), FVector(0, 0, 1)).GetSafeNormal();
-			}
-			else
-			{
-				UE_LOG(LogTemp, Error, TEXT("Could not guess on which border the last point on the bézier curve lies."));
-			}		
+			Y0 = TrackInfo.Y0Position;
+			Y1 = TrackInfo.Y1Position;
 		}
 		else
 		{
 			FVector X1X0 = PointsOnTrack[i + 1] - PointsOnTrack[i];
 			Normal = FVector::CrossProduct(X1X0, FVector(0, 0, 1)).GetSafeNormal();
+
+			Y0 = PointsOnTrack[i] + (TerrainSettings.TrackGenerationSettings.TrackWidth / 2.f) * Normal;
+			Y1 = PointsOnTrack[i] + (-TerrainSettings.TrackGenerationSettings.TrackWidth / 2.f) * Normal;
 		}
-		Y0 = PointsOnTrack[i] + (TerrainSettings.TrackGenerationSettings.TrackWidth / 2.f) * Normal;
-		Y1 = PointsOnTrack[i] + (-TerrainSettings.TrackGenerationSettings.TrackWidth / 2.f) * Normal;
+
 
 		OUTVertexBuffer.Add(CreateRuntimeMeshVertexSimple(PointsOnTrack[i], FVector(0, 0, 1)));
 		OUTVertexBuffer.Add(CreateRuntimeMeshVertexSimple(Y0, FVector(0, 0, 1)));
@@ -1157,7 +1260,7 @@ void ATerrainManager::GenerateTrackMesh(const FIntVector2D Sector, const FVector
 			 *			Y0 = Num - 5
 			 *			X0 = Num - 6
 			 *
-			 *	(note that order of Y2 and Y3 (and Y0 and Y1) can be reversed due to normal calculation (but since its reveresed for all points, it doesn't matter)
+			 *	(note that order of Y2 and Y3 (and Y0 and Y1) may be reversed due to normal calculation (but since its reveresed for all points, it doesn't matter)
 			 */
 			int32 Num = OUTVertexBuffer.Num();
 			// triangle Y0 X0 Y2
@@ -1180,7 +1283,7 @@ void ATerrainManager::GenerateTrackMesh(const FIntVector2D Sector, const FVector
 			OUTTriangleBuffer.Add(Num - 1);
 			OUTTriangleBuffer.Add(Num - 3);
 
-			TrackSegments.Add(FTrackSegment(OUTVertexBuffer[Num - 5].Position, OUTVertexBuffer[Num - 4].Position, OUTVertexBuffer[Num - 1].Position, OUTVertexBuffer[Num - 2].Position, TerrainSettings.TileEdgeSize, TerrainSettings.TrackGenerationSettings.PointInsideErrorTolerance, TerrainSettings.TrackGenerationSettings.TrackElevationOffset));
+			OUTTrackSegments.Add(FTrackSegment(OUTVertexBuffer[Num - 5].Position, OUTVertexBuffer[Num - 4].Position, OUTVertexBuffer[Num - 1].Position, OUTVertexBuffer[Num - 2].Position, TerrainSettings.TileEdgeSize, TerrainSettings.TrackGenerationSettings.PointInsideErrorTolerance, TerrainSettings.TrackGenerationSettings.TrackElevationOffset));
 		}
 	}
 }
@@ -1250,6 +1353,12 @@ void ATerrainManager::BeginTileGenerationForReset(const FVector Location)
 	BuildTerrainAroundSector(CalculateSectorFromLocation(Location));
 
 	bShouldCheckSectorsNeedCoverageForReset = true;
+}
+
+bool ATerrainManager::ContainsSectorTrack(const FIntVector2D Sector) const
+{
+	FSectorTrackInfo TrackInfo = TrackMap.FindRef(Sector);
+	return TrackInfo.bSectorHasTrack;
 }
 
 // Creates a FRuntimeMeshVertexSimple from the given Vertex

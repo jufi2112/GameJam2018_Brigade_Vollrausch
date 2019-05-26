@@ -13,6 +13,19 @@
 class ATerrainTile;
 
 /**
+ * enum to differ tile borders
+ */
+UENUM(BlueprintType)
+enum class ETileBorder : uint8
+{
+	ETB_Top UMETA(DisplayName = "Top Border"),
+	ETB_Right UMETA(DisplayName = "Right Border"),
+	ETB_Bottom UMETA(DisplayName = "Bottom Border"),
+	ETB_Left UMETA(DisplayName = "Left Border"),
+	ETB_Invalid UMETA(DisplayName = "Invalid")
+};
+
+/**
  * enum to differ what type of input device is used
  */
 UENUM(BlueprintType)
@@ -164,6 +177,18 @@ struct FSectorTrackInfo
 	// second bézier control point
 	UPROPERTY()
 	FVector SecondBezierControlPoint = FVector();
+
+	// position of Y0 for the track exit point
+	UPROPERTY()
+	FVector Y0Position = FVector();
+
+	// position of Y1 for the track exit point
+	UPROPERTY()
+	FVector Y1Position = FVector();
+
+	// points sampled from the bezier cuve given by entry/exit points and control points
+	UPROPERTY()
+	TArray<FVector> PointsOnBezierCurve;
 
 	/**
 	 * The ID of the checkpoint in this sector
@@ -1169,6 +1194,106 @@ public:
 		}
 
 		return TraverseLength;
+	}
+
+	/**
+	 * calculates the intersection point of two lines, each line is represented by two points that lie on it
+	 * code taken from https://www.geeksforgeeks.org/program-for-point-of-intersection-of-two-lines/
+	 * @param PointA First point that lies on line 1
+	 * @param PointB Second point that lies on line 1
+	 * @param PointC First point that lies on line 2
+	 * @param PointC Second point that lies on line 2
+	 * @param OUTIntersectionPoint The intersection point of the two lines
+	 * @return If an intersection point could be calculated or not
+	 */
+	static bool CalculateIntersectionPoint(const FVector PointA, const FVector PointB, const FVector PointC, const FVector PointD, FVector2D& OUTIntersectionPoint)
+	{
+		// line AB represented as a1X + b1Y = c1
+		double a1 = PointB.Y - PointA.Y;
+		double b1 = PointA.X - PointB.X;
+		double c1 = a1 * PointA.X + b1 * PointA.Y;
+
+		// line CD represented as a2X + b2Y = c2
+		double a2 = PointD.Y - PointC.Y;
+		double b2 = PointC.X - PointD.X;
+		double c2 = a2 * PointC.X + b2 * PointC.Y;
+
+		double det = a1 * b2 - a2 * b1;
+
+		if (FMath::IsNearlyZero(det))
+		{
+			return false;
+		}
+		else
+		{
+			OUTIntersectionPoint.X = (b2 * c1 - b1 * c2) / det;
+			OUTIntersectionPoint.Y = (a1 * c2 - a2 * c1) / det;
+			return true;
+		}
+	}
+
+	/**
+	* calculates the intersection point of two lines, each line is represented by two points that lie on it
+	* code taken from https://www.geeksforgeeks.org/program-for-point-of-intersection-of-two-lines/
+	* @param PointA First point that lies on line 1
+	* @param PointB Second point that lies on line 1
+	* @param PointC First point that lies on line 2
+	* @param PointC Second point that lies on line 2
+	* @param OUTIntersectionPoint The intersection point of the two lines
+	* @return If an intersection point could be calculated or not
+	*/
+	static bool CalculateIntersectionPoint(const FVector2D PointA, const FVector2D PointB, const FVector2D PointC, const FVector2D PointD, FVector2D& OUTIntersectionPoint)
+	{
+		// line AB represented as a1X + b1Y = c1
+		double a1 = PointB.Y - PointA.Y;
+		double b1 = PointA.X - PointB.X;
+		double c1 = a1 * PointA.X + b1 * PointA.Y;
+
+		// line CD represented as a2X + b2Y = c2
+		double a2 = PointD.Y - PointC.Y;
+		double b2 = PointC.X - PointD.X;
+		double c2 = a2 * PointC.X + b2 * PointC.Y;
+
+		double det = a1 * b2 - a2 * b1;
+
+		if (FMath::IsNearlyZero(det))
+		{
+			return false;
+		}
+		else
+		{
+			OUTIntersectionPoint.X = (b2 * c1 - b1 * c2) / det;
+			OUTIntersectionPoint.Y = (a1 * c2 - a2 * c1) / det;
+			return true;
+		}
+	}
+
+	static ETileBorder GuessTileBorder(const FVector PointOnBorder, float TileSize)
+	{
+		// bottom?
+		if (PointOnBorder.X < (0.25 * TileSize) && PointOnBorder.Y >(0.25 * TileSize) && PointOnBorder.Y < (0.75 * TileSize))
+		{
+			return ETileBorder::ETB_Bottom;
+		}
+		// right?
+		else if (PointOnBorder.X < (0.75 * TileSize) && PointOnBorder.X >(0.25 * TileSize) && PointOnBorder.Y >(0.75 * TileSize))
+		{
+			return ETileBorder::ETB_Right;
+		}
+		// top?
+		else if (PointOnBorder.X > (0.75 * TileSize) && PointOnBorder.Y > (0.25 * TileSize) && PointOnBorder.Y < (0.75 * TileSize))
+		{
+			return ETileBorder::ETB_Top;
+		}
+		// left?
+		else if (PointOnBorder.X >(0.25 * TileSize) && PointOnBorder.X < (0.75 * TileSize) && PointOnBorder.Y < (0.25 * TileSize))
+		{
+			return ETileBorder::ETB_Left;
+		}
+		else
+		{
+			return ETileBorder::ETB_Invalid;
+		}
 	}
 
 

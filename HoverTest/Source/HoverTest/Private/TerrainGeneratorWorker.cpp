@@ -191,24 +191,33 @@ uint32 TerrainGeneratorWorker::Run()
 			FVector TrackEntryPoint;
 			FVector TrackExitPoint;
 
-			int32 SectorProcessed = TerrainManager->GetTrackPointsForSector(TerrainJob.TerrainTile->GetCurrentSector(), TrackEntryPoint, TrackExitPoint);
-			// make sure we already processed the current sector in TerrainManager (should always be processed, but better safe than sorry
-			while (SectorProcessed == -1)
-			{
-				FPlatformProcess::Sleep(0.01f);
-				SectorProcessed = TerrainManager->GetTrackPointsForSector(TerrainJob.TerrainTile->GetCurrentSector(), TrackEntryPoint, TrackExitPoint);
-			}
-
-			// check if the tile should have a track inside
-			if (SectorProcessed == 1)
+			if (TerrainManager->ContainsSectorTrack(TerrainJob.TerrainTile->GetCurrentSector()))
 			{
 				// calculate track mesh
 				TArray<FRuntimeMeshVertexSimple> TrackVertexBuffer;
 				TArray<int32> TrackTriangleBuffer;
-				TArray<FRuntimeMeshVertexSimple> Array1;
-				TArray<int32> Array2;
-				TerrainManager->GenerateTrackMesh(TerrainJob.TerrainTile->GetCurrentSector(), TrackEntryPoint, TrackExitPoint, TerrainJob.MeshData[0].VertexBuffer, TerrainJob.MeshData[0].TriangleBuffer, TrackSegments);
+				TerrainManager->GenerateTrackMesh(TerrainJob.TerrainTile->GetCurrentSector(), TerrainJob.MeshData[0].VertexBuffer, TerrainJob.MeshData[0].TriangleBuffer, TrackSegments);
 			}
+
+			//int32 SectorProcessed = TerrainManager->GetTrackPointsForSector(TerrainJob.TerrainTile->GetCurrentSector(), TrackEntryPoint, TrackExitPoint);
+			//// make sure we already processed the current sector in TerrainManager (should always be processed, but better safe than sorry
+			//while (SectorProcessed == -1)
+			//{
+			//	FPlatformProcess::Sleep(0.01f);
+			//	SectorProcessed = TerrainManager->GetTrackPointsForSector(TerrainJob.TerrainTile->GetCurrentSector(), TrackEntryPoint, TrackExitPoint);
+			//}
+
+			//// check if the tile should have a track inside
+			//if (SectorProcessed == 1)
+			//{
+			//	// calculate track mesh
+			//	TArray<FRuntimeMeshVertexSimple> TrackVertexBuffer;
+			//	TArray<int32> TrackTriangleBuffer;
+			//	TArray<FRuntimeMeshVertexSimple> Array1;
+			//	TArray<int32> Array2;
+			//	TerrainManager->GenerateTrackMesh(TerrainJob.TerrainTile->GetCurrentSector(), TerrainJob.MeshData[0].VertexBuffer, TerrainJob.MeshData[0].TriangleBuffer, TrackSegments);
+			//	//TerrainManager->GenerateTrackMesh(TerrainJob.TerrainTile->GetCurrentSector(), TrackEntryPoint, TrackExitPoint, TerrainJob.MeshData[0].VertexBuffer, TerrainJob.MeshData[0].TriangleBuffer, TrackSegments);
+			//}
 
 			DEM.SimulateTriangleEdge(&DefiningPoints, 0, TerrainSettings.FractalNoiseTerrainSettings.TriangleEdgeIterations);
 			UnitSize = DEM.GetUnitSize();
