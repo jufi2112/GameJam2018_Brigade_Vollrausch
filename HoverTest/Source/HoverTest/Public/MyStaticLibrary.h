@@ -226,6 +226,14 @@ struct FTrackSegment
 	UPROPERTY()
 	TArray<FVector2D> DefiningPoints;
 
+	// the middle point of the track at the start of the segment
+	UPROPERTY()
+	FVector TrackStartMiddlePoint;
+
+	// the middle point of the track at the end of the segment
+	UPROPERTY()
+	FVector TrackEndMiddlePoint;
+
 	// values for the bounding rectangle of the above points
 	float MinX = TNumericLimits<float>::Max();
 	float MaxX = TNumericLimits<float>::Min();
@@ -278,6 +286,9 @@ struct FTrackSegment
 	 */
 	float ElevationOffset = 0.f;
 
+	bool bIsLastSegmentOnTrack = false;
+	bool bIsFirstSegmentOnTrack = false;
+
 	/**
 	 * @DEPRECATED, use other constructor!
 	 */
@@ -292,15 +303,18 @@ struct FTrackSegment
 		UE_LOG(LogTemp, Error, TEXT("Using wrong FTrackSegment constructor"));
 	}
 
-	FTrackSegment(const FVector Point1, const FVector Point2, const FVector Point3, const FVector Point4, const float TileEdgeSize, const float IncludeErrorTolerance, const float TrackElevationOffset)
+	FTrackSegment(const FVector Point1, const FVector Point2, const FVector Point3, const FVector Point4, const FVector TrackMiddlePointStart, const FVector TrackMiddlePointEnd, const float TileEdgeSize, const float IncludeErrorTolerance, const float TrackElevationOffset)
 	{
 		DefiningPoints.Add(FVector2D(Point1.X, Point1.Y));
 		DefiningPoints.Add(FVector2D(Point2.X, Point2.Y));
 		DefiningPoints.Add(FVector2D(Point3.X, Point3.Y));
 		DefiningPoints.Add(FVector2D(Point4.X, Point4.Y));
 
-		BaseLineHeight = Point1.Z;
-		EndLineHeight = Point3.Z;
+		TrackStartMiddlePoint = TrackMiddlePointStart;
+		TrackEndMiddlePoint = TrackMiddlePointEnd;
+
+		BaseLineHeight = TrackMiddlePointStart.Z;
+		EndLineHeight = TrackMiddlePointEnd.Z;
 
 		this->TileEdgeSize = TileEdgeSize;
 		this->ErrorTolerance = IncludeErrorTolerance;
@@ -319,7 +333,15 @@ struct FTrackSegment
 
 		CalculateBoundingRectangle();
 
-		CalculatePointsInBoundingBox(UseTightBoundingBox, IsFirstSegmentOnTrack, IsLastSegmentOnTrack);
+		bIsFirstSegmentOnTrack = IsFirstSegmentOnTrack;
+		bIsLastSegmentOnTrack = IsLastSegmentOnTrack;
+
+		if (bIsFirstSegmentOnTrack || bIsLastSegmentOnTrack)
+		{
+			UE_LOG(LogTemp, Error, TEXT("Segment is %s segment on track"), bIsFirstSegmentOnTrack ? TEXT("first") : TEXT("last"));
+		}
+
+		CalculatePointsInBoundingBox(UseTightBoundingBox);
 		OUTPointsOnTrack = PointsOnTrackSegment;
 
 	}
@@ -343,7 +365,7 @@ struct FTrackSegment
 	/**
 	 * ! For internal use only, use CalculatePointsOnTrack instead !
 	 */
-	void CalculatePointsInBoundingBox(const bool UseTightBoundingBox, const bool IsFirstSegmentOnTrack, const bool IsLastSegmentOnTrack)
+	void CalculatePointsInBoundingBox(const bool UseTightBoundingBox)
 	{
 		j_min = FMath::FloorToInt(MinY / UnitSize);
 		j_max = FMath::CeilToInt(MaxY / UnitSize);
@@ -356,7 +378,8 @@ struct FTrackSegment
 			for (int32 j = j_min; j <= j_max; ++j)
 			{
 				const FVector2D Point = FVector2D(i * UnitSize, j * UnitSize);
-				PointsOnTrackSegment.Add(FVector(Point.X, Point.Y, InterpolatePointElevation(Point)));
+
+				PointsOnTrackSegment.Add(FVector(Point.X, Point.Y, 0.f/*InterpolatePointElevationTriangle(Point, PointA, PointB, PointC)*/ /*InterpolatePointElevation(Point)*/));
 			}
 		}
 
@@ -409,17 +432,17 @@ struct FTrackSegment
 				{
 					float MinDistance = 0.f;
 
-					if (IsFirstSegmentOnTrack || IsLastSegmentOnTrack)
+					if (bIsFirstSegmentOnTrack || bIsLastSegmentOnTrack)
 					{
 						// X1X0 (or X2X3) will lie on border
 						int32 Index1 = -1;
 						int32 Index2 = -1;
-						if (IsFirstSegmentOnTrack)
+						if (bIsFirstSegmentOnTrack)
 						{
 							Index1 = 0;
 							Index2 = 1;
 						}
-						if (IsLastSegmentOnTrack)
+						if (bIsLastSegmentOnTrack)
 						{
 							Index1 = 3;
 							Index2 = 2;
@@ -429,7 +452,7 @@ struct FTrackSegment
 							(
 								FVector2D::Distance(Pt, DefiningPoints[Index1]),
 								FVector2D::Distance(Pt, DefiningPoints[Index2])
-								);
+							);
 
 					}
 					else
@@ -439,12 +462,12 @@ struct FTrackSegment
 								FVector2D::Distance(Pt, DefiningPoints[0]),
 								FVector2D::Distance(Pt, DefiningPoints[1]),
 								FVector2D::Distance(Pt, DefiningPoints[2])
-								);
+							);
 						MinDistance = FMath::Min<float>
 							(
 								MinDistance,
 								FVector2D::Distance(Pt, DefiningPoints[3])
-								);
+							);
 					}
 
 					// if minimum distance is greater than UnitSize, we know there is at least one other point between the current point and the defining point, so we can remove the current point from the constraints
@@ -456,6 +479,24 @@ struct FTrackSegment
 				}
 			}
 		}
+
+		// for every remaining point, calculate the points elevation by interpolating the height of the triangle it is in
+		for (FVector& Point : PointsOnTrackSegment)
+		{
+			// get triangle the point lies in
+			FVector PointA, PointB, PointC;
+			FVector2D Point2D = FVector2D(Point.X, Point.Y);
+
+			if (bIsFirstSegmentOnTrack || bIsLastSegmentOnTrack)
+			{
+				UE_LOG(LogTemp, Warning, TEXT("Point %s"), *Point2D.ToString());
+			}
+
+			DetermineTrianglePointLiesIn(Point2D, PointA, PointB, PointC);
+
+			Point.Z = InterpolatePointElevationTriangle(Point2D, PointA, PointB, PointC);
+		}
+
 		return;
 
 		// this yields bad results because the mesh resolution isn't high enough
@@ -489,6 +530,203 @@ struct FTrackSegment
 	}
 
 	/**
+	 * returns the three points of the triangle the given point lies in
+	 * if the given point does not lie within a triangle, it get's projected into the nearest one and OUTPoint contains the projected point's X and Y coordinates
+	 * @param OUTPoint The point for which the triangle should be determined
+	 * @param OUTPointA First point of the triangle the point lies inside
+	 * @param OUTPointB Second point of the triangle the point lies inside
+	 * @param OUTPointC Third point of the triangle the point lies inside
+	 */
+	void DetermineTrianglePointLiesIn(FVector2D& OUTPoint, FVector& OUTPointA, FVector& OUTPointB, FVector& OUTPointC)
+	{
+		FVector2D X0 = DefiningPoints[0];
+		FVector2D X1 = DefiningPoints[1];
+		FVector2D X2 = DefiningPoints[2];
+		FVector2D X3 = DefiningPoints[3];
+		FVector2D T0 = FVector2D(TrackStartMiddlePoint.X, TrackStartMiddlePoint.Y);
+		FVector2D T1 = FVector2D(TrackEndMiddlePoint.X, TrackEndMiddlePoint.Y);
+
+		/**
+		 *			X3----------T1----------X2
+		 *			| \			| \			|
+		 *			|   \		|   \		|
+		 *			|	  \		|     \		|
+		 *			|	    \	|		\	|
+		 *			|	      \ |		  \	|
+		 *			X0----------T0----------X1
+		 *
+		 */
+
+		// first check the two inmost triangles [ (T0 T1 X3) and (T0 X1 T1) ]
+		if (CheckPointInsideTriangle(OUTPoint, T0, T1, X3))
+		{
+			if (bIsLastSegmentOnTrack || bIsFirstSegmentOnTrack)
+				UE_LOG(LogTemp, Warning, TEXT("lies in triangle (T0 T1 X3)"));
+			OUTPointA = FVector(T0, BaseLineHeight);
+			OUTPointB = FVector(T1, EndLineHeight);
+			OUTPointC = FVector(X3, EndLineHeight);
+			return;
+		}
+		if (CheckPointInsideTriangle(OUTPoint, T0, X1, T1))
+		{
+			if (bIsLastSegmentOnTrack || bIsFirstSegmentOnTrack)
+				UE_LOG(LogTemp, Warning, TEXT("lies in triangle (T0 X1 T1)"));
+			OUTPointA = FVector(T0, BaseLineHeight);
+			OUTPointB = FVector(X1, BaseLineHeight);
+			OUTPointC = FVector(T1, EndLineHeight);
+			return;
+		}
+		
+		// the two outmost triangles
+		if (CheckPointInsideTriangle(OUTPoint, X0, T0, X3))
+		{
+			if (bIsLastSegmentOnTrack || bIsFirstSegmentOnTrack)
+				UE_LOG(LogTemp, Warning, TEXT("lies in triangle (X0 T0 X3)"));
+			OUTPointA = FVector(X0, BaseLineHeight);
+			OUTPointB = FVector(T0, BaseLineHeight);
+			OUTPointC = FVector(X3, EndLineHeight);
+			return;
+		}
+		if (CheckPointInsideTriangle(OUTPoint, X1, X2, T1))
+		{
+			if (bIsLastSegmentOnTrack || bIsFirstSegmentOnTrack)
+				UE_LOG(LogTemp, Warning, TEXT("lies in triangle (X1 X2 T1)"));
+			OUTPointA = FVector(X1, BaseLineHeight);
+			OUTPointB = FVector(X2, EndLineHeight);
+			OUTPointC = FVector(T1, EndLineHeight);
+			return;
+		}
+		else
+		{
+			// point lies outside of a triangle -> project point onto X0X3 and X1X2 and use that projection, whose distance to the original point is smallest
+
+			// don't project point if it lies on one of the tile's borders (this would lead to erroneous elevation values)
+			if ((bIsFirstSegmentOnTrack || bIsLastSegmentOnTrack) && CheckPointLiesOnTileBorder(OUTPoint))
+			{
+				// use the elevation of the nearest track point(X0 X1 X2 X3) instead
+				TArray<FVector2D> TrackPoints;
+				TrackPoints.Add(X0);
+				TrackPoints.Add(X1);
+				TrackPoints.Add(X2);
+				TrackPoints.Add(X3);
+				OUTPoint = GetClosestPoint(OUTPoint, TrackPoints);
+				if (!TrackPoints.Contains(X0) || !TrackPoints.Contains(X1))
+				{
+					OUTPointA = FVector(OUTPoint, BaseLineHeight);
+				}
+				else
+				{
+					OUTPointA = FVector(OUTPoint, EndLineHeight);
+				}
+				OUTPointB = FVector(TrackPoints[0], 0.f);
+				OUTPointC = FVector(TrackPoints[1], 0.f);
+				return;
+			}
+			else
+			{
+				FVector2D Projection_Point_X0X3 = ProjectPointOnLineSegment(OUTPoint, X0, X3);
+				FVector2D Projection_Point_X1X2 = ProjectPointOnLineSegment(OUTPoint, X1, X2);
+
+				if (FVector2D::Distance(OUTPoint, Projection_Point_X0X3) <= FVector2D::Distance(OUTPoint, Projection_Point_X1X2))
+				{
+					if (bIsLastSegmentOnTrack || bIsFirstSegmentOnTrack)
+						UE_LOG(LogTemp, Warning, TEXT("does NOT lie inside a triangle. Projecting into (X0 T0 X3)"));
+					OUTPoint = Projection_Point_X0X3;
+					OUTPointA = FVector(X0, BaseLineHeight);
+					OUTPointB = FVector(T0, BaseLineHeight);
+					OUTPointC = FVector(X3, EndLineHeight);
+					return;
+				}
+				else
+				{
+					if (bIsLastSegmentOnTrack || bIsFirstSegmentOnTrack)
+						UE_LOG(LogTemp, Warning, TEXT("does NOT lie inside a triangle. Projecting into (X1 X2 T1)"));
+					OUTPoint = Projection_Point_X1X2;
+					OUTPointA = FVector(X1, BaseLineHeight);
+					OUTPointB = FVector(X2, EndLineHeight);
+					OUTPointC = FVector(T1, EndLineHeight);
+					return;
+				}
+			}
+		}
+
+	}
+
+	/**
+	 * checks which of the provided points is closest to the given point
+	 * after execution OUTPointsToCheck does not contain the closest point anymore
+	 * @param OriginalPoint The base point to calculate distances for
+	 * @param OUTPointsToCheck Array containing all points to calculate distances to
+	 * @return Point that is closest to given point
+	 */
+	FVector2D GetClosestPoint(const FVector2D OriginalPoint, TArray<FVector2D>& OUTPointsToCheck)
+	{
+		FVector2D CurrentClosestPoint;
+		float CurrentMinimumDistance = TNumericLimits<float>::Max();
+		for (const FVector2D Point : OUTPointsToCheck)
+		{
+			float Distance = FVector2D::Distance(OriginalPoint, Point);
+			if (Distance < CurrentMinimumDistance)
+			{
+				CurrentMinimumDistance = Distance;
+				CurrentClosestPoint = Point;
+			}
+		}
+		OUTPointsToCheck.Remove(CurrentClosestPoint);
+		return CurrentClosestPoint;
+	}
+
+	/**
+	 * checks if the given point lies on a tile border
+	 * @param Point The point to check
+	 * @return True if the point lies on a border of the tile, false otherwise
+	 */
+	bool CheckPointLiesOnTileBorder(const FVector2D Point)
+	{
+		if (FMath::IsNearlyZero(Point.X) || FMath::IsNearlyZero(Point.Y) || FMath::IsNearlyEqual(Point.X, TileEdgeSize) || FMath::IsNearlyEqual(Point.Y, TileEdgeSize))
+		{
+			return true;
+		}
+		else
+		{
+			return false;
+		}
+	}
+
+
+	/**
+	 * checks whether the given point lies within the triangle given by the three points
+	 * @param Point The point to check
+	 * @param A Triangle point 1
+	 * @param B Triangle point 2
+	 * @param C Triangle point 3
+	 * @return True if the point lies within the triangle, false otherwise
+	 */
+	bool CheckPointInsideTriangle(const FVector2D Point, const FVector2D A, const FVector2D B, const FVector2D C)
+	{
+		FVector2D AB = B - A;
+		FVector2D BC = C - B;
+		FVector2D CA = A - C;
+
+		FVector2D APoint = Point - A;
+		FVector2D BPoint = Point - B;
+		FVector2D CPoint = Point - C;
+
+		double detA = FVector2D::CrossProduct(AB, APoint);
+		double detB = FVector2D::CrossProduct(BC, BPoint);
+		double detC = FVector2D::CrossProduct(CA, CPoint);
+
+		if ((detA <= 0 && detB <= 0 && detC <= 0) || (detA >= 0 && detB >= 0 && detC >= 0))
+		{
+			return true;
+		}
+		else
+		{
+			return false;
+		}
+	}
+
+	/**
 	 * ! For internal use only !
 	 * linearly interpolates the given points elevation
 	 */
@@ -504,6 +742,38 @@ struct FTrackSegment
 		float Alpha = DistanceToBaseLine / (DistanceToBaseLine + DistanceToEndLine);
 
 		return (FMath::Lerp<float, float>(BaseLineHeight, EndLineHeight, Alpha) - ElevationOffset);
+	}
+
+	FVector2D ProjectPointOnLineSegment(const FVector2D Point, const FVector2D LineStartPoint, const FVector2D LineEndPoint)
+	{
+		const float L2 = FVector2D::DistSquared(LineStartPoint, LineEndPoint);
+		if (FMath::IsNearlyZero(L2))
+		{
+			return LineStartPoint;
+		}
+		const float t = FMath::Max<float>(0.f, FMath::Min<float>(1.f, FVector2D::DotProduct(Point - LineStartPoint, LineEndPoint - LineStartPoint) / L2));
+
+		return (LineStartPoint + t * (LineEndPoint - LineStartPoint));
+	}
+
+
+	float InterpolatePointElevationTriangle(const FVector2D Point, const FVector PointA, const FVector PointB, const FVector PointC)
+	{
+		// barycentric point weights
+		double W_A = 0.;
+		double W_B = 0.;
+		double W_C = 0.;
+
+		double Denominator = (PointB.Y - PointC.Y) * (PointA.X - PointC.X) + (PointC.X - PointB.X) * (PointA.Y - PointC.Y);
+
+		W_A = ((PointB.Y - PointC.Y) * (Point.X - PointC.X) + (PointC.X - PointB.X) * (Point.Y - PointC.Y)) / Denominator;
+
+		W_B = ((PointC.Y - PointA.Y) * (Point.X - PointC.X) + (PointA.X - PointC.X) * (Point.Y - PointC.Y)) / Denominator;
+
+		W_C = 1 - W_A - W_B;
+
+		return (W_A * PointA.Z + W_B * PointB.Z + W_C * PointC.Z) - ElevationOffset;
+
 	}
 
 	/**

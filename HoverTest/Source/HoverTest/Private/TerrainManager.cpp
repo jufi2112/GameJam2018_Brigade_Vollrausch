@@ -1162,8 +1162,6 @@ void ATerrainManager::GenerateTrackMesh(const FIntVector2D Sector, TArray<FRunti
 			int32 TileSize = TerrainSettings.TileEdgeSize;
 			FVector Pt = PointsOnTrack[i];		// shorter writing
 
-			// calculate bezier points when calculating control points
-
 			if (Sector == FIntVector2D(0, 0))
 			{
 				switch (UMyStaticLibrary::GuessTileBorder(Pt, TileSize))
@@ -1234,6 +1232,14 @@ void ATerrainManager::GenerateTrackMesh(const FIntVector2D Sector, TArray<FRunti
 			Y1 = PointsOnTrack[i] + (-TerrainSettings.TrackGenerationSettings.TrackWidth / 2.f) * Normal;
 		}
 
+		Y0.Z = PointsOnTrack[i].Z;
+		Y1.Z = PointsOnTrack[i].Z;
+
+		if (!(FMath::IsNearlyEqual(PointsOnTrack[i].Z, Y0.Z) && FMath::IsNearlyEqual(PointsOnTrack[i].Z, Y1.Z)))
+		{
+			UE_LOG(LogTemp, Error, TEXT("Elevation of PointsOnTrack[i] and Y0 and Y1 are not equal! In %s"), *GetName());
+			UE_LOG(LogTemp, Error, TEXT("PointsOnTrack[i] elevation is %f | Y0 elevation is %f | Y1 elevation is %f"), PointsOnTrack[i].Z, Y0.Z, Y1.Z);
+		}
 
 		OUTVertexBuffer.Add(CreateRuntimeMeshVertexSimple(PointsOnTrack[i], FVector(0, 0, 1)));
 		OUTVertexBuffer.Add(CreateRuntimeMeshVertexSimple(Y0, FVector(0, 0, 1)));
@@ -1283,7 +1289,7 @@ void ATerrainManager::GenerateTrackMesh(const FIntVector2D Sector, TArray<FRunti
 			OUTTriangleBuffer.Add(Num - 1);
 			OUTTriangleBuffer.Add(Num - 3);
 
-			OUTTrackSegments.Add(FTrackSegment(OUTVertexBuffer[Num - 5].Position, OUTVertexBuffer[Num - 4].Position, OUTVertexBuffer[Num - 1].Position, OUTVertexBuffer[Num - 2].Position, TerrainSettings.TileEdgeSize, TerrainSettings.TrackGenerationSettings.PointInsideErrorTolerance, TerrainSettings.TrackGenerationSettings.TrackElevationOffset));
+			OUTTrackSegments.Add(FTrackSegment(OUTVertexBuffer[Num - 5].Position, OUTVertexBuffer[Num - 4].Position, OUTVertexBuffer[Num - 1].Position, OUTVertexBuffer[Num - 2].Position, OUTVertexBuffer[Num - 6].Position, OUTVertexBuffer[Num - 3].Position, TerrainSettings.TileEdgeSize, TerrainSettings.TrackGenerationSettings.PointInsideErrorTolerance, TerrainSettings.TrackGenerationSettings.TrackElevationOffset));
 		}
 	}
 }
