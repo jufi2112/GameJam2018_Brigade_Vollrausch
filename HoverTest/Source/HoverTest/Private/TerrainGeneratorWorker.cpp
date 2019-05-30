@@ -193,7 +193,7 @@ uint32 TerrainGeneratorWorker::Run()
 
 			if (TerrainManager->ContainsSectorTrack(TerrainJob.TerrainTile->GetCurrentSector()))
 			{
-				UE_LOG(LogTemp, Error, TEXT("Debugging log for sector %s"), *TerrainJob.TerrainTile->GetCurrentSector().ToString());
+				//UE_LOG(LogTemp, Error, TEXT("Debugging log for sector %s"), *TerrainJob.TerrainTile->GetCurrentSector().ToString());
 				// calculate track mesh
 				TArray<FRuntimeMeshVertexSimple> TrackVertexBuffer;
 				TArray<int32> TrackTriangleBuffer;
@@ -223,10 +223,10 @@ uint32 TerrainGeneratorWorker::Run()
 			DEM.SimulateTriangleEdge(&DefiningPoints, 0, TerrainSettings.FractalNoiseTerrainSettings.TriangleEdgeIterations);
 			UnitSize = DEM.GetUnitSize();
 
-			if (TerrainManager->ContainsSectorTrack(TerrainJob.TerrainTile->GetCurrentSector()))
+			/*if (TerrainManager->ContainsSectorTrack(TerrainJob.TerrainTile->GetCurrentSector()))
 			{
 				UE_LOG(LogTemp, Warning, TEXT("UnitSize is %f"), UnitSize);
-			}
+			}*/
 
 			// calculate track constraints in TrackSegments
 			for (int32 Index = 0; Index < TrackSegments.Num(); ++Index)
