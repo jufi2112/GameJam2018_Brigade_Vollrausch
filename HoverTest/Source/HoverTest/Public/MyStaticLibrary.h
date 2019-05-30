@@ -483,6 +483,41 @@ struct FTrackSegment
 		// for every remaining point, calculate the points elevation by interpolating the height of the triangle it is in
 		for (FVector& Point : PointsOnTrackSegment)
 		{
+			const FVector2D Point2D = FVector2D(Point.X, Point.Y);
+			 // if (IsFirstSegmentOnTrack || IsLastSegmentOnTrack) && Point lies on tile border -> interpolate as usual
+			if ((bIsFirstSegmentOnTrack || bIsLastSegmentOnTrack) && CheckPointLiesOnTileBorder(Point2D))
+			{
+
+			}
+
+			 // else:
+			else
+			{
+
+				// create Array that contains all possible elevations for the point: PossibleElevations
+				TArray<float> PossibleElevations;
+				// build line segment in each direction (X/Y coordinate + - (UnitSize - 1))
+				FVector2D LineSegmentUp = Point2D + FVector2D(UnitSize - 1.f, 0.f);
+				FVector2D LineSegmentRight = Point2D + FVector2D(0.f, UnitSize - 1.f);
+				FVector2D LineSegmentDown = Point2D - FVector2D(UnitSize - 1.f, 0.f);
+				FVector2D LineSegmentLeft = Point2D - FVector2D(0.f, UnitSize - 1.f);
+					// for each line segment: check if line segment intersects with one of the triangles edges (from point A to point B)(except base line and end line of the segment) (every time check all triangle edges)
+						// if yes: calculate intersection point P, calculate elevation of intersection point on this triangle edge line :	[ 1 - (distance(P,A) / distance(A,B)) is share of elevation of point A
+						//																													  1 - (distance(P,B) / distance(A,B)) is share of elevation of point B
+								//add this elevation to PossibleElevations
+						// if no: do nothing
+
+					// if (not IsFirstSegmentOnTrack) && slope of current track segment is greater than slope of previous
+						// check for each line segment if it intersects with the segment's base line
+							// if yes: add elevation of base line to PossibleElevations
+
+
+				// get the minimum elevation from PossibleElevations -> this (minus the offset) is the points final elevation
+				PossibleElevations.Sort();
+				Point.Z = PossibleElevations[0] - ElevationOffset;
+
+			}
+
 			// get triangle the point lies in
 			FVector PointA, PointB, PointC;
 			FVector2D Point2D = FVector2D(Point.X, Point.Y);
@@ -774,6 +809,30 @@ struct FTrackSegment
 
 		return (W_A * PointA.Z + W_B * PointB.Z + W_C * PointC.Z) - ElevationOffset;
 
+	}
+
+	/**
+	 * interpolates the elevation of the given point on the line segment given by two points
+	 * it is assumed the given point lies on the given line segment
+	 */
+	float InterpolateElevationOnLineSegment(const FVector2D PointToInterpolate, const FVector PointA, const FVector PointB)
+	{
+		const FVector2D A = FVector2D(PointA.X, PointA.Y);
+		const FVector2D B = FVector2D(PointB.X, PointB.Y);
+		const float LineSegmentLength = FVector2D::Distance(A, B);
+
+		if (LineSegmentLength == 0.f)
+		{
+			return PointA.Z;
+		}
+
+		const float DistancePointToA = FVector2D::Distance(PointToInterpolate, A);
+		const float DistancePointToB = FVector2D::Distance(PointToInterpolate, B);
+
+		const float ShareA = 1 - (DistancePointToA / LineSegmentLength);
+		const float ShareB = 1 - (DistancePointToB / LineSegmentLength);
+		return (ShareA * PointA.Z + ShareB * PointB.Z);
+		
 	}
 
 	/**
