@@ -14,7 +14,9 @@ If you only want to play the game, have a look at the release section beneath.
 ## Releases (64bit Windows only)
 
 * Original GameJam 2018 Release (v1.0) can be found [here (Dropbox)](https://www.dropbox.com/s/frym1ccezrul49l/Hoverblocks_GameJam2018_Original_Release.zip?dl=0)
-* An intermediate build to show off some of the new features (including a basic proceduraly generated level) and bugfixes for the old content can be found [here (Dropbox)](https://www.dropbox.com/s/ivw3sw51deybh2l/Hoverblocks_intermediate_build.zip?dl=0)
+* Version 1.5 (the release version of my Forschungsprojekt) includes a procedurally generated world and can be found [here (Dropbox)](https://www.dropbox.com/s/1jcwmaky7vbc2gp/Julien_Fischer_Forschungsprojekt_Hoverblocks_v_1_5_executable_win64.zip?dl=0)
+
+
 
 ## Contributors
 
