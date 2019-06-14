@@ -41,10 +41,4 @@ public:
 	void AfterDelay();
 
 	virtual void BeginPlay() override;
-
-
-	
-	
-	
-	
 };
