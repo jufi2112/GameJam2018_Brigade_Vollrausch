@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "HoverTestGameModeBase.h"
+#include "BiplanePawn.h"
 #include "HoverTestGameModeProceduralLevel.generated.h"
 
 class ATerrainManager;
@@ -43,6 +44,12 @@ public:
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	UClass* PlayerPawnClass = nullptr;
+
+	/**
+	 * The Biplane pawn class
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Setup)
+	TSubclassOf<ABiplanePawn> BiplaneClass;
 
 	/**
 	 * The player controller
@@ -86,6 +93,12 @@ public:
 	UFUNCTION()
 	void AllowDefaultPawnToTransitionToEndLocation();
 
+	UFUNCTION()
+	bool WasPlayerPawnCreated() const;
+
+	UFUNCTION()
+	void ToggleBetweenHovercraftAndBiplane(bool bIsBiplaneActive);
+
 private:
 
 	/**
@@ -105,6 +118,12 @@ private:
 	 */
 	UPROPERTY()
 	AProceduralDefaultPawn* DefaultPawnReference = nullptr;
+
+	/**
+	 * Reference to biplane pawn
+	 */
+	UPROPERTY()
+	ABiplanePawn* BiplanePawn = nullptr;
 
 	/**
 	 * Reference to player pawn
@@ -134,5 +153,6 @@ private:
 	bool bInformHovercraftAfterTicks = false;
 
 	uint32 TicksAfterWhichToInformHovercraft = 2;
+
 	
 };

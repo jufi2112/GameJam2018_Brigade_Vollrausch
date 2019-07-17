@@ -9,6 +9,7 @@
 #include "TerrainTrackerComponent.h"
 #include "HovercraftPlayerController.h"
 #include "ProceduralDefaultPawn.h"
+#include "HovercraftPlayerControllerProced.h"
 
 AHoverTestGameModeProceduralLevel::AHoverTestGameModeProceduralLevel()
 {
@@ -135,6 +136,7 @@ void AHoverTestGameModeProceduralLevel::DefaultPawnFinishedTransition()
 					PC->Possess(Pawn);
 					bControllerPossessesHovercraftPawn = true;
 					PC->AfterDelay();
+					PlayerPawn = Pawn;
 				}
 
 				AHovercraft* HC = Cast<AHovercraft>(Actor);
@@ -265,5 +267,79 @@ void AHoverTestGameModeProceduralLevel::AllowDefaultPawnToTransitionToEndLocatio
 {
 	if (!DefaultPawnReference) { return; }
 	DefaultPawnReference->AllowMultipointTransitionZoomToEndPoint();
+}
+
+bool AHoverTestGameModeProceduralLevel::WasPlayerPawnCreated() const
+{
+	if (PlayerPawn && PlayerPawn->IsValidLowLevel())
+	{
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+
+void AHoverTestGameModeProceduralLevel::ToggleBetweenHovercraftAndBiplane(bool bIsBiplaneActive)
+{
+	if (!PlayerPawn || !TerrainManager) { return; }
+	UWorld* World = GetWorld();
+	if (!World) { return; }
+	AHovercraftPlayerControllerProced* PC = Cast<AHovercraftPlayerControllerProced>(World->GetFirstPlayerController());
+	if (!PC) { return; }
+
+	if (bIsBiplaneActive)
+	{
+		// switch from player pawn to biplane
+		// check if Biplane already created
+		if (!BiplanePawn)
+		{
+			// create it
+			if (BiplaneClass)
+			{
+				FActorSpawnParameters SpawnParameters;
+				SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+				FTransform PlayerTransform = PlayerPawn->GetActorTransform();
+				FVector Location = PlayerTransform.GetLocation();
+				Location.Z += 5000.f;
+				PlayerTransform.SetLocation(Location);
+
+				AActor* Actor = World->SpawnActor(BiplaneClass, &PlayerTransform, SpawnParameters);
+				if (Actor)
+				{
+					ABiplanePawn* Biplane = Cast<ABiplanePawn>(Actor);
+					if (Biplane)
+					{
+						BiplanePawn = Biplane;
+						BiplanePawn->SetSpawnSpeed(5000.f);
+						PC->Possess(Biplane);
+
+						UTerrainTrackerComponent* TTC = BiplanePawn->GetTerrainTrackerComponent();
+						if (TTC)
+						{
+							TTC->SetTerrainManager(TerrainManager);
+							TTC->ActivateTracking();
+						}
+					}
+				}
+				else
+				{
+				}
+			}
+		}
+		else
+		{
+			// biplane already exists -> possess it
+			PC->Possess(BiplanePawn);
+		}
+	}
+	else
+	{
+		// switch from biplane to player pawn
+		PC->Possess(PlayerPawn);
+		BiplanePawn->Destroy();
+		BiplanePawn = nullptr;
+	}
 }
 

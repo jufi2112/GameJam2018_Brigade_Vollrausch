@@ -13,6 +13,19 @@
 class ATerrainTile;
 
 /**
+ * enum to differ tile borders
+ */
+UENUM(BlueprintType)
+enum class ETileBorder : uint8
+{
+	ETB_Top UMETA(DisplayName = "Top Border"),
+	ETB_Right UMETA(DisplayName = "Right Border"),
+	ETB_Bottom UMETA(DisplayName = "Bottom Border"),
+	ETB_Left UMETA(DisplayName = "Left Border"),
+	ETB_Invalid UMETA(DisplayName = "Invalid")
+};
+
+/**
  * enum to differ what type of input device is used
  */
 UENUM(BlueprintType)
@@ -126,6 +139,56 @@ struct FCheckpointSpawnJob
 
 };
 
+USTRUCT()
+struct FLineSegment2D
+{
+	GENERATED_USTRUCT_BODY()
+
+	// start point
+	UPROPERTY()
+	FVector2D SegmentStartPoint;
+
+	// end point
+	UPROPERTY()
+	FVector2D SegmentEndPoint;
+
+	FLineSegment2D()
+	{
+		SegmentStartPoint = FVector2D(0.f, 0.f);
+		SegmentEndPoint = FVector2D(0.f, 0.f);
+	}
+	FLineSegment2D(const FVector2D StartPoint, const FVector2D EndPoint)
+	{
+		SegmentStartPoint = StartPoint;
+		SegmentEndPoint = EndPoint;
+	}
+};
+
+USTRUCT()
+struct FLineSegment
+{
+	GENERATED_USTRUCT_BODY()
+
+	// start point
+	UPROPERTY()
+	FVector SegmentStartPoint;
+
+	// end point
+	UPROPERTY()
+	FVector SegmentEndPoint;
+
+	FLineSegment()
+	{
+		SegmentStartPoint = FVector(0.f, 0.f, 0.f);
+		SegmentEndPoint = FVector(0.f, 0.f, 0.f);
+	}
+	FLineSegment(const FVector StartPoint, const FVector EndPoint)
+	{
+		SegmentStartPoint = StartPoint;
+		SegmentEndPoint = EndPoint;
+	}
+};
+
 /**
  * struct that is used to store track information for each sector
  */
@@ -165,6 +228,18 @@ struct FSectorTrackInfo
 	UPROPERTY()
 	FVector SecondBezierControlPoint = FVector();
 
+	// position of Y0 for the track exit point
+	UPROPERTY()
+	FVector Y0Position = FVector();
+
+	// position of Y1 for the track exit point
+	UPROPERTY()
+	FVector Y1Position = FVector();
+
+	// points sampled from the bezier cuve given by entry/exit points and control points
+	UPROPERTY()
+	TArray<FVector> PointsOnBezierCurve;
+
 	/**
 	 * The ID of the checkpoint in this sector
 	 * if no track exists, there is no track and the ID is -1
@@ -200,6 +275,14 @@ struct FTrackSegment
 	// points that define the track segment
 	UPROPERTY()
 	TArray<FVector2D> DefiningPoints;
+
+	// the middle point of the track at the start of the segment
+	UPROPERTY()
+	FVector TrackStartMiddlePoint;
+
+	// the middle point of the track at the end of the segment
+	UPROPERTY()
+	FVector TrackEndMiddlePoint;
 
 	// values for the bounding rectangle of the above points
 	float MinX = TNumericLimits<float>::Max();
@@ -253,6 +336,19 @@ struct FTrackSegment
 	 */
 	float ElevationOffset = 0.f;
 
+	bool bIsLastSegmentOnTrack = false;
+	bool bIsFirstSegmentOnTrack = false;
+
+	/**
+	 * elevation of previous track segment's base line
+	 */
+	float PreviousSegmentBaseElevation = 0.f;
+
+	/**
+	 * MeshQuadDiameter
+	 */
+	float MeshQuadDiameter = 0.f;
+
 	/**
 	 * @DEPRECATED, use other constructor!
 	 */
@@ -267,18 +363,22 @@ struct FTrackSegment
 		UE_LOG(LogTemp, Error, TEXT("Using wrong FTrackSegment constructor"));
 	}
 
-	FTrackSegment(const FVector Point1, const FVector Point2, const FVector Point3, const FVector Point4, const float TileEdgeSize, const float IncludeErrorTolerance, const float TrackElevationOffset)
+	FTrackSegment(const FVector Point1, const FVector Point2, const FVector Point3, const FVector Point4, const FVector TrackMiddlePointStart, const FVector TrackMiddlePointEnd, const float PreviousSegmentBaseElevation, const float TileEdgeSize, const float IncludeErrorTolerance, const float TrackElevationOffset)
 	{
 		DefiningPoints.Add(FVector2D(Point1.X, Point1.Y));
 		DefiningPoints.Add(FVector2D(Point2.X, Point2.Y));
 		DefiningPoints.Add(FVector2D(Point3.X, Point3.Y));
 		DefiningPoints.Add(FVector2D(Point4.X, Point4.Y));
 
-		BaseLineHeight = Point1.Z;
-		EndLineHeight = Point3.Z;
+		TrackStartMiddlePoint = TrackMiddlePointStart;
+		TrackEndMiddlePoint = TrackMiddlePointEnd;
+
+		BaseLineHeight = TrackMiddlePointStart.Z;
+		EndLineHeight = TrackMiddlePointEnd.Z;
 
 		this->TileEdgeSize = TileEdgeSize;
 		this->ErrorTolerance = IncludeErrorTolerance;
+		this->PreviousSegmentBaseElevation = PreviousSegmentBaseElevation;
 		ElevationOffset = TrackElevationOffset;
 	}
 
@@ -294,7 +394,17 @@ struct FTrackSegment
 
 		CalculateBoundingRectangle();
 
-		CalculatePointsInBoundingBox(UseTightBoundingBox, IsFirstSegmentOnTrack, IsLastSegmentOnTrack);
+		bIsFirstSegmentOnTrack = IsFirstSegmentOnTrack;
+		bIsLastSegmentOnTrack = IsLastSegmentOnTrack;
+
+		MeshQuadDiameter = FMath::Sqrt(UnitSize * UnitSize + UnitSize * UnitSize);
+
+		/*if (bIsFirstSegmentOnTrack || bIsLastSegmentOnTrack)
+		{
+			UE_LOG(LogTemp, Error, TEXT("Segment is %s segment on track"), bIsFirstSegmentOnTrack ? TEXT("first") : TEXT("last"));
+		}*/
+
+		CalculatePointsInBoundingBox(UseTightBoundingBox);
 		OUTPointsOnTrack = PointsOnTrackSegment;
 
 	}
@@ -318,7 +428,7 @@ struct FTrackSegment
 	/**
 	 * ! For internal use only, use CalculatePointsOnTrack instead !
 	 */
-	void CalculatePointsInBoundingBox(const bool UseTightBoundingBox, const bool IsFirstSegmentOnTrack, const bool IsLastSegmentOnTrack)
+	void CalculatePointsInBoundingBox(const bool UseTightBoundingBox)
 	{
 		j_min = FMath::FloorToInt(MinY / UnitSize);
 		j_max = FMath::CeilToInt(MaxY / UnitSize);
@@ -331,7 +441,8 @@ struct FTrackSegment
 			for (int32 j = j_min; j <= j_max; ++j)
 			{
 				const FVector2D Point = FVector2D(i * UnitSize, j * UnitSize);
-				PointsOnTrackSegment.Add(FVector(Point.X, Point.Y, InterpolatePointElevation(Point)));
+
+				PointsOnTrackSegment.Add(FVector(Point.X, Point.Y, 0.f/*InterpolatePointElevationTriangle(Point, PointA, PointB, PointC)*/ /*InterpolatePointElevation(Point)*/));
 			}
 		}
 
@@ -384,17 +495,17 @@ struct FTrackSegment
 				{
 					float MinDistance = 0.f;
 
-					if (IsFirstSegmentOnTrack || IsLastSegmentOnTrack)
+					if (bIsFirstSegmentOnTrack || bIsLastSegmentOnTrack)
 					{
 						// X1X0 (or X2X3) will lie on border
 						int32 Index1 = -1;
 						int32 Index2 = -1;
-						if (IsFirstSegmentOnTrack)
+						if (bIsFirstSegmentOnTrack)
 						{
 							Index1 = 0;
 							Index2 = 1;
 						}
-						if (IsLastSegmentOnTrack)
+						if (bIsLastSegmentOnTrack)
 						{
 							Index1 = 3;
 							Index2 = 2;
@@ -404,7 +515,7 @@ struct FTrackSegment
 							(
 								FVector2D::Distance(Pt, DefiningPoints[Index1]),
 								FVector2D::Distance(Pt, DefiningPoints[Index2])
-								);
+							);
 
 					}
 					else
@@ -414,12 +525,12 @@ struct FTrackSegment
 								FVector2D::Distance(Pt, DefiningPoints[0]),
 								FVector2D::Distance(Pt, DefiningPoints[1]),
 								FVector2D::Distance(Pt, DefiningPoints[2])
-								);
+							);
 						MinDistance = FMath::Min<float>
 							(
 								MinDistance,
 								FVector2D::Distance(Pt, DefiningPoints[3])
-								);
+							);
 					}
 
 					// if minimum distance is greater than UnitSize, we know there is at least one other point between the current point and the defining point, so we can remove the current point from the constraints
@@ -431,6 +542,66 @@ struct FTrackSegment
 				}
 			}
 		}
+
+		// for every remaining point, calculate the points elevation by interpolating the height of the triangle it is in
+		for (FVector& Point : PointsOnTrackSegment)
+		{
+			const FVector2D Point2D = FVector2D(Point.X, Point.Y);
+
+			//UE_LOG(LogTemp, Error, TEXT("Point is %s"), *Point2D.ToString());
+
+			if ((bIsFirstSegmentOnTrack || bIsLastSegmentOnTrack) && CheckPointLiesOnTileBorder(Point2D))
+			{
+				Point.Z = bIsFirstSegmentOnTrack ? BaseLineHeight : EndLineHeight;
+				//UE_LOG(LogTemp, Warning, TEXT("Point lies on border."));
+			}
+
+			else
+			{
+				// create Array that contains all possible elevations for the point: PossibleElevations
+				TArray<float> PossibleElevations;
+
+				// for each line segment: check if line segment intersects with one of the triangles edges (from point A to point B)(except base line and end line of the segment) (every time check all triangle edges)
+				CheckPointIntersectsWithTriangleEdges(Point, PossibleElevations);
+
+
+				// if (not IsFirstSegmentOnTrack) && slope of current track segment is greater than slope of previous
+				//float SlopeCurrentTrackSegment = EndLineHeight - BaseLineHeight;
+				//float SlopePreviousTrackSegment = BaseLineHeight - PreviousSegmentBaseElevation;
+				//if (!bIsFirstSegmentOnTrack && (SlopeCurrentTrackSegment > SlopePreviousTrackSegment))
+				//{
+				//	UE_LOG(LogTemp, Warning, TEXT("Slope of current track segment is higher than slope of previous track segment: %f > %f"), SlopeCurrentTrackSegment, SlopePreviousTrackSegment);
+				//	// check for each line segment if it intersects with the segment's base line
+				//	CheckPointIntersectsWithBaseLine(Point, PossibleElevations);
+
+				//}
+				CheckPointIntersectsWithBaseLineOrEndLine(Point, PossibleElevations);
+
+
+				// get the minimum elevation from PossibleElevations -> this (minus the offset) is the points final elevation
+				if (PossibleElevations.Num() > 0)
+				{
+					PossibleElevations.Sort();
+					//UE_LOG(LogTemp, Warning, TEXT("Found %i possible elevations: First entry is %f, last entry is %f"), PossibleElevations.Num(), PossibleElevations[0], PossibleElevations[PossibleElevations.Num() -1]);
+					Point.Z = PossibleElevations[0];
+				}
+				else
+				{
+					// the point lies inside one of the track segment's triangles, but is surrounded by other terrain vertices that lie in the same triangle
+					// in this case, we simply calculate the points elevation by interpolating his elevation in the triangle
+					//UE_LOG(LogTemp, Warning, TEXT("Could not find any possible elevation, interpolating in triangle where point lies"));
+
+					Point.Z = InterpolatePointElevationInTrackSegment(Point);
+
+				}
+			}
+			
+			// finally add elevation offset
+			Point.Z -= ElevationOffset;
+		}
+
+		//UE_LOG(LogTemp, Warning, TEXT("----------End of track segment----------"));
+
 		return;
 
 		// this yields bad results because the mesh resolution isn't high enough
@@ -464,6 +635,569 @@ struct FTrackSegment
 	}
 
 	/**
+	 * calculates the elevation of the given point inside one of the track segment's triangles
+	 * if the point does not lie in one of the triangles, it will get projected onto either [X0, X3] or [X1, X2] and this elevation is going to be used
+	 */
+	float InterpolatePointElevationInTrackSegment(const FVector Point)
+	{
+		/**
+		*			X3----------T1----------X2
+		*			| \			| \			|
+		*			|   \		|   \		|
+		*			|	  \		|     \		|
+		*			|	    \	|		\	|
+		*			|	      \ |		  \	|
+		*			X0----------T0----------X1
+		*
+		*/
+
+		const FVector X0 = FVector(DefiningPoints[0], 0.f);
+		const FVector X1 = FVector(DefiningPoints[1], 0.f);
+		const FVector X2 = FVector(DefiningPoints[2], 0.f);
+		const FVector X3 = FVector(DefiningPoints[3], 0.f);
+		const FVector T0 = FVector(TrackStartMiddlePoint.X, TrackStartMiddlePoint.Y, 0.f);
+		const FVector T1 = FVector(TrackEndMiddlePoint.X, TrackEndMiddlePoint.Y, 0.f);
+
+		// for each triangle, calculate barycentric coordinates and check if point lies within this triangle
+		FVector BaryCoords;
+		BaryCoords = FMath::ComputeBaryCentric2D(FVector(Point.X, Point.Y, 0.f), X0, T0, X3);
+		if (BaryCoords.X >= 0.f && BaryCoords.Y >= 0.f && BaryCoords.Z >= 0.f)
+		{
+			// point lies inside this triangle
+			return (BaryCoords.X * BaseLineHeight + BaryCoords.Y * BaseLineHeight + BaryCoords.Z * EndLineHeight);
+		}
+		else
+		{
+			BaryCoords = FMath::ComputeBaryCentric2D(FVector(Point.X, Point.Y, 0.f), T0, T1, X3);
+			if (BaryCoords.X >= 0.f && BaryCoords.Y >= 0.f && BaryCoords.Z >= 0.f)
+			{
+				// point lies inside this triangle
+				return (BaryCoords.X * BaseLineHeight + BaryCoords.Y * EndLineHeight + BaryCoords.Z * EndLineHeight);
+			}
+			else
+			{
+				BaryCoords = FMath::ComputeBaryCentric2D(FVector(Point.X, Point.Y, 0.f), T0, X1, T1);
+				if (BaryCoords.X >= 0.f && BaryCoords.Y >= 0.f && BaryCoords.Z >= 0.f)
+				{
+					// point lies inside this triangle
+					return (BaryCoords.X * BaseLineHeight + BaryCoords.Y * BaseLineHeight + BaryCoords.Z * EndLineHeight);
+				}
+				else
+				{
+					BaryCoords = FMath::ComputeBaryCentric2D(FVector(Point.X, Point.Y, 0.f), X1, X2, T1);
+					if (BaryCoords.X >= 0.f && BaryCoords.Y >= 0.f && BaryCoords.Z >= 0.f)
+					{
+						// point lies inside this triangle
+						return (BaryCoords.X * BaseLineHeight + BaryCoords.Y * EndLineHeight + BaryCoords.Z * EndLineHeight);
+					}
+					else
+					{
+						// point does not lie within any of these triangles -> project it into the nearest
+						FVector Projection_X0X3 = FMath::ClosestPointOnSegment(Point, X0, X3);
+						FVector Projection_X1X2 = FMath::ClosestPointOnSegment(Point, X1, X2);
+
+						if (FVector::Distance(Point, Projection_X0X3) <= FVector::Distance(Point, Projection_X1X2))
+						{
+							return InterpolateElevationOnLineSegment(FVector2D(Projection_X0X3.X, Projection_X0X3.Y), FVector(X0.X, X0.Y, BaseLineHeight), FVector(X3.X, X3.Y, EndLineHeight));
+						}
+						else
+						{
+							return InterpolateElevationOnLineSegment(FVector2D(Projection_X1X2.X, Projection_X1X2.Y), FVector(X1.X, X1.Y, BaseLineHeight), FVector(X2.X, X2.Y, EndLineHeight));
+						}
+					}
+				}
+			}
+		}
+
+		return 0.f;
+		
+	}
+
+	/**
+	 * checks if all line segments with the given point as start point and UnitSize-1 in all directions as end point intersect with the base line (not the segment of it!)
+	 * if they intersect, the base line height will added to the given array as one possible elevation
+	 */
+	void CheckPointIntersectsWithBaseLineOrEndLine(const FVector Point, TArray<float>& OUTElevationOfIntersectionPoints)
+	{
+		/**
+		*			X3----------T1----------X2
+		*			| \			| \			|
+		*			|   \		|   \		|
+		*			|	  \		|     \		|
+		*			|	    \	|		\	|
+		*			|	      \ |		  \	|
+		*			X0----------T0----------X1
+		*
+		*/
+
+
+		const FVector X0 = FVector(DefiningPoints[0], 0.f);
+		const FVector X1 = FVector(DefiningPoints[1], 0.f);
+		const FVector X2 = FVector(DefiningPoints[2], 0.f);
+		const FVector X3 = FVector(DefiningPoints[3], 0.f);
+		/*const float DistanceToBaseLine = FMath::PointDistToLine(FVector(Point.X, Point.Y, 0.f), X0, X1 - X0);*/
+		const float DistanceToBaseLine = FMath::PointDistToSegment(FVector(Point.X, Point.Y, 0.f), X0, X1);
+		const float DistanceToEndLine = FMath::PointDistToSegment(FVector(Point.X, Point.Y, 0.f), X3, X2);
+		//UE_LOG(LogTemp, Warning, TEXT("Distance to BaseLine is %f, MeshQuadDiameter is %f"), DistanceToBaseLine, MeshQuadDiameter);
+
+		if (DistanceToBaseLine < MeshQuadDiameter)
+		{
+			if (DistanceToBaseLine < (UnitSize / 2.f))
+			{
+				// tries to fix little artefacts when the point is in immediate vicinity of the base line
+				OUTElevationOfIntersectionPoints.Add(BaseLineHeight - 5.f);
+			}
+			else
+			{
+				//UE_LOG(LogTemp, Warning, TEXT("Point intersects with Base Line"));
+				OUTElevationOfIntersectionPoints.Add(BaseLineHeight);
+			}
+		}
+		if (DistanceToEndLine < MeshQuadDiameter)
+		{
+			if (DistanceToEndLine < (UnitSize / 2.f))
+			{
+				// tries to fix little artefacts when the point is in immediate vicinity of the end line
+				OUTElevationOfIntersectionPoints.Add(EndLineHeight - 5.f);
+			}
+			else
+			{
+				//UE_LOG(LogTemp, Warning, TEXT("Point intersects with End Line"));
+				OUTElevationOfIntersectionPoints.Add(EndLineHeight);
+			}
+		}
+
+		//const FVector X0 = FVector(DefiningPoints[0], BaseLineHeight);
+		//const FVector X1 = FVector(DefiningPoints[1], BaseLineHeight);
+
+		//const FVector LineSegmentUp = Point + FVector(UnitSize - 1, 0.f, 0.f);
+		//const FVector LineSegmentRight = Point + FVector(0.f, UnitSize - 1, 0.f);
+		//const FVector LineSegmentDown = Point - FVector(UnitSize - 1, 0.f, 0.f);
+		//const FVector LineSegmentLeft = Point - FVector(0.f, UnitSize - 1, 0.f);
+
+		//FVector IntersectionPoint;
+
+		//UE_LOG(LogTemp, Warning, TEXT("Checking if point intersects with base line:... "));
+
+		//// Up
+		//if (CheckLineLineSegmentIntersection(X0, X1, Point, LineSegmentUp, IntersectionPoint))
+		//{
+		//	UE_LOG(LogTemp, Warning, TEXT("Intersects in Up direction!"));
+		//	OUTElevationOfIntersectionPoints.Add(IntersectionPoint.Z);
+		//}
+		//// Right
+		//if (CheckLineLineSegmentIntersection(X0, X1, Point, LineSegmentRight, IntersectionPoint))
+		//{
+		//	UE_LOG(LogTemp, Warning, TEXT("Intersects in Right direction!"));
+		//	OUTElevationOfIntersectionPoints.Add(IntersectionPoint.Z);
+		//}
+		//// Down
+		//if (CheckLineLineSegmentIntersection(X0, X1, Point, LineSegmentDown, IntersectionPoint))
+		//{
+		//	UE_LOG(LogTemp, Warning, TEXT("Intersects in Down direction!"));
+		//	OUTElevationOfIntersectionPoints.Add(IntersectionPoint.Z);
+		//}
+		//// Left
+		//if (CheckLineLineSegmentIntersection(X0, X1, Point, LineSegmentLeft, IntersectionPoint))
+		//{
+		//	UE_LOG(LogTemp, Warning, TEXT("Intersects in Left direction!"));
+		//	OUTElevationOfIntersectionPoints.Add(IntersectionPoint.Z);
+		//}
+
+		/*if (CalculateLineSegmentsIntersectionPoint(Point, LineSegmentUp, FVector2D(X0.X, X0.Y), FVector2D(X1.X, X1.Y), IntersectionPoint, false))
+		{
+			UE_LOG(LogTemp, Warning, TEXT("Intersects in Up direction!"));
+			OUTElevationOfIntersectionPoints.Add(BaseLineHeight);
+			return;
+		}
+		if (CalculateLineSegmentsIntersectionPoint(Point, LineSegmentRight, FVector2D(X0.X, X0.Y), FVector2D(X1.X, X1.Y), IntersectionPoint, false))
+		{
+			UE_LOG(LogTemp, Warning, TEXT("Intersects in Right direction!"));
+			OUTElevationOfIntersectionPoints.Add(BaseLineHeight);
+			return;
+		}
+		if (CalculateLineSegmentsIntersectionPoint(Point, LineSegmentDown, FVector2D(X0.X, X0.Y), FVector2D(X1.X, X1.Y), IntersectionPoint, false))
+		{
+			UE_LOG(LogTemp, Warning, TEXT("Intersects in Down direction!"));
+			OUTElevationOfIntersectionPoints.Add(BaseLineHeight);
+			return;
+		}
+		if (CalculateLineSegmentsIntersectionPoint(Point, LineSegmentLeft, FVector2D(X0.X, X0.Y), FVector2D(X1.X, X1.Y), IntersectionPoint, false))
+		{
+			UE_LOG(LogTemp, Warning, TEXT("Intersects in Left direction!"));
+			OUTElevationOfIntersectionPoints.Add(BaseLineHeight);
+			return;
+		}*/
+		//UE_LOG(LogTemp, Warning, TEXT("Did not intersect"));
+		return;
+	}
+
+	/**
+	 * checks if the given line segment intersects with the given line
+	 * code copied from unreals https://api.unrealengine.com/INT/API/Runtime/Core/Math/FMath/SegmentIntersection2D/index.html and modified to ignore interval check for first line segment
+	 */
+	bool CheckLineLineSegmentIntersection(const FVector& SegmentStartA, const FVector& SegmentEndA, const FVector& SegmentStartB, const FVector& SegmentEndB, FVector& out_IntersectionPoint)
+	{
+		const FVector VectorA = SegmentEndA - SegmentStartA;
+		const FVector VectorB = SegmentEndB - SegmentStartB;
+
+		const float S = (-VectorA.Y * (SegmentStartA.X - SegmentStartB.X) + VectorA.X * (SegmentStartA.Y - SegmentStartB.Y)) / (-VectorB.X * VectorA.Y + VectorA.X * VectorB.Y);
+		const float T = (VectorB.X * (SegmentStartA.Y - SegmentStartB.Y) - VectorB.Y * (SegmentStartA.X - SegmentStartB.X)) / (-VectorB.X * VectorA.Y + VectorA.X * VectorB.Y);
+
+		const bool bIntersects = (S >= 0 && S <= 1 /*&& T >= 0 && T <= 1*/);
+
+		if (bIntersects)
+		{
+			out_IntersectionPoint.X = SegmentStartA.X + (T * VectorA.X);
+			out_IntersectionPoint.Y = SegmentStartA.Y + (T * VectorA.Y);
+			out_IntersectionPoint.Z = SegmentStartA.Z + (T * VectorA.Z);
+		}
+
+		return bIntersects;
+	}
+
+	/**
+	 * checks if all line segments with the given point as start point and UnitSize-1 in all directions as end point intersect with a triangle edge
+	 * if they intersect, their intersection point is calculated and it's elevation linearly interpolated on the edge
+	 * the resulting elevation is added to the provided array
+	 */
+	void CheckPointIntersectsWithTriangleEdges(const FVector Point, TArray<float>& OUTElevationOfIntersectionPoints)
+	{
+		/**
+		*			X3----------T1----------X2
+		*			| \			| \			|
+		*			|   \		|   \		|
+		*			|	  \		|     \		|
+		*			|	    \	|		\	|
+		*			|	      \ |		  \	|
+		*			X0----------T0----------X1
+		*
+		*/
+
+		const FVector X0 = FVector(DefiningPoints[0], BaseLineHeight);
+		const FVector X1 = FVector(DefiningPoints[1], BaseLineHeight);
+		const FVector X2 = FVector(DefiningPoints[2], EndLineHeight);
+		const FVector X3 = FVector(DefiningPoints[3], EndLineHeight);
+		const FVector T0 = FVector(TrackStartMiddlePoint.X, TrackStartMiddlePoint.Y, BaseLineHeight);
+		const FVector T1 = FVector(TrackEndMiddlePoint.X, TrackEndMiddlePoint.Y, EndLineHeight);
+
+		// add all edges in array
+		TArray<FLineSegment> TriangleEdges;
+		TriangleEdges.Add(FLineSegment(X0, X3));
+		TriangleEdges.Add(FLineSegment(T0, X3));
+		TriangleEdges.Add(FLineSegment(T0, T1));
+		TriangleEdges.Add(FLineSegment(X1, T1));
+		TriangleEdges.Add(FLineSegment(X1, X2));
+
+		FVector2D IntersectionPoint;
+
+		// iterate over all edges and check all points for them
+		/*for (const FLineSegment Edge : TriangleEdges)
+		{
+			CheckPointLineSegmentsIntersectWithGivenSegment(Point, Edge.SegmentStartPoint, Edge.SegmentEndPoint, OUTElevationOfIntersectionPoints);
+		}*/
+		for (int32 i = 0; i < TriangleEdges.Num(); ++i)
+		{
+			/*switch (i)
+			{
+			case 0:
+				UE_LOG(LogTemp, Warning, TEXT("Checking intersection with line segment [X0, X3]"));
+				break;
+			case 1:
+				UE_LOG(LogTemp, Warning, TEXT("Checking intersection with line segment [T0, X3]"));
+				break;
+			case 2:
+				UE_LOG(LogTemp, Warning, TEXT("Checking intersection with line segment [T0, T1]"));
+				break;
+			case 3:
+				UE_LOG(LogTemp, Warning, TEXT("Checking intersection with line segment [X1, T1]"));
+				break;
+			case 4:
+				UE_LOG(LogTemp, Warning, TEXT("Checking intersection with line segment [X1, X2]"));
+				break;
+			}*/
+
+			CheckPointLineSegmentsIntersectWithGivenSegment(Point, TriangleEdges[i].SegmentStartPoint, TriangleEdges[i].SegmentEndPoint, OUTElevationOfIntersectionPoints);
+		}
+
+
+	}
+
+	/**
+	 * for a given point, checks his line segment intersections in all directions with the given line segment
+	 * @param Point The given Point
+	 * @param PointA Start point of the line segment to check for intersections
+	 * @param PointB End point of the line segment to check for intersections
+	 * @param OUTElevations Array to which all interpolated elevations of intersection points will be added
+	 */
+	void CheckPointLineSegmentsIntersectWithGivenSegment(const FVector Point, const FVector PointA, const FVector PointB, TArray<float>& OUTElevations)
+	{
+		// build line segment in each direction (X/Y coordinate + - (UnitSize - 1))
+		const FVector LineSegmentUp = Point + FVector(UnitSize - 1.f, 0.f, 0.f);
+		const FVector LineSegmentRight = Point + FVector(0.f, UnitSize - 1.f, 0.f);
+		const FVector LineSegmentDown = Point - FVector(UnitSize - 1.f, 0.f, 0.f);
+		const FVector LineSegmentLeft = Point - FVector(0.f, UnitSize - 1.f, 0.f);
+
+		FVector IntersectionPoint;
+
+		// Up direction
+		if (FMath::SegmentIntersection2D(PointA, PointB, Point, LineSegmentUp, IntersectionPoint))
+		{
+			//UE_LOG(LogTemp, Warning, TEXT("Intersects in Up direction!"));
+			OUTElevations.Add(IntersectionPoint.Z);
+		}
+		// Right direction
+		if (FMath::SegmentIntersection2D(PointA, PointB, Point, LineSegmentRight, IntersectionPoint))
+		{
+			//UE_LOG(LogTemp, Warning, TEXT("Intersects in Right direction!"));
+			OUTElevations.Add(IntersectionPoint.Z);
+		}
+		// Down direction
+		if (FMath::SegmentIntersection2D(PointA, PointB, Point, LineSegmentDown, IntersectionPoint))
+		{
+			//UE_LOG(LogTemp, Warning, TEXT("Intersects in Down direction!"));
+			OUTElevations.Add(IntersectionPoint.Z);
+		}
+		// Left direction
+		if (FMath::SegmentIntersection2D(PointA, PointB, Point, LineSegmentLeft, IntersectionPoint))
+		{
+			//UE_LOG(LogTemp, Warning, TEXT("Intersects in Left direction!"));
+			OUTElevations.Add(IntersectionPoint.Z);
+		}
+
+		// own implementation
+
+		//// Up direction
+		//if (CalculateLineSegmentsIntersectionPoint(Point, LineSegmentUp, FVector2D(PointA.X, PointA.Y), FVector2D(PointB.X, PointB.Y), IntersectionPoint))
+		//{
+		//	UE_LOG(LogTemp, Warning, TEXT("Intersects in Up direction!"));
+		//	OUTElevations.Add(InterpolateElevationOnLineSegment(IntersectionPoint, PointA, PointB));
+		//}
+
+		//// Right direction
+		//if (CalculateLineSegmentsIntersectionPoint(Point, LineSegmentRight, FVector2D(PointA.X, PointA.Y), FVector2D(PointB.X, PointB.Y), IntersectionPoint))
+		//{
+		//	UE_LOG(LogTemp, Warning, TEXT("Intersects in Right direction!"));
+		//	OUTElevations.Add(InterpolateElevationOnLineSegment(IntersectionPoint, PointA, PointB));
+		//}
+
+		//// Down direction
+		//if (CalculateLineSegmentsIntersectionPoint(Point, LineSegmentDown, FVector2D(PointA.X, PointA.Y), FVector2D(PointB.X, PointB.Y), IntersectionPoint))
+		//{
+		//	UE_LOG(LogTemp, Warning, TEXT("Intersects in Down direction!"));
+		//	OUTElevations.Add(InterpolateElevationOnLineSegment(IntersectionPoint, PointA, PointB));
+		//}
+
+		//// Left direction
+		//if (CalculateLineSegmentsIntersectionPoint(Point, LineSegmentLeft, FVector2D(PointA.X, PointA.Y), FVector2D(PointB.X, PointB.Y), IntersectionPoint))
+		//{
+		//	UE_LOG(LogTemp, Warning, TEXT("Intersects in Left direction!"));
+		//	OUTElevations.Add(InterpolateElevationOnLineSegment(IntersectionPoint, PointA, PointB));
+		//}
+
+		return;
+	}
+
+	/**
+	 * returns the three points of the triangle the given point lies in
+	 * if the given point does not lie within a triangle, it get's projected into the nearest one and OUTPoint contains the projected point's X and Y coordinates
+	 * @param OUTPoint The point for which the triangle should be determined
+	 * @param OUTPointA First point of the triangle the point lies inside
+	 * @param OUTPointB Second point of the triangle the point lies inside
+	 * @param OUTPointC Third point of the triangle the point lies inside
+	 */
+	void DetermineTrianglePointLiesIn(FVector2D& OUTPoint, FVector& OUTPointA, FVector& OUTPointB, FVector& OUTPointC)
+	{
+		FVector2D X0 = DefiningPoints[0];
+		FVector2D X1 = DefiningPoints[1];
+		FVector2D X2 = DefiningPoints[2];
+		FVector2D X3 = DefiningPoints[3];
+		FVector2D T0 = FVector2D(TrackStartMiddlePoint.X, TrackStartMiddlePoint.Y);
+		FVector2D T1 = FVector2D(TrackEndMiddlePoint.X, TrackEndMiddlePoint.Y);
+
+		//UE_LOG(LogTemp, Warning, TEXT("Point %s"), *OUTPoint.ToString());
+
+		/**
+		 *			X3----------T1----------X2
+		 *			| \			| \			|
+		 *			|   \		|   \		|
+		 *			|	  \		|     \		|
+		 *			|	    \	|		\	|
+		 *			|	      \ |		  \	|
+		 *			X0----------T0----------X1
+		 *
+		 */
+
+		// first check the two inmost triangles [ (T0 T1 X3) and (T0 X1 T1) ]
+		if (CheckPointInsideTriangle(OUTPoint, T0, T1, X3))
+		{
+			/*if (bIsLastSegmentOnTrack || bIsFirstSegmentOnTrack)
+				UE_LOG(LogTemp, Warning, TEXT("lies in triangle (T0 T1 X3)"));*/
+			OUTPointA = FVector(T0, BaseLineHeight);
+			OUTPointB = FVector(T1, EndLineHeight);
+			OUTPointC = FVector(X3, EndLineHeight);
+			return;
+		}
+		if (CheckPointInsideTriangle(OUTPoint, T0, X1, T1))
+		{
+			/*if (bIsLastSegmentOnTrack || bIsFirstSegmentOnTrack)
+				UE_LOG(LogTemp, Warning, TEXT("lies in triangle (T0 X1 T1)"));*/
+			OUTPointA = FVector(T0, BaseLineHeight);
+			OUTPointB = FVector(X1, BaseLineHeight);
+			OUTPointC = FVector(T1, EndLineHeight);
+			return;
+		}
+		
+		// the two outmost triangles
+		if (CheckPointInsideTriangle(OUTPoint, X0, T0, X3))
+		{
+			/*if (bIsLastSegmentOnTrack || bIsFirstSegmentOnTrack)
+				UE_LOG(LogTemp, Warning, TEXT("lies in triangle (X0 T0 X3)"));*/
+			OUTPointA = FVector(X0, BaseLineHeight);
+			OUTPointB = FVector(T0, BaseLineHeight);
+			OUTPointC = FVector(X3, EndLineHeight);
+			return;
+		}
+		if (CheckPointInsideTriangle(OUTPoint, X1, X2, T1))
+		{
+			/*if (bIsLastSegmentOnTrack || bIsFirstSegmentOnTrack)
+				UE_LOG(LogTemp, Warning, TEXT("lies in triangle (X1 X2 T1)"));*/
+			OUTPointA = FVector(X1, BaseLineHeight);
+			OUTPointB = FVector(X2, EndLineHeight);
+			OUTPointC = FVector(T1, EndLineHeight);
+			return;
+		}
+		else
+		{
+			// point lies outside of a triangle -> project point onto X0X3 and X1X2 and use that projection, whose distance to the original point is smallest
+
+			// don't project point if it lies on one of the tile's borders (this would lead to erroneous elevation values)
+			if ((bIsFirstSegmentOnTrack || bIsLastSegmentOnTrack) && CheckPointLiesOnTileBorder(OUTPoint))
+			{
+				// use the elevation of the nearest track point(X0 X1 X2 X3) instead
+				TArray<FVector2D> TrackPoints;
+				TrackPoints.Add(X0);
+				TrackPoints.Add(X1);
+				TrackPoints.Add(X2);
+				TrackPoints.Add(X3);
+				OUTPoint = GetClosestPoint(OUTPoint, TrackPoints);
+				if (!TrackPoints.Contains(X0) || !TrackPoints.Contains(X1))
+				{
+					OUTPointA = FVector(OUTPoint, BaseLineHeight);
+				}
+				else
+				{
+					OUTPointA = FVector(OUTPoint, EndLineHeight);
+				}
+				OUTPointB = FVector(TrackPoints[0], 0.f);
+				OUTPointC = FVector(TrackPoints[1], 0.f);
+				return;
+			}
+			else
+			{
+				FVector2D Projection_Point_X0X3 = ProjectPointOnLineSegment(OUTPoint, X0, X3);
+				FVector2D Projection_Point_X1X2 = ProjectPointOnLineSegment(OUTPoint, X1, X2);
+
+				if (FVector2D::Distance(OUTPoint, Projection_Point_X0X3) <= FVector2D::Distance(OUTPoint, Projection_Point_X1X2))
+				{
+					/*if (bIsLastSegmentOnTrack || bIsFirstSegmentOnTrack)
+						UE_LOG(LogTemp, Warning, TEXT("does NOT lie inside a triangle. Projecting into (X0 T0 X3)"));*/
+					OUTPoint = Projection_Point_X0X3;
+					OUTPointA = FVector(X0, BaseLineHeight);
+					OUTPointB = FVector(T0, BaseLineHeight);
+					OUTPointC = FVector(X3, EndLineHeight);
+					return;
+				}
+				else
+				{
+					/*if (bIsLastSegmentOnTrack || bIsFirstSegmentOnTrack)
+						UE_LOG(LogTemp, Warning, TEXT("does NOT lie inside a triangle. Projecting into (X1 X2 T1)"));*/
+					OUTPoint = Projection_Point_X1X2;
+					OUTPointA = FVector(X1, BaseLineHeight);
+					OUTPointB = FVector(X2, EndLineHeight);
+					OUTPointC = FVector(T1, EndLineHeight);
+					return;
+				}
+			}
+		}
+
+	}
+
+	/**
+	 * checks which of the provided points is closest to the given point
+	 * after execution OUTPointsToCheck does not contain the closest point anymore
+	 * @param OriginalPoint The base point to calculate distances for
+	 * @param OUTPointsToCheck Array containing all points to calculate distances to
+	 * @return Point that is closest to given point
+	 */
+	FVector2D GetClosestPoint(const FVector2D OriginalPoint, TArray<FVector2D>& OUTPointsToCheck)
+	{
+		FVector2D CurrentClosestPoint;
+		float CurrentMinimumDistance = TNumericLimits<float>::Max();
+		for (const FVector2D Point : OUTPointsToCheck)
+		{
+			float Distance = FVector2D::Distance(OriginalPoint, Point);
+			if (Distance < CurrentMinimumDistance)
+			{
+				CurrentMinimumDistance = Distance;
+				CurrentClosestPoint = Point;
+			}
+		}
+		OUTPointsToCheck.Remove(CurrentClosestPoint);
+		return CurrentClosestPoint;
+	}
+
+	/**
+	 * checks if the given point lies on a tile border
+	 * @param Point The point to check
+	 * @return True if the point lies on a border of the tile, false otherwise
+	 */
+	bool CheckPointLiesOnTileBorder(const FVector2D Point)
+	{
+		if (FMath::IsNearlyZero(Point.X) || FMath::IsNearlyZero(Point.Y) || FMath::IsNearlyEqual(Point.X, TileEdgeSize) || FMath::IsNearlyEqual(Point.Y, TileEdgeSize))
+		{
+			return true;
+		}
+		else
+		{
+			return false;
+		}
+	}
+
+
+	/**
+	 * checks whether the given point lies within the triangle given by the three points
+	 * @param Point The point to check
+	 * @param A Triangle point 1
+	 * @param B Triangle point 2
+	 * @param C Triangle point 3
+	 * @return True if the point lies within the triangle, false otherwise
+	 */
+	bool CheckPointInsideTriangle(const FVector2D Point, const FVector2D A, const FVector2D B, const FVector2D C)
+	{
+		FVector2D AB = B - A;
+		FVector2D BC = C - B;
+		FVector2D CA = A - C;
+
+		FVector2D APoint = Point - A;
+		FVector2D BPoint = Point - B;
+		FVector2D CPoint = Point - C;
+
+		double detA = FVector2D::CrossProduct(AB, APoint);
+		double detB = FVector2D::CrossProduct(BC, BPoint);
+		double detC = FVector2D::CrossProduct(CA, CPoint);
+
+		if ((detA <= 0 && detB <= 0 && detC <= 0) || (detA >= 0 && detB >= 0 && detC >= 0))
+		{
+			return true;
+		}
+		else
+		{
+			return false;
+		}
+	}
+
+	/**
 	 * ! For internal use only !
 	 * linearly interpolates the given points elevation
 	 */
@@ -479,6 +1213,62 @@ struct FTrackSegment
 		float Alpha = DistanceToBaseLine / (DistanceToBaseLine + DistanceToEndLine);
 
 		return (FMath::Lerp<float, float>(BaseLineHeight, EndLineHeight, Alpha) - ElevationOffset);
+	}
+
+	FVector2D ProjectPointOnLineSegment(const FVector2D Point, const FVector2D LineStartPoint, const FVector2D LineEndPoint)
+	{
+		const float L2 = FVector2D::DistSquared(LineStartPoint, LineEndPoint);
+		if (FMath::IsNearlyZero(L2))
+		{
+			return LineStartPoint;
+		}
+		const float t = FMath::Max<float>(0.f, FMath::Min<float>(1.f, FVector2D::DotProduct(Point - LineStartPoint, LineEndPoint - LineStartPoint) / L2));
+
+		return (LineStartPoint + t * (LineEndPoint - LineStartPoint));
+	}
+
+
+	float InterpolatePointElevationTriangle(const FVector2D Point, const FVector PointA, const FVector PointB, const FVector PointC)
+	{
+		// barycentric point weights
+		double W_A = 0.;
+		double W_B = 0.;
+		double W_C = 0.;
+
+		double Denominator = (PointB.Y - PointC.Y) * (PointA.X - PointC.X) + (PointC.X - PointB.X) * (PointA.Y - PointC.Y);
+
+		W_A = ((PointB.Y - PointC.Y) * (Point.X - PointC.X) + (PointC.X - PointB.X) * (Point.Y - PointC.Y)) / Denominator;
+
+		W_B = ((PointC.Y - PointA.Y) * (Point.X - PointC.X) + (PointA.X - PointC.X) * (Point.Y - PointC.Y)) / Denominator;
+
+		W_C = 1 - W_A - W_B;
+
+		return (W_A * PointA.Z + W_B * PointB.Z + W_C * PointC.Z) - ElevationOffset;
+
+	}
+
+	/**
+	 * interpolates the elevation of the given point on the line segment given by two points
+	 * it is assumed the given point lies on the given line segment
+	 */
+	float InterpolateElevationOnLineSegment(const FVector2D PointToInterpolate, const FVector PointA, const FVector PointB)
+	{
+		const FVector2D A = FVector2D(PointA.X, PointA.Y);
+		const FVector2D B = FVector2D(PointB.X, PointB.Y);
+		const float LineSegmentLength = FVector2D::Distance(A, B);
+
+		if (LineSegmentLength == 0.f)
+		{
+			return PointA.Z;
+		}
+
+		const float DistancePointToA = FVector2D::Distance(PointToInterpolate, A);
+		const float DistancePointToB = FVector2D::Distance(PointToInterpolate, B);
+
+		const float ShareA = 1 - (DistancePointToA / LineSegmentLength);
+		const float ShareB = 1 - (DistancePointToB / LineSegmentLength);
+		return (ShareA * PointA.Z + ShareB * PointB.Z);
+		
 	}
 
 	/**
@@ -524,6 +1314,78 @@ struct FTrackSegment
 			return 0.f;
 		}
 		return Numerator / Denominator;
+	}
+
+	/**
+	 * calculates the intersection point of two line segments, given by their respective start and end points
+	 * @param PointA Starting point of line segment 1
+	 * @param PointB End point of line segment 1
+	 * @param PointC Starting point of line segment 2
+	 * @param PointD End point of line segment 2
+	 * @param OUTIntersectionPoint Variable that will contain the intersection point after the function finished
+	 * @param SecondLineIsSegment If the line defined by PointC and PointD should be regarded as a line segment (will be regarded as line if value is false)
+	 * @return true if an intersection point could be found, false if the two line segments do not intersect
+	 */
+	bool CalculateLineSegmentsIntersectionPoint(const FVector2D PointA, const FVector2D PointB, const FVector2D PointC, const FVector2D PointD, FVector2D& OUTIntersectionPoint, bool SecondLineIsSegment = true)
+	{
+		// nice derivation of the solution: http://www.cs.swan.ac.uk/~cssimon/line_intersection.html
+
+		// line segment 1 defined as line: PointA + t * (PointB - PointA) with 0 <= t <= 1
+		// line segment 2 defined as line: PointC + u * (PointD - PointC) with 0 <= u <= 1
+
+		const float Denominator = (PointD.X - PointC.X) * (PointA.Y - PointB.Y) - (PointA.X - PointB.X) * (PointD.Y - PointC.Y);
+
+		// check if lines are colinear
+		if (Denominator == 0.f)
+		{
+			// the two line segments either do not intersect at all or intersecting with multiple points
+			// in theory, we would need to check if they intersect with multiple points and calculate the intersection point somehow from this subset
+			// but since we will also check a line segment from PointA that is perpendicular to the current line segment, we will get this one intersection point nonetheless, so we can return false at this point
+			return false;
+		}
+
+		// calculate the respective parameters t and u
+		const float t = (PointC.Y - PointD.Y) * (PointA.X - PointC.X) + (PointD.X - PointC.X) * (PointA.Y - PointC.Y) / Denominator;
+		const float u = (PointA.Y - PointB.Y) * (PointA.X - PointC.X) + (PointB.X - PointA.X) * (PointA.Y - PointC.Y) / Denominator;
+
+		// check if lines intersect, but not in interval given by the segment
+		if (t < 0.f || t > 1.f || u < 0.f || u > 1.f)
+		{
+			// if second line should be regarded as a line but not a line segment, we only need to check the value of t
+			if (!SecondLineIsSegment)
+			{
+				if (t >= 0.f && t <= 1.f)
+				{
+					OUTIntersectionPoint = PointA + t * (PointB - PointA);
+					return true;
+				}
+				else
+				{
+					// this case will likely not happen because line segment [PointA, PointB] would need to be colinear to line (PointC, PointD) which would be catched by an earlier statement
+					return false;
+				}
+			}
+			else
+			{
+				return false;
+			}
+
+			// no segment intersection
+			return false;
+		}
+
+		// we now know the segments intersect, so calculate the intersection point
+		if (t >= 0.f && t <= 1.f && u >= 0.f && u <= 1.f)
+		{
+			OUTIntersectionPoint = PointA + t * (PointB - PointA);
+			return true;
+		}
+		else
+		{
+			// unknown error
+			UE_LOG(LogTemp, Error, TEXT("Unknown error in CalculateLineSegmentsIntersectionPoint in MyStaticLibrary!"));
+			return false;
+		}
 	}
 };
 
@@ -1169,6 +2031,106 @@ public:
 		}
 
 		return TraverseLength;
+	}
+
+	/**
+	 * calculates the intersection point of two lines, each line is represented by two points that lie on it
+	 * code taken from https://www.geeksforgeeks.org/program-for-point-of-intersection-of-two-lines/
+	 * @param PointA First point that lies on line 1
+	 * @param PointB Second point that lies on line 1
+	 * @param PointC First point that lies on line 2
+	 * @param PointC Second point that lies on line 2
+	 * @param OUTIntersectionPoint The intersection point of the two lines
+	 * @return If an intersection point could be calculated or not
+	 */
+	static bool CalculateIntersectionPoint(const FVector PointA, const FVector PointB, const FVector PointC, const FVector PointD, FVector2D& OUTIntersectionPoint)
+	{
+		// line AB represented as a1X + b1Y = c1
+		double a1 = PointB.Y - PointA.Y;
+		double b1 = PointA.X - PointB.X;
+		double c1 = a1 * PointA.X + b1 * PointA.Y;
+
+		// line CD represented as a2X + b2Y = c2
+		double a2 = PointD.Y - PointC.Y;
+		double b2 = PointC.X - PointD.X;
+		double c2 = a2 * PointC.X + b2 * PointC.Y;
+
+		double det = a1 * b2 - a2 * b1;
+
+		if (FMath::IsNearlyZero(det))
+		{
+			return false;
+		}
+		else
+		{
+			OUTIntersectionPoint.X = (b2 * c1 - b1 * c2) / det;
+			OUTIntersectionPoint.Y = (a1 * c2 - a2 * c1) / det;
+			return true;
+		}
+	}
+
+	/**
+	* calculates the intersection point of two lines, each line is represented by two points that lie on it
+	* code taken from https://www.geeksforgeeks.org/program-for-point-of-intersection-of-two-lines/
+	* @param PointA First point that lies on line 1
+	* @param PointB Second point that lies on line 1
+	* @param PointC First point that lies on line 2
+	* @param PointC Second point that lies on line 2
+	* @param OUTIntersectionPoint The intersection point of the two lines
+	* @return If an intersection point could be calculated or not
+	*/
+	static bool CalculateIntersectionPoint(const FVector2D PointA, const FVector2D PointB, const FVector2D PointC, const FVector2D PointD, FVector2D& OUTIntersectionPoint)
+	{
+		// line AB represented as a1X + b1Y = c1
+		double a1 = PointB.Y - PointA.Y;
+		double b1 = PointA.X - PointB.X;
+		double c1 = a1 * PointA.X + b1 * PointA.Y;
+
+		// line CD represented as a2X + b2Y = c2
+		double a2 = PointD.Y - PointC.Y;
+		double b2 = PointC.X - PointD.X;
+		double c2 = a2 * PointC.X + b2 * PointC.Y;
+
+		double det = a1 * b2 - a2 * b1;
+
+		if (FMath::IsNearlyZero(det))
+		{
+			return false;
+		}
+		else
+		{
+			OUTIntersectionPoint.X = (b2 * c1 - b1 * c2) / det;
+			OUTIntersectionPoint.Y = (a1 * c2 - a2 * c1) / det;
+			return true;
+		}
+	}
+
+	static ETileBorder GuessTileBorder(const FVector PointOnBorder, float TileSize)
+	{
+		// bottom?
+		if (PointOnBorder.X < (0.25 * TileSize) && PointOnBorder.Y >(0.25 * TileSize) && PointOnBorder.Y < (0.75 * TileSize))
+		{
+			return ETileBorder::ETB_Bottom;
+		}
+		// right?
+		else if (PointOnBorder.X < (0.75 * TileSize) && PointOnBorder.X >(0.25 * TileSize) && PointOnBorder.Y >(0.75 * TileSize))
+		{
+			return ETileBorder::ETB_Right;
+		}
+		// top?
+		else if (PointOnBorder.X > (0.75 * TileSize) && PointOnBorder.Y > (0.25 * TileSize) && PointOnBorder.Y < (0.75 * TileSize))
+		{
+			return ETileBorder::ETB_Top;
+		}
+		// left?
+		else if (PointOnBorder.X >(0.25 * TileSize) && PointOnBorder.X < (0.75 * TileSize) && PointOnBorder.Y < (0.25 * TileSize))
+		{
+			return ETileBorder::ETB_Left;
+		}
+		else
+		{
+			return ETileBorder::ETB_Invalid;
+		}
 	}
 
 
