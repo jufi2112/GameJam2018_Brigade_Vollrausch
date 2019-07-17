@@ -11,6 +11,8 @@ Since it is possible that we further develop this game, the master branch can ha
 The game engine used is Unreal Engine (version 4.20.3) with Visual Studio 17 Community.
 If you only want to play the game, have a look at the release section beneath.
 
+A short paper about the functionality of the proceduraly generated level (in german) can  be found [here](/documents/Paper.pdf)
+
 ## Releases (64bit Windows only)
 
 * Original GameJam 2018 Release (v1.0) can be found [here (Google Drive)](https://drive.google.com/open?id=1xaCFgmvTVFYarPaAazB66IhzeeU28YhF)
