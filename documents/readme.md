@@ -1,5 +1,7 @@
+## Overview
+
 ### Planned Main Features
-- procedural, parameter driven track generation (different difficulties)
+- procedural, parameter driven track generation (different difficulties) :heavy_check_mark:
 - more appealing / demanding drive physics / features (e.g. drifting)
 
 ### Possible Side Features
@@ -8,6 +10,7 @@
 
 ### Current State
 - two static maps
+- procedurally generated map
 - simple ai that follows waypoints on a straight line
 - simple hoverblock with questionable physics
 - round timers are observed but not printed
@@ -21,9 +24,9 @@
 - if ai is upside down, it simply stays there
 - if player is upside down, camera clips through the ground
 - show round timers
-- at the beginning of the race, show a matinee where the camera slowly moves towards the players hoverblock
+- at the beginning of the race, show a matinee where the camera slowly moves towards the players hoverblock :heavy_check_mark:
 - drifting
-- simultaneous input from keyboard and controller doubles movement speed
+- ~~simultaneous input from keyboard and controller doubles movement speed~~
 - braking is exremely fast / reactions to movement input are too instant / too big
 
 ### What should stay as it is?
