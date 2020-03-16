@@ -16,7 +16,7 @@ A short paper about the functionality of the proceduraly generated level (in ger
 ## Releases (64bit Windows only)
 
 * Original GameJam 2018 Release (v1.0) can be found [here (Google Drive)](https://drive.google.com/open?id=1xaCFgmvTVFYarPaAazB66IhzeeU28YhF)
-* Version 1.5 (the release version of my Forschungsprojekt) includes a procedurally generated world and can be found [here (Dropbox)](https://www.dropbox.com/s/1jcwmaky7vbc2gp/Julien_Fischer_Forschungsprojekt_Hoverblocks_v_1_5_executable_win64.zip?dl=0)
+* Version 1.5 (the release version of my Forschungsprojekt) includes a procedurally generated world and can be found [here (Google Drive)](https://drive.google.com/open?id=1Mxumef_EnaDNy2uQJVR4TGpPHt4y9VlC)
 
 
 
